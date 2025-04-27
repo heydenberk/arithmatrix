@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package arithmatrix;
+
+// A single cage within a Arithmatrix puzzle.
+message Cage {
+  // List of 0-based cell indices belonging to this cage (flattened row-major).
+  repeated uint32 cells = 1;
+
+  // Operation string: "" (no-op), "+", "-", "*", or "/".
+  string operation = 2;
+
+  // The target value for this cage.
+  uint32 value = 3;
+}
+
+// A single Arithmatrix puzzle.
+message Puzzle {
+  // Grid dimension n (n × n).
+  uint32 size = 1;
+
+  // Every cage in this puzzle.
+  repeated Cage cages = 2;
+
+  // The solution grid, flattened row-major as n*n integers in the range [1..n].
+  repeated uint32 solution = 3;
+
+  // The “extra” integer (previously called difficulty_operations).
+  uint32 difficulty_operations = 4;
+}
+
+// A batch of multiple puzzles.
+message PuzzleBatch {
+  repeated Puzzle puzzles = 1;
+}

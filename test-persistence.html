@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Arithmatrix Persistence</title>
+</head>
+<body>
+    <h1>Arithmatrix Persistence Test</h1>
+    
+    <h2>Test localStorage:</h2>
+    <button onclick="checkSavedState()">Check for Saved State</button>
+    <button onclick="clearState()">Clear Saved State</button>
+    <button onclick="simulateSave()">Simulate Save</button>
+    
+    <div id="output"></div>
+    
+    <script>
+        const GAME_STATE_STORAGE_KEY = 'arithmatrix_current_game_state';
+        
+        function checkSavedState() {
+            const output = document.getElementById('output');
+            const saved = localStorage.getItem(GAME_STATE_STORAGE_KEY);
+            if (saved) {
+                output.innerHTML = '<h3>Found saved state:</h3><pre>' + JSON.stringify(JSON.parse(saved), null, 2) + '</pre>';
+            } else {
+                output.innerHTML = '<h3>No saved state found</h3>';
+            }
+        }
+        
+        function clearState() {
+            localStorage.removeItem(GAME_STATE_STORAGE_KEY);
+            document.getElementById('output').innerHTML = '<h3>Cleared saved state</h3>';
+        }
+        
+        function simulateSave() {
+            const testState = {
+                puzzleDefinition: { size: 7, cages: [] },
+                solutionGrid: [[]],
+                gridValues: [['1', '', ''], ['', '2', ''], ['', '', '3']],
+                pencilMarks: [['', '', ''], ['', '', ''], ['', '', '']],
+                puzzleSettings: { size: 7, difficulty: 'medium' },
+                metadata: {
+                    savedAt: new Date(),
+                    startedAt: new Date(Date.now() - 60000),
+                    elapsedTime: 60
+                }
+            };
+            
+            localStorage.setItem(GAME_STATE_STORAGE_KEY, JSON.stringify(testState));
+            document.getElementById('output').innerHTML = '<h3>Simulated save completed</h3>';
+        }
+        
+        // Check on load
+        checkSavedState();
+    </script>
+</body>
+</html> 

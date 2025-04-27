@@ -1,0 +1,1079 @@
+/* Modern Arithmatrix Grid Styling */
+.arithmatrix-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+.arithmatrix-grid {
+  display: grid;
+  row-gap: 2px;
+  column-gap: 18px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 10px 20px -8px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+  /* Ensure grid alignment */
+  align-items: center;
+  justify-items: center;
+}
+
+.arithmatrix-grid::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+
+.arithmatrix-grid:hover::before {
+  transform: translateX(100%);
+}
+
+.arithmatrix-cell {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+  border-radius: 8px;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 8px rgba(0, 0, 0, 0.1);
+  overflow: visible;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  /* Ensure consistent sizing regardless of border width */
+  box-sizing: border-box;
+  /* Remove default border for all cells */
+  border: none;
+}
+
+/* Distinct cage background colors with beautiful gradients */
+.cage-color-0 {
+  background: linear-gradient(145deg, #fdf2f8, #fce7f3) !important;
+  border-color: #ec4899 !important;
+}
+
+.cage-color-1 {
+  background: linear-gradient(145deg, #fef3c7, #fde68a) !important;
+  border-color: #f59e0b !important;
+}
+
+.cage-color-2 {
+  background: linear-gradient(145deg, #d1fae5, #a7f3d0) !important;
+  border-color: #10b981 !important;
+}
+
+.cage-color-3 {
+  background: linear-gradient(145deg, #dbeafe, #bfdbfe) !important;
+  border-color: #3b82f6 !important;
+}
+
+.cage-color-4 {
+  background: linear-gradient(145deg, #ede9fe, #ddd6fe) !important;
+  border-color: #8b5cf6 !important;
+}
+
+.cage-color-5 {
+  background: linear-gradient(145deg, #e0f2fe, #bae6fd) !important;
+  border-color: #0ea5e9 !important;
+}
+
+.cage-color-6 {
+  background: linear-gradient(145deg, #ccfbf1, #99f6e4) !important;
+  border-color: #14b8a6 !important;
+}
+
+.cage-color-7 {
+  background: linear-gradient(145deg, #fed7aa, #fdba74) !important;
+  border-color: #ea580c !important;
+}
+
+.cage-color-8 {
+  background: linear-gradient(145deg, #e0e7ff, #c7d2fe) !important;
+  border-color: #6366f1 !important;
+}
+
+.cage-color-9 {
+  background: linear-gradient(145deg, #fce7f3, #fbcfe8) !important;
+  border-color: #ec4899 !important;
+}
+
+.cage-color-10 {
+  background: linear-gradient(145deg, #f0fdf4, #dcfce7) !important;
+  border-color: #22c55e !important;
+}
+
+.cage-color-11 {
+  background: linear-gradient(145deg, #fff7ed, #fed7aa) !important;
+  border-color: #f97316 !important;
+}
+
+/* Text colors that complement each cage color */
+.cage-text-color-0 .cell-input,
+.cage-text-color-0 .pencil-mark {
+  color: #be185d !important; /* Deep pink to complement light pink background */
+}
+
+.cage-text-color-1 .cell-input,
+.cage-text-color-1 .pencil-mark {
+  color: #d97706 !important; /* Deep amber to complement yellow background */
+}
+
+.cage-text-color-2 .cell-input,
+.cage-text-color-2 .pencil-mark {
+  color: #047857 !important; /* Deep emerald to complement green background */
+}
+
+.cage-text-color-3 .cell-input,
+.cage-text-color-3 .pencil-mark {
+  color: #1d4ed8 !important; /* Deep blue to complement blue background */
+}
+
+.cage-text-color-4 .cell-input,
+.cage-text-color-4 .pencil-mark {
+  color: #6b21a8 !important; /* Deep purple to complement purple background */
+}
+
+.cage-text-color-5 .cell-input,
+.cage-text-color-5 .pencil-mark {
+  color: #0369a1 !important; /* Deep sky blue to complement cyan background */
+}
+
+.cage-text-color-6 .cell-input,
+.cage-text-color-6 .pencil-mark {
+  color: #0f766e !important; /* Deep teal to complement teal background */
+}
+
+.cage-text-color-7 .cell-input,
+.cage-text-color-7 .pencil-mark {
+  color: #c2410c !important; /* Deep orange to complement orange background */
+}
+
+.cage-text-color-8 .cell-input,
+.cage-text-color-8 .pencil-mark {
+  color: #4338ca !important; /* Deep indigo to complement indigo background */
+}
+
+.cage-text-color-9 .cell-input,
+.cage-text-color-9 .pencil-mark {
+  color: #be185d !important; /* Deep pink to complement pink background */
+}
+
+.cage-text-color-10 .cell-input,
+.cage-text-color-10 .pencil-mark {
+  color: #15803d !important; /* Deep green to complement green background */
+}
+
+.cage-text-color-11 .cell-input,
+.cage-text-color-11 .pencil-mark {
+  color: #ea580c !important; /* Deep orange to complement orange background */
+}
+
+/* Enhanced hover effects for cage colors */
+.arithmatrix-cell:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Enhanced focus state with modern design */
+.arithmatrix-cell:focus-within {
+  outline: none;
+  transform: translateY(-2px) scale(1.02);
+  z-index: 10;
+}
+
+/* Cage-specific focus indicators */
+.cage-color-0:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(236, 72, 153, 0.3),
+    0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+.cage-color-1:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(245, 158, 11, 0.3),
+    0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.cage-color-2:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(16, 185, 129, 0.3),
+    0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.cage-color-3:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(59, 130, 246, 0.3),
+    0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.cage-color-4:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(139, 92, 246, 0.3),
+    0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.cage-color-5:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(14, 165, 233, 0.3),
+    0 0 0 3px rgba(14, 165, 233, 0.2);
+}
+
+.cage-color-6:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(20, 184, 166, 0.3),
+    0 0 0 3px rgba(20, 184, 166, 0.2);
+}
+
+.cage-color-7:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(234, 88, 12, 0.3),
+    0 0 0 3px rgba(234, 88, 12, 0.2);
+}
+
+.cage-color-8:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(99, 102, 241, 0.3),
+    0 0 0 3px rgba(99, 102, 241, 0.2);
+}
+
+.cage-color-9:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(236, 72, 153, 0.3),
+    0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+.cage-color-10:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(34, 197, 94, 0.3),
+    0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.cage-color-11:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(249, 115, 22, 0.3),
+    0 0 0 3px rgba(249, 115, 22, 0.2);
+}
+
+/* Pencil marks styling */
+.pencil-marks-container.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent; /* Make transparent so cage colors show through */
+  padding-top: 1.75em;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 5;
+  border-radius: 8px;
+}
+
+.pencil-marks-grid {
+  display: grid;
+  width: 100%;
+  height: calc(100% - 1.75em);
+  box-sizing: border-box;
+  padding: 4px;
+  gap: 1px;
+}
+
+.pencil-marks-grid.size-2x2 {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
+.pencil-marks-grid.size-3x3 {
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+}
+
+.pencil-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+  text-align: center;
+  line-height: 1;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  transition: all 0.2s ease;
+}
+
+.pencil-mark:not(:empty) {
+  background: rgba(255, 255, 255, 0.6);
+  color: #374151;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Cage info styling */
+.cage-info {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  z-index: 15;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
+  backdrop-filter: blur(8px);
+  padding: 3px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
+  color: #1f2937;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Cage exterior border styles - medium gray borders around cage edges */
+.cage-border-top {
+  border-top: 2px solid #9ca3af;
+}
+
+.cage-border-right {
+  border-right: 2px solid #9ca3af;
+}
+
+.cage-border-bottom {
+  border-bottom: 2px solid #9ca3af;
+}
+
+.cage-border-left {
+  border-left: 2px solid #9ca3af;
+}
+
+/* Enhanced selected cell state - only border, no background change */
+.arithmatrix-cell.selected-cell {
+  z-index: 8;
+  transform: scale(1.02);
+}
+
+/* Cage-specific selection indicators */
+.cage-color-0.selected-cell {
+  border: 4px solid #ec4899 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(236, 72, 153, 0.7),
+    0 8px 20px rgba(236, 72, 153, 0.5) !important;
+}
+
+.cage-color-1.selected-cell {
+  border: 4px solid #f59e0b !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(245, 158, 11, 0.7),
+    0 8px 20px rgba(245, 158, 11, 0.5) !important;
+}
+
+.cage-color-2.selected-cell {
+  border: 4px solid #10b981 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(16, 185, 129, 0.7),
+    0 8px 20px rgba(16, 185, 129, 0.5) !important;
+}
+
+.cage-color-3.selected-cell {
+  border: 4px solid #3b82f6 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(59, 130, 246, 0.7),
+    0 8px 20px rgba(59, 130, 246, 0.5) !important;
+}
+
+.cage-color-4.selected-cell {
+  border: 4px solid #8b5cf6 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(139, 92, 246, 0.7),
+    0 8px 20px rgba(139, 92, 246, 0.5) !important;
+}
+
+.cage-color-5.selected-cell {
+  border: 4px solid #0ea5e9 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(14, 165, 233, 0.7),
+    0 8px 20px rgba(14, 165, 233, 0.5) !important;
+}
+
+.cage-color-6.selected-cell {
+  border: 4px solid #14b8a6 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(20, 184, 166, 0.7),
+    0 8px 20px rgba(20, 184, 166, 0.5) !important;
+}
+
+.cage-color-7.selected-cell {
+  border: 4px solid #ea580c !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(234, 88, 12, 0.7),
+    0 8px 20px rgba(234, 88, 12, 0.5) !important;
+}
+
+.cage-color-8.selected-cell {
+  border: 4px solid #6366f1 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(99, 102, 241, 0.7),
+    0 8px 20px rgba(99, 102, 241, 0.5) !important;
+}
+
+.cage-color-9.selected-cell {
+  border: 4px solid #ec4899 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(236, 72, 153, 0.7),
+    0 8px 20px rgba(236, 72, 153, 0.5) !important;
+}
+
+.cage-color-10.selected-cell {
+  border: 4px solid #22c55e !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(34, 197, 94, 0.7),
+    0 8px 20px rgba(34, 197, 94, 0.5) !important;
+}
+
+.cage-color-11.selected-cell {
+  border: 4px solid #f97316 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(249, 115, 22, 0.7),
+    0 8px 20px rgba(249, 115, 22, 0.5) !important;
+}
+
+/* Enhanced error states with better visibility */
+.error-cell {
+  background: linear-gradient(145deg, #fef2f2, #fee2e2) !important;
+  animation: errorPulse 0.5s ease-out;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(239, 68, 68, 0.2),
+    0 0 0 3px rgba(239, 68, 68, 0.4),
+    0 8px 16px rgba(239, 68, 68, 0.3) !important;
+}
+
+@keyframes errorPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.input-error {
+  color: #dc2626 !important;
+  text-decoration: line-through !important;
+  text-decoration-color: #dc2626 !important;
+  text-decoration-thickness: 2px !important;
+}
+
+/* Flash animation for invalid input */
+.cell-flash-invalid {
+  animation: invalidFlash 0.6s ease-out;
+}
+
+@keyframes invalidFlash {
+  0%, 100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 4px 8px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(239, 68, 68, 0.2),
+      0 0 0 3px rgba(239, 68, 68, 0.4),
+      0 8px 16px rgba(239, 68, 68, 0.3);
+  }
+}
+
+/* Pulsate animations for each cage color */
+.cage-color-0.selected-cell { animation: pulsate-focus-0 2s infinite; }
+.cage-color-1.selected-cell { animation: pulsate-focus-1 2s infinite; }
+.cage-color-2.selected-cell { animation: pulsate-focus-2 2s infinite; }
+.cage-color-3.selected-cell { animation: pulsate-focus-3 2s infinite; }
+.cage-color-4.selected-cell { animation: pulsate-focus-4 2s infinite; }
+.cage-color-5.selected-cell { animation: pulsate-focus-5 2s infinite; }
+.cage-color-6.selected-cell { animation: pulsate-focus-6 2s infinite; }
+.cage-color-7.selected-cell { animation: pulsate-focus-7 2s infinite; }
+.cage-color-8.selected-cell { animation: pulsate-focus-8 2s infinite; }
+.cage-color-9.selected-cell { animation: pulsate-focus-9 2s infinite; }
+.cage-color-10.selected-cell { animation: pulsate-focus-10 2s infinite; }
+.cage-color-11.selected-cell { animation: pulsate-focus-11 2s infinite; }
+
+@keyframes pulsate-focus-0 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(236, 72, 153, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(236, 72, 153, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(236, 72, 153, 0);
+  }
+}
+
+@keyframes pulsate-focus-1 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(245, 158, 11, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes pulsate-focus-2 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(16, 185, 129, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes pulsate-focus-3 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes pulsate-focus-4 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(139, 92, 246, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(139, 92, 246, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(139, 92, 246, 0);
+  }
+}
+
+@keyframes pulsate-focus-5 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(14, 165, 233, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(14, 165, 233, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(14, 165, 233, 0);
+  }
+}
+
+@keyframes pulsate-focus-6 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(20, 184, 166, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(20, 184, 166, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(20, 184, 166, 0);
+  }
+}
+
+@keyframes pulsate-focus-7 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(234, 88, 12, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(234, 88, 12, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(234, 88, 12, 0);
+  }
+}
+
+@keyframes pulsate-focus-8 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(99, 102, 241, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(99, 102, 241, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+@keyframes pulsate-focus-9 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(236, 72, 153, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(236, 72, 153, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(236, 72, 153, 0);
+  }
+}
+
+@keyframes pulsate-focus-10 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes pulsate-focus-11 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(249, 115, 22, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(249, 115, 22, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(249, 115, 22, 0);
+  }
+}
+
+/* Grid area assignments for pencil marks */
+/* For 2x2 grid */
+.size-2x2 .pencil-mark:nth-child(1) { grid-area: 1 / 1; }
+.size-2x2 .pencil-mark:nth-child(2) { grid-area: 1 / 2; }
+.size-2x2 .pencil-mark:nth-child(3) { grid-area: 2 / 1; }
+.size-2x2 .pencil-mark:nth-child(4) { grid-area: 2 / 2; }
+
+/* For 3x3 grid */
+.size-3x3 .pencil-mark:nth-child(1) { grid-area: 1 / 1; }
+.size-3x3 .pencil-mark:nth-child(2) { grid-area: 1 / 2; }
+.size-3x3 .pencil-mark:nth-child(3) { grid-area: 1 / 3; }
+.size-3x3 .pencil-mark:nth-child(4) { grid-area: 2 / 1; }
+.size-3x3 .pencil-mark:nth-child(5) { grid-area: 2 / 2; }
+.size-3x3 .pencil-mark:nth-child(6) { grid-area: 2 / 3; }
+.size-3x3 .pencil-mark:nth-child(7) { grid-area: 3 / 1; }
+.size-3x3 .pencil-mark:nth-child(8) { grid-area: 3 / 2; }
+.size-3x3 .pencil-mark:nth-child(9) { grid-area: 3 / 3; }
+
+/* Responsive adjustments - Enhanced mobile breakpoints */
+
+/* Small phones (320px-480px) */
+@media (max-width: 480px) {
+  .arithmatrix-container {
+    padding: 8px;
+  }
+
+  .arithmatrix-grid {
+    row-gap: 1px;
+    column-gap: 12px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
+  .arithmatrix-cell {
+    width: 54px;
+    height: 54px;
+    border-radius: 6px;
+    /* Ensure minimum touch target size */
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .cell-input {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  
+  .cage-info {
+    font-size: 0.55rem;
+    padding: 1px 3px;
+    border-radius: 2px;
+  }
+
+  .pencil-mark {
+    font-size: 0.7rem;
+  }
+
+  /* Ensure pencil marks are readable on small screens */
+  .pencil-marks-grid.size-3x3 {
+    gap: 1px;
+  }
+  
+  .pencil-marks-grid.size-2x2 {
+    gap: 2px;
+  }
+}
+
+/* Large phones (481px-768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .arithmatrix-container {
+    padding: 12px;
+  }
+
+  .arithmatrix-grid {
+    row-gap: 2px;
+    column-gap: 15px;
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .arithmatrix-cell {
+    width: 64px;
+    height: 64px;
+    border-radius: 7px;
+  }
+  
+  .cell-input {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  
+  .cage-info {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
+
+  .pencil-mark {
+    font-size: 0.75rem;
+  }
+}
+
+/* Tablets portrait (769px-1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .arithmatrix-container {
+    padding: 16px;
+  }
+
+  .arithmatrix-grid {
+    row-gap: 2px;
+    column-gap: 16px;
+    padding: 12px;
+  }
+
+  .arithmatrix-cell {
+    width: 72px;
+    height: 72px;
+  }
+  
+  .cell-input {
+    font-size: 1.8rem;
+  }
+  
+  .cage-info {
+    font-size: 0.65rem;
+    padding: 2px 4px;
+  }
+}
+
+/* Landscape orientation handling */
+@media (orientation: landscape) and (max-height: 600px) {
+  .arithmatrix-container {
+    padding: 8px;
+  }
+
+  .arithmatrix-grid {
+    padding: 6px;
+  }
+
+  .arithmatrix-cell {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .cell-input {
+    font-size: 1.4rem;
+  }
+  
+  .cage-info {
+    font-size: 0.5rem;
+    padding: 1px 2px;
+  }
+
+  .pencil-mark {
+    font-size: 0.65rem;
+  }
+}
+
+/* Touch target optimizations */
+@media (pointer: coarse) {
+  .arithmatrix-cell {
+    /* Ensure touch targets are at least 44px */
+    min-width: 44px;
+    min-height: 44px;
+    /* Add touch-specific styling */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .arithmatrix-cell:hover {
+    /* Reduce hover effects on touch devices */
+    transform: none;
+  }
+
+  .arithmatrix-cell:active {
+    /* Add visual feedback for touch */
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* High density displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .cage-info {
+    /* Improve text rendering on high-DPI screens */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  .cell-input {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Original mobile breakpoint - now enhanced */
+@media (max-width: 640px) {
+  .arithmatrix-cell {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .cell-input {
+    font-size: 1.6rem;
+  }
+  
+  .cage-info {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
+}
+
+.cell-input-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cell-input {
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  font-size: 2rem;
+  font-weight: 700;
+  border: none;
+  background-color: transparent;
+  outline: none;
+  padding: 0;
+  color: #1e293b;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  transition: color 0.2s ease;
+  /* Mobile optimizations */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.cell-input:focus {
+  caret-color: transparent;
+  outline: none;
+}
+
+.cell-input:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+/* Add mobile-specific classes */
+.mobile-optimized {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.touch-feedback {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+} 

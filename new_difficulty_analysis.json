@@ -1,0 +1,574 @@
+{
+  "analysis_timestamp": 1748717059.40287,
+  "solver_version": "optimized_v2",
+  "statistics": {
+    "4": {
+      "size": 4,
+      "successful_count": 30,
+      "failed_attempts": 20,
+      "total_time": 4.94580602645874,
+      "avg_time_per_puzzle": 0.16486020088195802,
+      "operations": {
+        "min": 33,
+        "max": 350,
+        "mean": 134.93333333333334,
+        "median": 107.5,
+        "stdev": 83.59546817172911
+      },
+      "percentiles": {
+        "5": 40,
+        "10": 41,
+        "20": 48,
+        "25": 75,
+        "40": 91,
+        "50": 109,
+        "60": 151,
+        "75": 208,
+        "80": 215,
+        "90": 233,
+        "95": 277
+      }
+    },
+    "5": {
+      "size": 5,
+      "successful_count": 25,
+      "failed_attempts": 13,
+      "total_time": 0.46405625343322754,
+      "avg_time_per_puzzle": 0.018562250137329102,
+      "operations": {
+        "min": 84,
+        "max": 1633,
+        "mean": 627.76,
+        "median": 576,
+        "stdev": 364.6529491630821
+      },
+      "percentiles": {
+        "5": 144,
+        "10": 284,
+        "20": 365,
+        "25": 366,
+        "40": 428,
+        "50": 576,
+        "60": 687,
+        "75": 778,
+        "80": 962,
+        "90": 1062,
+        "95": 1272
+      }
+    },
+    "6": {
+      "size": 6,
+      "successful_count": 20,
+      "failed_attempts": 3,
+      "total_time": 15.342098236083984,
+      "avg_time_per_puzzle": 0.7671049118041993,
+      "operations": {
+        "min": 867,
+        "max": 134535,
+        "mean": 27470,
+        "median": 17723.0,
+        "stdev": 35833.9041030022
+      },
+      "percentiles": {
+        "5": 874,
+        "10": 955,
+        "20": 1578,
+        "25": 2097,
+        "40": 9917,
+        "50": 20610,
+        "60": 23319,
+        "75": 40817,
+        "80": 45667,
+        "90": 103690,
+        "95": 134535
+      }
+    },
+    "7": {
+      "size": 7,
+      "successful_count": 15,
+      "failed_attempts": 3,
+      "total_time": 67.30302214622498,
+      "avg_time_per_puzzle": 4.486868143081665,
+      "operations": {
+        "min": 7497,
+        "max": 593983,
+        "mean": 170821.93333333332,
+        "median": 93609,
+        "stdev": 195504.77021161208
+      },
+      "percentiles": {
+        "5": 7497,
+        "10": 10634,
+        "20": 49819,
+        "25": 49819,
+        "40": 69529,
+        "50": 93609,
+        "60": 117554,
+        "75": 267199,
+        "80": 455452,
+        "90": 524362,
+        "95": 593983
+      }
+    }
+  },
+  "raw_puzzles": {
+    "4": [
+      {
+        "puzzle_id": 0,
+        "operations": 45,
+        "generation_attempt": 2
+      },
+      {
+        "puzzle_id": 1,
+        "operations": 115,
+        "generation_attempt": 4
+      },
+      {
+        "puzzle_id": 2,
+        "operations": 180,
+        "generation_attempt": 5
+      },
+      {
+        "puzzle_id": 3,
+        "operations": 208,
+        "generation_attempt": 6
+      },
+      {
+        "puzzle_id": 4,
+        "operations": 88,
+        "generation_attempt": 8
+      },
+      {
+        "puzzle_id": 5,
+        "operations": 151,
+        "generation_attempt": 10
+      },
+      {
+        "puzzle_id": 6,
+        "operations": 109,
+        "generation_attempt": 11
+      },
+      {
+        "puzzle_id": 7,
+        "operations": 233,
+        "generation_attempt": 12
+      },
+      {
+        "puzzle_id": 8,
+        "operations": 80,
+        "generation_attempt": 13
+      },
+      {
+        "puzzle_id": 9,
+        "operations": 215,
+        "generation_attempt": 16
+      },
+      {
+        "puzzle_id": 10,
+        "operations": 277,
+        "generation_attempt": 17
+      },
+      {
+        "puzzle_id": 11,
+        "operations": 84,
+        "generation_attempt": 19
+      },
+      {
+        "puzzle_id": 12,
+        "operations": 229,
+        "generation_attempt": 23
+      },
+      {
+        "puzzle_id": 13,
+        "operations": 85,
+        "generation_attempt": 25
+      },
+      {
+        "puzzle_id": 14,
+        "operations": 204,
+        "generation_attempt": 26
+      },
+      {
+        "puzzle_id": 15,
+        "operations": 41,
+        "generation_attempt": 28
+      },
+      {
+        "puzzle_id": 16,
+        "operations": 33,
+        "generation_attempt": 31
+      },
+      {
+        "puzzle_id": 17,
+        "operations": 128,
+        "generation_attempt": 32
+      },
+      {
+        "puzzle_id": 18,
+        "operations": 75,
+        "generation_attempt": 33
+      },
+      {
+        "puzzle_id": 19,
+        "operations": 350,
+        "generation_attempt": 34
+      },
+      {
+        "puzzle_id": 20,
+        "operations": 45,
+        "generation_attempt": 35
+      },
+      {
+        "puzzle_id": 21,
+        "operations": 91,
+        "generation_attempt": 36
+      },
+      {
+        "puzzle_id": 22,
+        "operations": 210,
+        "generation_attempt": 37
+      },
+      {
+        "puzzle_id": 23,
+        "operations": 104,
+        "generation_attempt": 39
+      },
+      {
+        "puzzle_id": 24,
+        "operations": 232,
+        "generation_attempt": 40
+      },
+      {
+        "puzzle_id": 25,
+        "operations": 48,
+        "generation_attempt": 41
+      },
+      {
+        "puzzle_id": 26,
+        "operations": 201,
+        "generation_attempt": 42
+      },
+      {
+        "puzzle_id": 27,
+        "operations": 40,
+        "generation_attempt": 46
+      },
+      {
+        "puzzle_id": 28,
+        "operations": 106,
+        "generation_attempt": 49
+      },
+      {
+        "puzzle_id": 29,
+        "operations": 41,
+        "generation_attempt": 50
+      }
+    ],
+    "5": [
+      {
+        "puzzle_id": 0,
+        "operations": 705,
+        "generation_attempt": 1
+      },
+      {
+        "puzzle_id": 1,
+        "operations": 650,
+        "generation_attempt": 2
+      },
+      {
+        "puzzle_id": 2,
+        "operations": 428,
+        "generation_attempt": 4
+      },
+      {
+        "puzzle_id": 3,
+        "operations": 365,
+        "generation_attempt": 9
+      },
+      {
+        "puzzle_id": 4,
+        "operations": 748,
+        "generation_attempt": 10
+      },
+      {
+        "puzzle_id": 5,
+        "operations": 366,
+        "generation_attempt": 11
+      },
+      {
+        "puzzle_id": 6,
+        "operations": 327,
+        "generation_attempt": 13
+      },
+      {
+        "puzzle_id": 7,
+        "operations": 687,
+        "generation_attempt": 14
+      },
+      {
+        "puzzle_id": 8,
+        "operations": 356,
+        "generation_attempt": 16
+      },
+      {
+        "puzzle_id": 9,
+        "operations": 399,
+        "generation_attempt": 17
+      },
+      {
+        "puzzle_id": 10,
+        "operations": 144,
+        "generation_attempt": 18
+      },
+      {
+        "puzzle_id": 11,
+        "operations": 84,
+        "generation_attempt": 19
+      },
+      {
+        "puzzle_id": 12,
+        "operations": 576,
+        "generation_attempt": 21
+      },
+      {
+        "puzzle_id": 13,
+        "operations": 962,
+        "generation_attempt": 22
+      },
+      {
+        "puzzle_id": 14,
+        "operations": 1062,
+        "generation_attempt": 23
+      },
+      {
+        "puzzle_id": 15,
+        "operations": 372,
+        "generation_attempt": 24
+      },
+      {
+        "puzzle_id": 16,
+        "operations": 517,
+        "generation_attempt": 27
+      },
+      {
+        "puzzle_id": 17,
+        "operations": 1011,
+        "generation_attempt": 28
+      },
+      {
+        "puzzle_id": 18,
+        "operations": 284,
+        "generation_attempt": 30
+      },
+      {
+        "puzzle_id": 19,
+        "operations": 618,
+        "generation_attempt": 31
+      },
+      {
+        "puzzle_id": 20,
+        "operations": 778,
+        "generation_attempt": 32
+      },
+      {
+        "puzzle_id": 21,
+        "operations": 1272,
+        "generation_attempt": 33
+      },
+      {
+        "puzzle_id": 22,
+        "operations": 406,
+        "generation_attempt": 34
+      },
+      {
+        "puzzle_id": 23,
+        "operations": 1633,
+        "generation_attempt": 35
+      },
+      {
+        "puzzle_id": 24,
+        "operations": 944,
+        "generation_attempt": 38
+      }
+    ],
+    "6": [
+      {
+        "puzzle_id": 0,
+        "operations": 59816,
+        "generation_attempt": 1
+      },
+      {
+        "puzzle_id": 1,
+        "operations": 8460,
+        "generation_attempt": 2
+      },
+      {
+        "puzzle_id": 2,
+        "operations": 26080,
+        "generation_attempt": 3
+      },
+      {
+        "puzzle_id": 3,
+        "operations": 23319,
+        "generation_attempt": 4
+      },
+      {
+        "puzzle_id": 4,
+        "operations": 20610,
+        "generation_attempt": 5
+      },
+      {
+        "puzzle_id": 5,
+        "operations": 14836,
+        "generation_attempt": 6
+      },
+      {
+        "puzzle_id": 6,
+        "operations": 103690,
+        "generation_attempt": 8
+      },
+      {
+        "puzzle_id": 7,
+        "operations": 9917,
+        "generation_attempt": 10
+      },
+      {
+        "puzzle_id": 8,
+        "operations": 1578,
+        "generation_attempt": 11
+      },
+      {
+        "puzzle_id": 9,
+        "operations": 26856,
+        "generation_attempt": 12
+      },
+      {
+        "puzzle_id": 10,
+        "operations": 134535,
+        "generation_attempt": 13
+      },
+      {
+        "puzzle_id": 11,
+        "operations": 40817,
+        "generation_attempt": 14
+      },
+      {
+        "puzzle_id": 12,
+        "operations": 22805,
+        "generation_attempt": 16
+      },
+      {
+        "puzzle_id": 13,
+        "operations": 955,
+        "generation_attempt": 17
+      },
+      {
+        "puzzle_id": 14,
+        "operations": 874,
+        "generation_attempt": 18
+      },
+      {
+        "puzzle_id": 15,
+        "operations": 4118,
+        "generation_attempt": 19
+      },
+      {
+        "puzzle_id": 16,
+        "operations": 45667,
+        "generation_attempt": 20
+      },
+      {
+        "puzzle_id": 17,
+        "operations": 867,
+        "generation_attempt": 21
+      },
+      {
+        "puzzle_id": 18,
+        "operations": 2097,
+        "generation_attempt": 22
+      },
+      {
+        "puzzle_id": 19,
+        "operations": 1503,
+        "generation_attempt": 23
+      }
+    ],
+    "7": [
+      {
+        "puzzle_id": 0,
+        "operations": 593983,
+        "generation_attempt": 2
+      },
+      {
+        "puzzle_id": 1,
+        "operations": 16233,
+        "generation_attempt": 3
+      },
+      {
+        "puzzle_id": 2,
+        "operations": 125339,
+        "generation_attempt": 4
+      },
+      {
+        "puzzle_id": 3,
+        "operations": 455452,
+        "generation_attempt": 5
+      },
+      {
+        "puzzle_id": 4,
+        "operations": 267199,
+        "generation_attempt": 7
+      },
+      {
+        "puzzle_id": 5,
+        "operations": 116266,
+        "generation_attempt": 8
+      },
+      {
+        "puzzle_id": 6,
+        "operations": 62652,
+        "generation_attempt": 9
+      },
+      {
+        "puzzle_id": 7,
+        "operations": 93609,
+        "generation_attempt": 10
+      },
+      {
+        "puzzle_id": 8,
+        "operations": 69529,
+        "generation_attempt": 11
+      },
+      {
+        "puzzle_id": 9,
+        "operations": 524362,
+        "generation_attempt": 12
+      },
+      {
+        "puzzle_id": 10,
+        "operations": 49819,
+        "generation_attempt": 14
+      },
+      {
+        "puzzle_id": 11,
+        "operations": 117554,
+        "generation_attempt": 15
+      },
+      {
+        "puzzle_id": 12,
+        "operations": 52201,
+        "generation_attempt": 16
+      },
+      {
+        "puzzle_id": 13,
+        "operations": 10634,
+        "generation_attempt": 17
+      },
+      {
+        "puzzle_id": 14,
+        "operations": 7497,
+        "generation_attempt": 18
+      }
+    ]
+  }
+}

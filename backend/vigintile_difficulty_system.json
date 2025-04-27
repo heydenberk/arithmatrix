@@ -1,0 +1,635 @@
+{
+  "global_vigintiles": [
+    {
+      "level": 1,
+      "name": "Trivial",
+      "percentile_range": "0%-5%",
+      "score_range": [
+        9.5,
+        16.2
+      ],
+      "min_score": 9.5,
+      "max_score": 16.2
+    },
+    {
+      "level": 2,
+      "name": "Very Easy",
+      "percentile_range": "5%-10%",
+      "score_range": [
+        16.2,
+        18.1
+      ],
+      "min_score": 16.2,
+      "max_score": 18.1
+    },
+    {
+      "level": 3,
+      "name": "Easy",
+      "percentile_range": "10%-15%",
+      "score_range": [
+        18.1,
+        19.8
+      ],
+      "min_score": 18.1,
+      "max_score": 19.8
+    },
+    {
+      "level": 4,
+      "name": "Simple",
+      "percentile_range": "15%-20%",
+      "score_range": [
+        19.8,
+        21.4
+      ],
+      "min_score": 19.8,
+      "max_score": 21.4
+    },
+    {
+      "level": 5,
+      "name": "Moderate",
+      "percentile_range": "20%-25%",
+      "score_range": [
+        21.4,
+        22.8
+      ],
+      "min_score": 21.4,
+      "max_score": 22.8
+    },
+    {
+      "level": 6,
+      "name": "Regular",
+      "percentile_range": "25%-30%",
+      "score_range": [
+        22.8,
+        24.6
+      ],
+      "min_score": 22.8,
+      "max_score": 24.6
+    },
+    {
+      "level": 7,
+      "name": "Standard",
+      "percentile_range": "30%-35%",
+      "score_range": [
+        24.6,
+        26.1
+      ],
+      "min_score": 24.6,
+      "max_score": 26.1
+    },
+    {
+      "level": 8,
+      "name": "Normal",
+      "percentile_range": "35%-40%",
+      "score_range": [
+        26.1,
+        28.0
+      ],
+      "min_score": 26.1,
+      "max_score": 28.0
+    },
+    {
+      "level": 9,
+      "name": "Challenging",
+      "percentile_range": "40%-45%",
+      "score_range": [
+        28.0,
+        30.154999999999994
+      ],
+      "min_score": 28.0,
+      "max_score": 30.154999999999994
+    },
+    {
+      "level": 10,
+      "name": "Difficult",
+      "percentile_range": "45%-50%",
+      "score_range": [
+        30.154999999999994,
+        32.4
+      ],
+      "min_score": 30.154999999999994,
+      "max_score": 32.4
+    },
+    {
+      "level": 11,
+      "name": "Hard",
+      "percentile_range": "50%-55%",
+      "score_range": [
+        32.4,
+        35.3
+      ],
+      "min_score": 32.4,
+      "max_score": 35.3
+    },
+    {
+      "level": 12,
+      "name": "Tough",
+      "percentile_range": "55%-60%",
+      "score_range": [
+        35.3,
+        37.3
+      ],
+      "min_score": 35.3,
+      "max_score": 37.3
+    },
+    {
+      "level": 13,
+      "name": "Demanding",
+      "percentile_range": "60%-65%",
+      "score_range": [
+        37.3,
+        39.3
+      ],
+      "min_score": 37.3,
+      "max_score": 39.3
+    },
+    {
+      "level": 14,
+      "name": "Intense",
+      "percentile_range": "65%-70%",
+      "score_range": [
+        39.3,
+        41.8
+      ],
+      "min_score": 39.3,
+      "max_score": 41.8
+    },
+    {
+      "level": 15,
+      "name": "Expert",
+      "percentile_range": "70%-75%",
+      "score_range": [
+        41.8,
+        44.725
+      ],
+      "min_score": 41.8,
+      "max_score": 44.725
+    },
+    {
+      "level": 16,
+      "name": "Master",
+      "percentile_range": "75%-80%",
+      "score_range": [
+        44.725,
+        47.3
+      ],
+      "min_score": 44.725,
+      "max_score": 47.3
+    },
+    {
+      "level": 17,
+      "name": "Elite",
+      "percentile_range": "80%-85%",
+      "score_range": [
+        47.3,
+        49.51500000000001
+      ],
+      "min_score": 47.3,
+      "max_score": 49.51500000000001
+    },
+    {
+      "level": 18,
+      "name": "Extreme",
+      "percentile_range": "85%-90%",
+      "score_range": [
+        49.51500000000001,
+        51.8
+      ],
+      "min_score": 49.51500000000001,
+      "max_score": 51.8
+    },
+    {
+      "level": 19,
+      "name": "Supreme",
+      "percentile_range": "90%-95%",
+      "score_range": [
+        51.8,
+        54.8
+      ],
+      "min_score": 51.8,
+      "max_score": 54.8
+    },
+    {
+      "level": 20,
+      "name": "Legendary",
+      "percentile_range": "95%-100%",
+      "score_range": [
+        54.8,
+        64.8
+      ],
+      "min_score": 54.8,
+      "max_score": 64.8
+    }
+  ],
+  "size_specific_vigintiles": {
+    "4": {
+      "1": {
+        "min_score": 9.5,
+        "max_score": 14.1,
+        "name": "Trivial"
+      },
+      "2": {
+        "min_score": 14.1,
+        "max_score": 14.89,
+        "name": "Very Easy"
+      },
+      "3": {
+        "min_score": 14.89,
+        "max_score": 15.7,
+        "name": "Easy"
+      },
+      "4": {
+        "min_score": 15.7,
+        "max_score": 16.2,
+        "name": "Simple"
+      },
+      "5": {
+        "min_score": 16.2,
+        "max_score": 16.7,
+        "name": "Moderate"
+      },
+      "6": {
+        "min_score": 16.7,
+        "max_score": 17.2,
+        "name": "Regular"
+      },
+      "7": {
+        "min_score": 17.2,
+        "max_score": 17.7,
+        "name": "Standard"
+      },
+      "8": {
+        "min_score": 17.7,
+        "max_score": 18.1,
+        "name": "Normal"
+      },
+      "9": {
+        "min_score": 18.1,
+        "max_score": 18.5,
+        "name": "Challenging"
+      },
+      "10": {
+        "min_score": 18.5,
+        "max_score": 18.9,
+        "name": "Difficult"
+      },
+      "11": {
+        "min_score": 18.9,
+        "max_score": 19.5,
+        "name": "Hard"
+      },
+      "12": {
+        "min_score": 19.5,
+        "max_score": 19.8,
+        "name": "Tough"
+      },
+      "13": {
+        "min_score": 19.8,
+        "max_score": 20.3,
+        "name": "Demanding"
+      },
+      "14": {
+        "min_score": 20.3,
+        "max_score": 20.7,
+        "name": "Intense"
+      },
+      "15": {
+        "min_score": 20.7,
+        "max_score": 21.2,
+        "name": "Expert"
+      },
+      "16": {
+        "min_score": 21.2,
+        "max_score": 21.7,
+        "name": "Master"
+      },
+      "17": {
+        "min_score": 21.7,
+        "max_score": 22.214999999999996,
+        "name": "Elite"
+      },
+      "18": {
+        "min_score": 22.214999999999996,
+        "max_score": 22.9,
+        "name": "Extreme"
+      },
+      "19": {
+        "min_score": 22.9,
+        "max_score": 24.2,
+        "name": "Supreme"
+      },
+      "20": {
+        "min_score": 24.2,
+        "max_score": 29.1,
+        "name": "Legendary"
+      }
+    },
+    "5": {
+      "1": {
+        "min_score": 16.2,
+        "max_score": 21.6,
+        "name": "Trivial"
+      },
+      "2": {
+        "min_score": 21.6,
+        "max_score": 22.8,
+        "name": "Very Easy"
+      },
+      "3": {
+        "min_score": 22.8,
+        "max_score": 23.5,
+        "name": "Easy"
+      },
+      "4": {
+        "min_score": 23.5,
+        "max_score": 24.3,
+        "name": "Simple"
+      },
+      "5": {
+        "min_score": 24.3,
+        "max_score": 24.8,
+        "name": "Moderate"
+      },
+      "6": {
+        "min_score": 24.8,
+        "max_score": 25.3,
+        "name": "Regular"
+      },
+      "7": {
+        "min_score": 25.3,
+        "max_score": 25.665,
+        "name": "Standard"
+      },
+      "8": {
+        "min_score": 25.665,
+        "max_score": 26.1,
+        "name": "Normal"
+      },
+      "9": {
+        "min_score": 26.1,
+        "max_score": 26.6,
+        "name": "Challenging"
+      },
+      "10": {
+        "min_score": 26.6,
+        "max_score": 27.15,
+        "name": "Difficult"
+      },
+      "11": {
+        "min_score": 27.15,
+        "max_score": 27.5,
+        "name": "Hard"
+      },
+      "12": {
+        "min_score": 27.5,
+        "max_score": 28.04,
+        "name": "Tough"
+      },
+      "13": {
+        "min_score": 28.04,
+        "max_score": 28.5,
+        "name": "Demanding"
+      },
+      "14": {
+        "min_score": 28.5,
+        "max_score": 28.9,
+        "name": "Intense"
+      },
+      "15": {
+        "min_score": 28.9,
+        "max_score": 29.7,
+        "name": "Expert"
+      },
+      "16": {
+        "min_score": 29.7,
+        "max_score": 30.4,
+        "name": "Master"
+      },
+      "17": {
+        "min_score": 30.4,
+        "max_score": 31.1,
+        "name": "Elite"
+      },
+      "18": {
+        "min_score": 31.1,
+        "max_score": 32.0,
+        "name": "Extreme"
+      },
+      "19": {
+        "min_score": 32.0,
+        "max_score": 33.3,
+        "name": "Supreme"
+      },
+      "20": {
+        "min_score": 33.3,
+        "max_score": 39.6,
+        "name": "Legendary"
+      }
+    },
+    "6": {
+      "1": {
+        "min_score": 27.5,
+        "max_score": 31.695,
+        "name": "Trivial"
+      },
+      "2": {
+        "min_score": 31.695,
+        "max_score": 32.9,
+        "name": "Very Easy"
+      },
+      "3": {
+        "min_score": 32.9,
+        "max_score": 34.1,
+        "name": "Easy"
+      },
+      "4": {
+        "min_score": 34.1,
+        "max_score": 35.0,
+        "name": "Simple"
+      },
+      "5": {
+        "min_score": 35.0,
+        "max_score": 35.6,
+        "name": "Moderate"
+      },
+      "6": {
+        "min_score": 35.6,
+        "max_score": 36.3,
+        "name": "Regular"
+      },
+      "7": {
+        "min_score": 36.3,
+        "max_score": 36.7,
+        "name": "Standard"
+      },
+      "8": {
+        "min_score": 36.7,
+        "max_score": 37.2,
+        "name": "Normal"
+      },
+      "9": {
+        "min_score": 37.2,
+        "max_score": 37.755,
+        "name": "Challenging"
+      },
+      "10": {
+        "min_score": 37.755,
+        "max_score": 38.349999999999994,
+        "name": "Difficult"
+      },
+      "11": {
+        "min_score": 38.349999999999994,
+        "max_score": 38.8,
+        "name": "Hard"
+      },
+      "12": {
+        "min_score": 38.8,
+        "max_score": 39.339999999999996,
+        "name": "Tough"
+      },
+      "13": {
+        "min_score": 39.339999999999996,
+        "max_score": 40.1,
+        "name": "Demanding"
+      },
+      "14": {
+        "min_score": 40.1,
+        "max_score": 40.8,
+        "name": "Intense"
+      },
+      "15": {
+        "min_score": 40.8,
+        "max_score": 41.4,
+        "name": "Expert"
+      },
+      "16": {
+        "min_score": 41.4,
+        "max_score": 42.1,
+        "name": "Master"
+      },
+      "17": {
+        "min_score": 42.1,
+        "max_score": 42.8,
+        "name": "Elite"
+      },
+      "18": {
+        "min_score": 42.8,
+        "max_score": 44.1,
+        "name": "Extreme"
+      },
+      "19": {
+        "min_score": 44.1,
+        "max_score": 45.9,
+        "name": "Supreme"
+      },
+      "20": {
+        "min_score": 45.9,
+        "max_score": 54.8,
+        "name": "Legendary"
+      }
+    },
+    "7": {
+      "1": {
+        "min_score": 38.5,
+        "max_score": 43.8,
+        "name": "Trivial"
+      },
+      "2": {
+        "min_score": 43.8,
+        "max_score": 45.2,
+        "name": "Very Easy"
+      },
+      "3": {
+        "min_score": 45.2,
+        "max_score": 46.0,
+        "name": "Easy"
+      },
+      "4": {
+        "min_score": 46.0,
+        "max_score": 46.980000000000004,
+        "name": "Simple"
+      },
+      "5": {
+        "min_score": 46.980000000000004,
+        "max_score": 47.7,
+        "name": "Moderate"
+      },
+      "6": {
+        "min_score": 47.7,
+        "max_score": 48.4,
+        "name": "Regular"
+      },
+      "7": {
+        "min_score": 48.4,
+        "max_score": 48.964999999999996,
+        "name": "Standard"
+      },
+      "8": {
+        "min_score": 48.964999999999996,
+        "max_score": 49.46,
+        "name": "Normal"
+      },
+      "9": {
+        "min_score": 49.46,
+        "max_score": 50.0,
+        "name": "Challenging"
+      },
+      "10": {
+        "min_score": 50.0,
+        "max_score": 50.6,
+        "name": "Difficult"
+      },
+      "11": {
+        "min_score": 50.6,
+        "max_score": 51.145,
+        "name": "Hard"
+      },
+      "12": {
+        "min_score": 51.145,
+        "max_score": 51.739999999999995,
+        "name": "Tough"
+      },
+      "13": {
+        "min_score": 51.739999999999995,
+        "max_score": 52.5,
+        "name": "Demanding"
+      },
+      "14": {
+        "min_score": 52.5,
+        "max_score": 53.23,
+        "name": "Intense"
+      },
+      "15": {
+        "min_score": 53.23,
+        "max_score": 54.0,
+        "name": "Expert"
+      },
+      "16": {
+        "min_score": 54.0,
+        "max_score": 54.8,
+        "name": "Master"
+      },
+      "17": {
+        "min_score": 54.8,
+        "max_score": 56.0,
+        "name": "Elite"
+      },
+      "18": {
+        "min_score": 56.0,
+        "max_score": 57.6,
+        "name": "Extreme"
+      },
+      "19": {
+        "min_score": 57.6,
+        "max_score": 59.30499999999999,
+        "name": "Supreme"
+      },
+      "20": {
+        "min_score": 59.30499999999999,
+        "max_score": 64.8,
+        "name": "Legendary"
+      }
+    }
+  },
+  "total_puzzles": 4000
+}
