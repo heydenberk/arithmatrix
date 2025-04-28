@@ -1,3 +1,5 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+/* Removed body styles - will apply via component className */ 
