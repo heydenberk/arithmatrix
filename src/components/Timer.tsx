@@ -1,16 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Paper, Text, ActionIcon, Box, rem } from "@mantine/core";
+import {
+  IconClock,
+  IconPlayerPause,
+  IconPlayerPlay,
+} from "@tabler/icons-react";
 
 interface TimerProps {
   // Add any props needed, e.g., initial time, callbacks
   isRunning: boolean; // Receive running state as a prop
   setIsRunning: React.Dispatch<React.SetStateAction<boolean>>; // Receive setter as a prop
+  resetKey?: number; // Optional key to trigger timer reset
 }
 
-const Timer: React.FC<TimerProps> = ({ isRunning, setIsRunning }) => {
+const Timer: React.FC<TimerProps> = ({ isRunning, setIsRunning, resetKey }) => {
   // Destructure props
   const [seconds, setSeconds] = useState<number>(0);
-  // const [isRunning, setIsRunning] = useState<boolean>(true); // Remove internal state
   const intervalRef = useRef<number | null>(null);
+
+  // Reset timer when resetKey changes
+  useEffect(() => {
+    if (resetKey !== undefined) {
+      setSeconds(0);
+    }
+  }, [resetKey]);
 
   useEffect(() => {
     if (isRunning) {
@@ -43,61 +56,82 @@ const Timer: React.FC<TimerProps> = ({ isRunning, setIsRunning }) => {
   };
 
   return (
-    <div className="flex items-center justify-center space-x-4">
-      <div className="relative">
-        {/* Timer display with elegant styling */}
-        <div className="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-3 rounded-2xl shadow-lg border border-slate-600/50">
-          <div className="flex items-center space-x-2">
-            <svg
-              className="w-5 h-5 text-emerald-400"
-              fill="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path d="M12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z" />
-            </svg>
-            <span className="font-mono text-xl font-bold tracking-wider">
-              {formatTime(seconds)}
-            </span>
-          </div>
-        </div>
-
-        {/* Pulsing dot indicator when running */}
-        {isRunning && (
-          <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full animate-pulse shadow-lg"></div>
-        )}
-      </div>
-
-      {/* Elegant pause/resume button */}
-      <button
-        onClick={handleTogglePause}
-        className={`group relative px-6 py-3 rounded-2xl font-semibold transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-opacity-50 shadow-lg ${
-          isRunning
-            ? "bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white focus:ring-amber-300 shadow-amber-200"
-            : "bg-gradient-to-r from-emerald-400 to-green-500 hover:from-emerald-500 hover:to-green-600 text-white focus:ring-emerald-300 shadow-emerald-200"
-        }`}
+    <Box style={{ position: "relative", display: "inline-block" }}>
+      {/* Compact timer display with embedded pause button */}
+      <Paper
+        radius="xl"
+        px="xs"
+        py={rem(4)}
+        style={{
+          background: "linear-gradient(135deg, #334155 0%, #475569 100%)",
+          color: "white",
+          border: "1px solid rgba(100, 116, 139, 0.5)",
+          boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.15)",
+          display: "flex",
+          alignItems: "center",
+          gap: rem(6),
+          minWidth: rem(120),
+          height: rem(36), // Match button height
+        }}
       >
-        <div className="flex items-center space-x-2">
-          {isRunning ? (
-            <>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M14,19H18V5H14M6,19H10V5H6V19Z" />
-              </svg>
-              <span>Pause</span>
-            </>
-          ) : (
-            <>
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M8,5.14V19.14L19,12.14L8,5.14Z" />
-              </svg>
-              <span>Resume</span>
-            </>
-          )}
-        </div>
+        {/* Clock icon */}
+        <IconClock size="0.9rem" style={{ color: "#10b981", flexShrink: 0 }} />
 
-        {/* Subtle shine effect */}
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-      </button>
-    </div>
+        {/* Timer text */}
+        <Text
+          size="sm"
+          fw={600}
+          style={{
+            fontFamily: "monospace",
+            letterSpacing: rem(0.5),
+            flex: 1,
+            textAlign: "center",
+          }}
+        >
+          {formatTime(seconds)}
+        </Text>
+
+        {/* Embedded pause/play button */}
+        <ActionIcon
+          onClick={handleTogglePause}
+          size="xs"
+          radius="lg"
+          variant="subtle"
+          color={isRunning ? "yellow" : "teal"}
+          style={{
+            flexShrink: 0,
+            transition: "all 200ms ease",
+            "&:hover": {
+              transform: "scale(1.1)",
+            },
+          }}
+        >
+          {isRunning ? (
+            <IconPlayerPause size="0.75rem" />
+          ) : (
+            <IconPlayerPlay size="0.75rem" />
+          )}
+        </ActionIcon>
+      </Paper>
+
+      {/* Pulsing dot indicator when running */}
+      {isRunning && (
+        <Box
+          style={{
+            position: "absolute",
+            top: rem(-3),
+            right: rem(-3),
+            width: rem(8),
+            height: rem(8),
+            backgroundColor: "#10b981",
+            borderRadius: "50%",
+            boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2)",
+            zIndex: 10,
+          }}
+          className="animate-pulse"
+        />
+      )}
+    </Box>
   );
 };
 

@@ -8,7 +8,8 @@
 
 .kenken-grid {
   display: grid;
-  gap: 2px;
+  row-gap: 2px;
+  column-gap: 18px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
@@ -40,8 +41,8 @@
 
 .kenken-cell {
   position: relative;
-  width: 85px;
-  height: 85px;
+  width: 80px;
+  height: 80px;
   background: linear-gradient(145deg, #ffffff, #f8fafc);
   border-radius: 8px;
   box-shadow: 
@@ -310,16 +311,16 @@
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .kenken-cell {
-    width: 75px;
-    height: 75px;
+    width: 67px;
+    height: 67px;
   }
   
   .cell-input {
-    font-size: 2rem;
+    font-size: 1.75rem;
   }
   
   .cage-info {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     padding: 2px 4px;
   }
 }

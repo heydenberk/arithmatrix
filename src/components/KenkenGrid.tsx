@@ -1,4 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
+import { Box, Stack, Group, ActionIcon, Tooltip, rem } from "@mantine/core";
+import {
+  IconPencil,
+  IconCheck,
+  IconArrowBackUp,
+  IconArrowForwardUp,
+} from "@tabler/icons-react";
 import "./KenkenGrid.css"; // Essential for grid styling and layout
 // Removed old CSS import - now using Tailwind classes
 
@@ -1126,11 +1133,12 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
   };
 
   return (
-    <div className="kenken-container flex flex-col items-center w-full">
-      <div
-        className="kenken-grid shadow-lg"
+    <Stack align="center" gap="xl" w="100%">
+      <Box
+        className="kenken-grid"
         style={{
-          gridTemplateColumns: `repeat(${size}, 85px)`,
+          gridTemplateColumns: `repeat(${size}, 65px)`,
+          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
         }}
       >
         {gridValues.map((row, rowIndex) =>
@@ -1226,120 +1234,135 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
             );
           })
         )}
-      </div>
+      </Box>
 
       {/* Enhanced Bottom Controls Area */}
-      <div className="mt-8 flex justify-center items-center gap-8">
+      <Group justify="center" gap="md">
         {/* Pencil Mode Toggle */}
-        <div className="group relative">
-          <button
-            onClick={() => setIsPencilMode(!isPencilMode)}
-            className={`relative w-20 h-20 rounded-3xl font-semibold transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-opacity-50 shadow-2xl border-2 ${
-              isPencilMode
-                ? "bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white focus:ring-blue-300 shadow-blue-300 border-blue-400"
-                : "bg-gradient-to-br from-gray-200 to-gray-400 hover:from-gray-300 hover:to-gray-500 text-gray-700 focus:ring-gray-300 shadow-gray-400 border-gray-300"
-            }`}
-            title={`Toggle pencil mode (${isPencilMode ? "On" : "Off"})`}
-          >
-            <div className="flex items-center justify-center">
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M14.06,9L15,9.94L5.92,19H5V18.08L14.06,9M17.66,3C17.41,3 17.15,3.1 16.96,3.29L15.13,5.12L18.88,8.87L20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18.17,3.09 17.92,3 17.66,3M14.06,6.19L3,17.25V21H6.75L17.81,9.94L14.06,6.19Z" />
-              </svg>
-            </div>
+        <Tooltip
+          label={`Toggle pencil mode (${isPencilMode ? "On" : "Off"})`}
+          position="bottom"
+        >
+          <Box style={{ position: "relative" }}>
+            <ActionIcon
+              onClick={() => setIsPencilMode(!isPencilMode)}
+              size={rem(40)}
+              radius="xl"
+              variant={isPencilMode ? "gradient" : "filled"}
+              gradient={
+                isPencilMode ? { from: "blue", to: "indigo" } : undefined
+              }
+              color={isPencilMode ? undefined : "gray"}
+              style={{
+                transition: "all 300ms ease",
+                transform: "scale(1)",
+                boxShadow: isPencilMode
+                  ? "0 15px 30px -8px rgba(59, 130, 246, 0.3)"
+                  : "0 15px 30px -8px rgba(0, 0, 0, 0.25)",
+                "&:hover": {
+                  transform: "scale(1.1)",
+                },
+              }}
+            >
+              <IconPencil size="1.2rem" />
+            </ActionIcon>
             {/* Active indicator */}
             {isPencilMode && (
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-400 rounded-full border-4 border-white shadow-xl animate-pulse"></div>
+              <Box
+                style={{
+                  position: "absolute",
+                  top: rem(-4),
+                  right: rem(-4),
+                  width: rem(12),
+                  height: rem(12),
+                  backgroundColor: "#10b981",
+                  borderRadius: "50%",
+                  border: "3px solid white",
+                  boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                }}
+                className="animate-pulse"
+              />
             )}
-            {/* Shine effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-3xl"></div>
-          </button>
-          <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-sm font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 px-3 py-1 rounded-full shadow-lg">
-            Pencil
-          </div>
-        </div>
+          </Box>
+        </Tooltip>
 
         {/* Check Puzzle Button */}
-        <div className="group relative">
-          <button
+        <Tooltip
+          label="Check the entire puzzle for correctness"
+          position="bottom"
+        >
+          <ActionIcon
             onClick={handleCheckPuzzle}
-            className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-500 to-emerald-700 hover:from-emerald-600 hover:to-emerald-800 text-white font-semibold transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-emerald-300 focus:ring-opacity-50 shadow-2xl shadow-emerald-300 border-2 border-emerald-400"
-            title="Check the entire puzzle for correctness"
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: "teal", to: "green" }}
+            style={{
+              transition: "all 300ms ease",
+              transform: "scale(1)",
+              boxShadow: "0 15px 30px -8px rgba(16, 185, 129, 0.3)",
+              "&:hover": {
+                transform: "scale(1.1)",
+              },
+            }}
           >
-            <div className="flex items-center justify-center">
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
-              </svg>
-            </div>
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-3xl"></div>
-          </button>
-          <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-sm font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 px-3 py-1 rounded-full shadow-lg">
-            Check
-          </div>
-        </div>
+            <IconCheck size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
 
         {/* Undo Button */}
-        <div className="group relative">
-          <button
+        <Tooltip label="Undo last action" position="bottom">
+          <ActionIcon
             onClick={handleUndo}
             disabled={history.length === 0}
-            className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-amber-500 to-amber-700 hover:from-amber-600 hover:to-amber-800 text-white font-semibold transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-amber-300 focus:ring-opacity-50 shadow-2xl shadow-amber-300 border-2 border-amber-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-gray-300 disabled:bg-gradient-to-br disabled:from-gray-400 disabled:to-gray-600"
-            title="Undo last action"
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: "yellow", to: "orange" }}
+            style={{
+              transition: "all 300ms ease",
+              transform: "scale(1)",
+              boxShadow:
+                history.length > 0
+                  ? "0 15px 30px -8px rgba(251, 191, 36, 0.3)"
+                  : "0 15px 30px -8px rgba(0, 0, 0, 0.25)",
+              opacity: history.length === 0 ? 0.5 : 1,
+              "&:hover": {
+                transform: history.length > 0 ? "scale(1.1)" : "scale(1)",
+              },
+            }}
           >
-            <div className="flex items-center justify-center">
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M12.5,8C9.85,8 7.45,9 5.6,10.6L2,7V16H11L7.38,12.38C8.77,11.22 10.54,10.5 12.5,10.5C16.04,10.5 19.05,12.81 20.1,16L22.47,15.22C21.08,11.03 17.15,8 12.5,8Z" />
-              </svg>
-            </div>
-            {!history.length && (
-              <div className="absolute inset-0 bg-gray-500/40 rounded-3xl"></div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-3xl"></div>
-          </button>
-          <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-sm font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 px-3 py-1 rounded-full shadow-lg">
-            Undo
-          </div>
-        </div>
+            <IconArrowBackUp size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
 
         {/* Redo Button */}
-        <div className="group relative">
-          <button
+        <Tooltip label="Redo last undone action" position="bottom">
+          <ActionIcon
             onClick={handleRedo}
             disabled={redoStack.length === 0}
-            className="relative w-20 h-20 rounded-3xl bg-gradient-to-br from-indigo-500 to-indigo-700 hover:from-indigo-600 hover:to-indigo-800 text-white font-semibold transition-all duration-300 transform hover:scale-110 focus:outline-none focus:ring-4 focus:ring-indigo-300 focus:ring-opacity-50 shadow-2xl shadow-indigo-300 border-2 border-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-gray-300 disabled:bg-gradient-to-br disabled:from-gray-400 disabled:to-gray-600"
-            title="Redo last undone action"
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: "indigo", to: "purple" }}
+            style={{
+              transition: "all 300ms ease",
+              transform: "scale(1)",
+              boxShadow:
+                redoStack.length > 0
+                  ? "0 15px 30px -8px rgba(99, 102, 241, 0.3)"
+                  : "0 15px 30px -8px rgba(0, 0, 0, 0.25)",
+              opacity: redoStack.length === 0 ? 0.5 : 1,
+              "&:hover": {
+                transform: redoStack.length > 0 ? "scale(1.1)" : "scale(1)",
+              },
+            }}
           >
-            <div className="flex items-center justify-center">
-              <svg
-                className="w-10 h-10"
-                fill="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path d="M18.4,10.6C16.55,9 14.15,8 11.5,8C6.85,8 2.92,11.03 1.53,15.22L3.9,16C4.95,12.81 7.96,10.5 11.5,10.5C13.46,10.5 15.23,11.22 16.62,12.38L13,16H22V7L18.4,10.6Z" />
-              </svg>
-            </div>
-            {!redoStack.length && (
-              <div className="absolute inset-0 bg-gray-500/40 rounded-3xl"></div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 rounded-3xl"></div>
-          </button>
-          <div className="absolute -bottom-10 left-1/2 transform -translate-x-1/2 text-sm font-bold text-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 bg-white/90 px-3 py-1 rounded-full shadow-lg">
-            Redo
-          </div>
-        </div>
-      </div>
-    </div>
+            <IconArrowForwardUp size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      </Group>
+    </Stack>
   );
 };
 

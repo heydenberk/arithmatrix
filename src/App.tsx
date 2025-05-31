@@ -1,4 +1,31 @@
 import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Container,
+  Paper,
+  Select,
+  Loader,
+  Text,
+  Title,
+  Alert,
+  Stack,
+  Group,
+  ActionIcon,
+  Card,
+  Badge,
+  ThemeIcon,
+  Center,
+  Button,
+  rem,
+} from "@mantine/core";
+import {
+  IconAlertCircle,
+  IconTrophy,
+  IconSparkles,
+  IconRefresh,
+  IconPlus,
+  IconSettings,
+} from "@tabler/icons-react";
 import KenkenGrid from "./components/KenkenGrid";
 import Timer from "./components/Timer";
 
@@ -32,6 +59,9 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true); // Add state for timer
   const [isGameWon, setIsGameWon] = useState<boolean>(false); // State for win condition
+  const [showNewGameControls, setShowNewGameControls] =
+    useState<boolean>(false); // State for showing new game controls
+  const [resetKey, setResetKey] = useState<number>(0); // Key to force KenkenGrid re-render for reset
 
   useEffect(() => {
     // Function to fetch puzzle data from the backend API
@@ -78,6 +108,7 @@ function App() {
 
     loadPuzzle();
     setIsGameWon(false); // Reset win state when puzzle settings change
+    setShowNewGameControls(false); // Hide new game controls when loading new puzzle
     // Dependency array now includes difficulty
   }, [puzzleSize, difficulty]); // Refetch when puzzleSize or difficulty changes
 
@@ -104,17 +135,34 @@ function App() {
   }, []); // Empty dependency array ensures this runs only once on mount/unmount
 
   // Handlers for size and difficulty changes - Keep for potential future use
-  const handleSizeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setPuzzleSize(parseInt(event.target.value, 10));
-    setIsTimerRunning(true); // Ensure timer is running for new puzzle
+  const handleSizeChange = (value: string | null) => {
+    if (value) {
+      setPuzzleSize(parseInt(value, 10));
+      setIsTimerRunning(true); // Ensure timer is running for new puzzle
+      setShowNewGameControls(false); // Hide controls after selection
+    }
   };
 
   // Handler for difficulty change
-  const handleDifficultyChange = (
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    setDifficulty(event.target.value);
-    setIsTimerRunning(true); // Ensure timer is running for new puzzle
+  const handleDifficultyChange = (value: string | null) => {
+    if (value) {
+      setDifficulty(value);
+      setIsTimerRunning(true); // Ensure timer is running for new puzzle
+      setShowNewGameControls(false); // Hide controls after selection
+    }
+  };
+
+  // Handler for reset button - resets current puzzle progress
+  const handleReset = () => {
+    setResetKey((prev) => prev + 1); // Force KenkenGrid to re-render and reset
+    setIsTimerRunning(true); // Resume timer
+    setIsGameWon(false); // Reset win state
+    console.log("Puzzle reset");
+  };
+
+  // Handler for new game button - shows size/difficulty controls
+  const handleNewGame = () => {
+    setShowNewGameControls(!showNewGameControls);
   };
 
   // Callback for when the puzzle is won
@@ -125,219 +173,432 @@ function App() {
   };
 
   return (
-    <div
-      className="min-h-screen pt-16"
+    <Box
+      className="gradient-background"
       style={{
+        minHeight: "100vh",
+        position: "relative",
         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
       }}
     >
       {/* Animated background elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-purple-200/30 to-pink-200/30 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-blue-200/30 to-indigo-200/30 rounded-full blur-3xl animate-pulse delay-1000"></div>
-      </div>
+      <Box
+        style={{
+          position: "fixed",
+          inset: 0,
+          overflow: "hidden",
+          pointerEvents: "none",
+          zIndex: 0,
+        }}
+      >
+        <Box
+          style={{
+            position: "absolute",
+            top: rem(-160),
+            right: rem(-160),
+            width: rem(400),
+            height: rem(400),
+            background:
+              "radial-gradient(circle, rgba(196, 181, 253, 0.4) 0%, rgba(233, 213, 255, 0.2) 100%)",
+            borderRadius: "50%",
+            filter: "blur(60px)",
+          }}
+          className="animate-pulse"
+        />
+        <Box
+          style={{
+            position: "absolute",
+            bottom: rem(-160),
+            left: rem(-160),
+            width: rem(400),
+            height: rem(400),
+            background:
+              "radial-gradient(circle, rgba(147, 197, 253, 0.4) 0%, rgba(165, 180, 252, 0.2) 100%)",
+            borderRadius: "50%",
+            filter: "blur(60px)",
+            animationDelay: "1s",
+          }}
+          className="animate-pulse"
+        />
+        <Box
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: rem(300),
+            height: rem(300),
+            background:
+              "radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)",
+            borderRadius: "50%",
+            filter: "blur(40px)",
+            animationDelay: "2s",
+          }}
+          className="animate-pulse"
+        />
+      </Box>
 
-      <div className="relative z-10 max-w-2xl mx-auto pb-8 px-4">
-        {/* Main content area */}
-        <main className="space-y-6">
+      <Container
+        size="md"
+        style={{
+          position: "relative",
+          zIndex: 10,
+          paddingTop: rem(32),
+          paddingBottom: rem(16),
+          maxWidth: rem(700),
+        }}
+      >
+        <Stack gap="md">
           {/* Loading state with elegant spinner */}
           {loading && (
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-12 text-center">
-              <div className="inline-flex items-center space-x-3">
-                <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                <span className="text-xl font-medium text-gray-700">
-                  Loading puzzle...
-                </span>
-              </div>
-            </div>
+            <Paper
+              radius="xl"
+              p="xl"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.85)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                boxShadow:
+                  "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+              }}
+            >
+              <Center>
+                <Group gap="md">
+                  <Loader color="indigo" size="md" />
+                  <Text size="xl" fw={500} c="gray.7">
+                    Loading puzzle...
+                  </Text>
+                </Group>
+              </Center>
+            </Paper>
           )}
 
           {/* Error state with enhanced styling */}
           {error && (
-            <div className="bg-red-50/80 backdrop-blur-lg rounded-3xl shadow-xl border border-red-200/50 p-8">
-              <div className="flex items-center space-x-3">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg
-                    className="w-6 h-6 text-red-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-red-800">
-                    Error Loading Puzzle
-                  </h3>
-                  <p className="text-red-600">{error}</p>
-                </div>
-              </div>
-            </div>
+            <Alert
+              color="red"
+              radius="xl"
+              icon={<IconAlertCircle size="1.5rem" />}
+              styles={{
+                root: {
+                  backgroundColor: "rgba(254, 242, 242, 0.85)",
+                  backdropFilter: "blur(16px)",
+                  WebkitBackdropFilter: "blur(16px)",
+                  border: "1px solid rgba(252, 165, 165, 0.5)",
+                  boxShadow:
+                    "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+                },
+              }}
+            >
+              <Stack gap="xs">
+                <Text fw={600} size="lg">
+                  Error Loading Puzzle
+                </Text>
+                <Text>{error}</Text>
+              </Stack>
+            </Alert>
           )}
 
           {/* Game grid with container styling */}
           {!loading && !error && puzzleDefinition && solutionGrid && (
-            <div className="bg-white/10 backdrop-blur-lg rounded-3xl shadow-xl p-6">
-              <KenkenGrid
-                puzzleDefinition={puzzleDefinition}
-                solution={solutionGrid}
-                onWin={handleWin}
-                isTimerRunning={isTimerRunning}
-                isGameWon={isGameWon}
-              />
-            </div>
+            <Center>
+              <Paper
+                radius="xl"
+                p="lg"
+                style={{
+                  backgroundColor: "rgba(255, 255, 255, 0.15)",
+                  backdropFilter: "blur(20px)",
+                  WebkitBackdropFilter: "blur(20px)",
+                  border: "1px solid rgba(255, 255, 255, 0.2)",
+                  boxShadow:
+                    "0 20px 40px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)",
+                  display: "inline-block",
+                  width: "fit-content",
+                }}
+              >
+                <KenkenGrid
+                  puzzleDefinition={puzzleDefinition}
+                  solution={solutionGrid}
+                  onWin={handleWin}
+                  isTimerRunning={isTimerRunning}
+                  isGameWon={isGameWon}
+                  key={resetKey}
+                />
+              </Paper>
+            </Center>
           )}
 
           {/* Empty state */}
           {!loading && !error && !puzzleDefinition && (
-            <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl border border-white/20 p-12 text-center">
-              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">
-                Puzzle Unavailable
-              </h3>
-              <p className="text-gray-500">
-                Could not load puzzle data. Please try again.
-              </p>
-            </div>
+            <Paper
+              radius="xl"
+              p="xl"
+              style={{
+                backgroundColor: "rgba(255, 255, 255, 0.85)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid rgba(255, 255, 255, 0.3)",
+                boxShadow:
+                  "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+              }}
+            >
+              <Center>
+                <Stack align="center" gap="md">
+                  <ThemeIcon size={64} radius="xl" color="gray.4">
+                    <IconAlertCircle size="2rem" />
+                  </ThemeIcon>
+                  <Title order={3} c="gray.7">
+                    Puzzle Unavailable
+                  </Title>
+                  <Text c="gray.5">
+                    Could not load puzzle data. Please try again.
+                  </Text>
+                </Stack>
+              </Center>
+            </Paper>
           )}
 
           {/* Win celebration with enhanced styling */}
           {isGameWon && (
-            <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-3xl shadow-xl p-8 text-center text-white relative overflow-hidden">
+            <Card
+              radius="xl"
+              p="xl"
+              style={{
+                background: "linear-gradient(135deg, #34d399 0%, #10b981 100%)",
+                color: "white",
+                position: "relative",
+                overflow: "hidden",
+              }}
+            >
               {/* Celebration particles */}
-              <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-0 left-1/4 w-4 h-4 bg-yellow-300 rounded-full animate-bounce delay-100"></div>
-                <div className="absolute top-4 right-1/4 w-3 h-3 bg-yellow-200 rounded-full animate-bounce delay-300"></div>
-                <div className="absolute bottom-4 left-1/3 w-2 h-2 bg-yellow-400 rounded-full animate-bounce delay-500"></div>
-              </div>
+              <Box
+                style={{ position: "absolute", inset: 0, overflow: "hidden" }}
+              >
+                <Box
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: "25%",
+                    width: rem(16),
+                    height: rem(16),
+                    backgroundColor: "#fde047",
+                    borderRadius: "50%",
+                    animation: "bounce 1s infinite 0.1s",
+                  }}
+                />
+                <Box
+                  style={{
+                    position: "absolute",
+                    top: rem(16),
+                    right: "25%",
+                    width: rem(12),
+                    height: rem(12),
+                    backgroundColor: "#fef3c7",
+                    borderRadius: "50%",
+                    animation: "bounce 1s infinite 0.3s",
+                  }}
+                />
+                <Box
+                  style={{
+                    position: "absolute",
+                    bottom: rem(16),
+                    left: "33%",
+                    width: rem(8),
+                    height: rem(8),
+                    backgroundColor: "#facc15",
+                    borderRadius: "50%",
+                    animation: "bounce 1s infinite 0.5s",
+                  }}
+                />
+              </Box>
 
-              <div className="relative z-10">
-                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <svg
-                    className="w-10 h-10 text-white"
-                    fill="currentColor"
-                    viewBox="0 0 24 24"
+              <Center>
+                <Stack
+                  align="center"
+                  gap="md"
+                  style={{ position: "relative", zIndex: 10 }}
+                >
+                  <ThemeIcon
+                    size={80}
+                    radius="xl"
+                    style={{ backgroundColor: "rgba(255, 255, 255, 0.2)" }}
                   >
-                    <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L13.5 2.5L16.17 5.17L10.5 10.84L16 16.31L21 11.31V9ZM3.5 5.17L6.17 2.5L4.5 1L2 3.5L3.5 5.17ZM2 21L16 7L14.5 5.5L1 19L2 21Z" />
-                  </svg>
-                </div>
-                <h2 className="text-3xl font-bold mb-2">
-                  🎉 Congratulations! 🎉
-                </h2>
-                <p className="text-xl opacity-90">You solved the puzzle!</p>
-              </div>
-            </div>
+                    <IconTrophy size="2.5rem" />
+                  </ThemeIcon>
+                  <Title order={1}>🎉 Congratulations! 🎉</Title>
+                  <Text size="xl" style={{ opacity: 0.9 }}>
+                    You solved the puzzle!
+                  </Text>
+                </Stack>
+              </Center>
+            </Card>
           )}
-        </main>
+        </Stack>
 
         {/* Controls Section - Moved to bottom */}
-        <footer className="mt-8">
-          <div className="bg-white/80 backdrop-blur-lg rounded-3xl shadow-xl p-8">
-            {/* Enhanced Controls Section */}
-            <div className="flex flex-col items-center gap-6">
-              {/* Puzzle Settings */}
-              <div className="flex flex-wrap justify-center gap-4">
-                {/* Size Selector */}
-                <div className="flex flex-col items-center space-y-2">
-                  <label className="text-sm font-semibold text-gray-600">
-                    Size
-                  </label>
-                  <select
-                    value={puzzleSize}
-                    onChange={handleSizeChange}
-                    className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg border-none outline-none focus:ring-4 focus:ring-purple-300 focus:ring-opacity-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105"
-                  >
-                    <option value={4} className="text-gray-800">
-                      4×4
-                    </option>
-                    <option value={5} className="text-gray-800">
-                      5×5
-                    </option>
-                    <option value={6} className="text-gray-800">
-                      6×6
-                    </option>
-                    <option value={7} className="text-gray-800">
-                      7×7
-                    </option>
-                    <option value={8} className="text-gray-800">
-                      8×8
-                    </option>
-                    <option value={9} className="text-gray-800">
-                      9×9
-                    </option>
-                  </select>
-                </div>
+        <Paper
+          mt="md"
+          radius="xl"
+          p="md"
+          style={{
+            backgroundColor: "rgba(255, 255, 255, 0.85)",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+            border: "1px solid rgba(255, 255, 255, 0.3)",
+            boxShadow:
+              "0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4)",
+          }}
+        >
+          <Stack align="center" gap="sm">
+            {/* Timer and Action Buttons */}
+            {!loading && !error && puzzleDefinition && solutionGrid && (
+              <Group justify="center" align="center" gap="md" wrap="wrap">
+                {/* Timer */}
+                <Timer
+                  isRunning={isTimerRunning}
+                  setIsRunning={setIsTimerRunning}
+                  resetKey={resetKey}
+                />
 
-                {/* Difficulty Selector */}
-                <div className="flex flex-col items-center space-y-2">
-                  <label className="text-sm font-semibold text-gray-600">
-                    Difficulty
-                  </label>
-                  <select
-                    value={difficulty}
-                    onChange={handleDifficultyChange}
-                    className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-4 py-2 rounded-full text-sm font-semibold shadow-lg border-none outline-none focus:ring-4 focus:ring-pink-300 focus:ring-opacity-50 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 capitalize"
-                  >
-                    <option value="easy" className="text-gray-800">
-                      Easy
-                    </option>
-                    <option value="medium" className="text-gray-800">
-                      Medium
-                    </option>
-                    <option value="hard" className="text-gray-800">
-                      Hard
-                    </option>
-                    <option value="expert" className="text-gray-800">
-                      Expert
-                    </option>
-                  </select>
-                </div>
-              </div>
+                {/* Reset Button */}
+                <Button
+                  onClick={handleReset}
+                  radius="xl"
+                  size="sm"
+                  variant="gradient"
+                  gradient={{ from: "orange", to: "red" }}
+                  leftSection={<IconRefresh size="1rem" />}
+                  style={{
+                    transition: "all 200ms ease",
+                    "&:hover": {
+                      transform: "scale(1.05)",
+                    },
+                  }}
+                >
+                  Reset
+                </Button>
 
-              {/* Info pills with enhanced styling */}
-              <div className="flex flex-wrap justify-center gap-3">
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg">
-                  Size: {puzzleSize}×{puzzleSize}
-                </div>
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-2 rounded-full text-sm font-semibold shadow-lg capitalize">
-                  Difficulty: {difficulty}
-                </div>
-              </div>
+                {/* New Game Button */}
+                <Button
+                  onClick={handleNewGame}
+                  radius="xl"
+                  size="sm"
+                  variant="gradient"
+                  gradient={{ from: "teal", to: "blue" }}
+                  leftSection={
+                    showNewGameControls ? (
+                      <IconSettings size="1rem" />
+                    ) : (
+                      <IconPlus size="1rem" />
+                    )
+                  }
+                  style={{
+                    transition: "all 200ms ease",
+                    "&:hover": {
+                      transform: "scale(1.05)",
+                    },
+                  }}
+                >
+                  {showNewGameControls ? "Settings" : "New Game"}
+                </Button>
 
-              {/* Timer component with enhanced styling */}
-              {!loading && !error && puzzleDefinition && solutionGrid && (
-                <div className="flex justify-center">
-                  <Timer
-                    isRunning={isTimerRunning}
-                    setIsRunning={setIsTimerRunning}
-                  />
-                </div>
-              )}
-            </div>
-          </div>
-        </footer>
-      </div>
-    </div>
+                {/* Combined Size and Difficulty Pill */}
+                <Badge
+                  size="lg"
+                  radius="xl"
+                  variant="gradient"
+                  gradient={{ from: "indigo", to: "pink" }}
+                  style={{
+                    textTransform: "capitalize",
+                    padding: `${rem(8)} ${rem(16)}`,
+                    fontSize: rem(14),
+                    fontWeight: 600,
+                    height: rem(36), // Match button height
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {puzzleSize}×{puzzleSize} • {difficulty}
+                </Badge>
+              </Group>
+            )}
+
+            {/* Conditional Puzzle Settings - Only show when New Game is clicked */}
+            {showNewGameControls && (
+              <Stack align="center" gap="sm">
+                <Group justify="center" gap="md">
+                  {/* Size Selector */}
+                  <Stack align="center" gap="xs">
+                    <Text size="sm" fw={600} c="gray.6">
+                      Size
+                    </Text>
+                    <Select
+                      value={puzzleSize.toString()}
+                      onChange={handleSizeChange}
+                      data={[
+                        { value: "4", label: "4×4" },
+                        { value: "5", label: "5×5" },
+                        { value: "6", label: "6×6" },
+                        { value: "7", label: "7×7" },
+                        { value: "8", label: "8×8" },
+                        { value: "9", label: "9×9" },
+                      ]}
+                      styles={{
+                        input: {
+                          background:
+                            "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                          color: "white",
+                          border: "none",
+                          borderRadius: rem(50),
+                          fontWeight: 600,
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                          "&:focus": {
+                            boxShadow: "0 0 0 4px rgba(139, 92, 246, 0.3)",
+                          },
+                        },
+                      }}
+                    />
+                  </Stack>
+
+                  {/* Difficulty Selector */}
+                  <Stack align="center" gap="xs">
+                    <Text size="sm" fw={600} c="gray.6">
+                      Difficulty
+                    </Text>
+                    <Select
+                      value={difficulty}
+                      onChange={handleDifficultyChange}
+                      data={[
+                        { value: "easy", label: "Easy" },
+                        { value: "medium", label: "Medium" },
+                        { value: "hard", label: "Hard" },
+                        { value: "expert", label: "Expert" },
+                      ]}
+                      styles={{
+                        input: {
+                          background:
+                            "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
+                          color: "white",
+                          border: "none",
+                          borderRadius: rem(50),
+                          fontWeight: 600,
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                          textTransform: "capitalize",
+                          "&:focus": {
+                            boxShadow: "0 0 0 4px rgba(236, 72, 153, 0.3)",
+                          },
+                        },
+                      }}
+                    />
+                  </Stack>
+                </Group>
+              </Stack>
+            )}
+          </Stack>
+        </Paper>
+      </Container>
+    </Box>
   );
 }
 
