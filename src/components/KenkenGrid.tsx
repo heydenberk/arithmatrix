@@ -824,32 +824,10 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
         const errors = new Set<number>();
         const cellIndex = rowIndex * size + colIndex;
 
-        // === NEW: Check against solution first ===
+        // Check against solution - this is the only source of truth for errors
         const correctValue = solution[rowIndex][colIndex];
         if (numValue !== correctValue) {
           errors.add(cellIndex);
-        }
-        // ==========================================
-
-        // Keep existing checks for immediate feedback on rule violations
-
-        // 1. Check Row uniqueness
-        for (let c = 0; c < size; c++) {
-          if (c !== colIndex && gridValues[rowIndex][c] === currentValue) {
-            errors.add(cellIndex);
-            break;
-          }
-        }
-
-        // 2. Check Column uniqueness
-        if (!errors.has(cellIndex)) {
-          // Only check if not already marked as error
-          for (let r = 0; r < size; r++) {
-            if (r !== rowIndex && gridValues[r][colIndex] === currentValue) {
-              errors.add(cellIndex);
-              break;
-            }
-          }
         }
 
         // 3. Check Cage constraint (only if cage is full)
@@ -900,9 +878,9 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
               }
               // @ts-ignore - result might not be assigned if cageValid is false early
               if (cageValid && result !== cage.value) {
-                errors.add(cellIndex); // Mark current cell as error if cage is wrong
-                // Optionally mark all cells in the cage?
-                // cage.cells.forEach(idx => errors.add(idx));
+                // Don't mark current cell as error just because cage constraint fails
+                // The cell is only an error if it doesn't match the solution (checked earlier)
+                // Cage constraint violations are a consequence of incorrect values, not the cause
               }
             }
           }
@@ -951,7 +929,7 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
       }
     }
 
-    // === NEW: Check against solution ===
+    // Check against solution - this is the only source of truth for errors
     filledCells.forEach((value, cellIndex) => {
       const r = Math.floor(cellIndex / size);
       const c = cellIndex % size;
@@ -959,43 +937,6 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
         errors.add(cellIndex);
       }
     });
-    // ===================================
-
-    // Keep existing checks for rule violations
-
-    // 1. Check Row/Column Uniqueness for filled cells
-    for (let r = 0; r < size; r++) {
-      const rowCounts = new Map<number, number[]>(); // value -> [colIndices]
-      const colCounts = new Map<number, number[]>(); // value -> [rowIndices]
-      for (let c = 0; c < size; c++) {
-        // Row check
-        const rowVal = numberGrid[r][c];
-        if (rowVal !== null) {
-          const indices = rowCounts.get(rowVal) || [];
-          indices.push(c);
-          rowCounts.set(rowVal, indices);
-        }
-        // Col check
-        const colVal = numberGrid[c][r]; // Check col r by iterating rows c
-        if (colVal !== null) {
-          const indices = colCounts.get(colVal) || [];
-          indices.push(c);
-          colCounts.set(colVal, indices);
-        }
-      }
-      // Mark duplicates in rows
-      rowCounts.forEach((indices) => {
-        if (indices.length > 1) {
-          indices.forEach((colIdx) => errors.add(r * size + colIdx));
-        }
-      });
-      // Mark duplicates in columns
-      colCounts.forEach((indices) => {
-        if (indices.length > 1) {
-          indices.forEach((rowIdx) => errors.add(rowIdx * size + r));
-        }
-      });
-    }
 
     // 2. Check Cage Constraints (only if cage is full)
     for (const cage of cages) {
@@ -1039,8 +980,8 @@ const KenkenGrid: React.FC<KenkenGridProps> = ({
         }
         // @ts-ignore - result might not be assigned if cageValid is false early
         if (cageValid && result !== cage.value) {
-          // Mark all cells in the invalid cage as errors
-          cage.cells.forEach((idx) => errors.add(idx));
+          // Don't mark entire cage as errors - individual incorrect cells are already marked from solution check
+          // The cage constraint violation indicates wrong values, but we only highlight the specific incorrect cells
         }
       }
     }
