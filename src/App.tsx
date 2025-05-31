@@ -48,10 +48,40 @@ interface PuzzleData extends PuzzleDefinition {
 
 // Removed placeholder functions generatePlaceholderPuzzle and fetchPuzzleDefinition
 
+// Helper functions for URL parameter management
+const getURLParams = () => {
+  const params = new URLSearchParams(window.location.search);
+  const size = parseInt(params.get("size") || "7", 10);
+  const difficulty = params.get("difficulty") || "medium";
+
+  // Validate size (between 4 and 9)
+  const validSize = size >= 4 && size <= 9 ? size : 7;
+
+  // Validate difficulty
+  const validDifficulties = ["easy", "medium", "hard", "expert"];
+  const validDifficulty = validDifficulties.includes(difficulty)
+    ? difficulty
+    : "medium";
+
+  return { size: validSize, difficulty: validDifficulty };
+};
+
+const updateURL = (size: number, difficulty: string) => {
+  const params = new URLSearchParams();
+  params.set("size", size.toString());
+  params.set("difficulty", difficulty);
+
+  const newURL = `${window.location.pathname}?${params.toString()}`;
+  window.history.pushState({}, "", newURL);
+};
+
 function App() {
-  // Keep state for size and difficulty for potential future dynamic updates
-  const [puzzleSize, setPuzzleSize] = useState<number>(7); // Default to 7 based on image
-  const [difficulty, setDifficulty] = useState<string>("medium"); // Default to Medium based on image
+  // Initialize state from URL parameters
+  const initialParams = getURLParams();
+  const [puzzleSize, setPuzzleSize] = useState<number>(initialParams.size);
+  const [difficulty, setDifficulty] = useState<string>(
+    initialParams.difficulty
+  );
   const [puzzleDefinition, setPuzzleDefinition] =
     useState<PuzzleDefinition | null>(null);
   const [solutionGrid, setSolutionGrid] = useState<number[][] | null>(null); // State for the solution
@@ -112,6 +142,31 @@ function App() {
     // Dependency array now includes difficulty
   }, [puzzleSize, difficulty]); // Refetch when puzzleSize or difficulty changes
 
+  // Effect to handle browser back/forward navigation and initial URL sync
+  useEffect(() => {
+    // Update URL on initial load if parameters are missing or invalid
+    const currentParams = getURLParams();
+    if (
+      currentParams.size !== puzzleSize ||
+      currentParams.difficulty !== difficulty
+    ) {
+      updateURL(puzzleSize, difficulty);
+    }
+
+    // Handle browser back/forward navigation
+    const handlePopState = () => {
+      const urlParams = getURLParams();
+      setPuzzleSize(urlParams.size);
+      setDifficulty(urlParams.difficulty);
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, []); // Run only on mount
+
   // Effect to handle window focus/blur for timer pause/resume
   useEffect(() => {
     const handleFocus = () => {
@@ -134,10 +189,12 @@ function App() {
     };
   }, []); // Empty dependency array ensures this runs only once on mount/unmount
 
-  // Handlers for size and difficulty changes - Keep for potential future use
+  // Handlers for size and difficulty changes - Now updates URL
   const handleSizeChange = (value: string | null) => {
     if (value) {
-      setPuzzleSize(parseInt(value, 10));
+      const newSize = parseInt(value, 10);
+      setPuzzleSize(newSize);
+      updateURL(newSize, difficulty); // Update URL with new size
       setIsTimerRunning(true); // Ensure timer is running for new puzzle
       setShowNewGameControls(false); // Hide controls after selection
     }
@@ -147,6 +204,7 @@ function App() {
   const handleDifficultyChange = (value: string | null) => {
     if (value) {
       setDifficulty(value);
+      updateURL(puzzleSize, value); // Update URL with new difficulty
       setIsTimerRunning(true); // Ensure timer is running for new puzzle
       setShowNewGameControls(false); // Hide controls after selection
     }
