@@ -9,25 +9,25 @@ import {
 import "./KenkenGrid.css"; // Essential for grid styling and layout
 // Removed old CSS import - now using Tailwind classes
 
-interface Cage {
+type Cage = {
   value: number;
   operation: string;
   cells: number[];
-}
+};
 
-interface PuzzleDefinition {
+type PuzzleDefinition = {
   size: number;
   cages: Cage[];
-}
+};
 
 // Define props for the component
-interface KenkenGridProps {
+type KenkenGridProps = {
   puzzleDefinition: PuzzleDefinition;
   solution: number[][]; // Add the solution grid prop
   onWin: () => void; // Callback for when the puzzle is solved
   isTimerRunning: boolean; // Prop to indicate if the timer is running
   isGameWon: boolean; // Prop to indicate if the game is won
-}
+};
 
 // Type for the history state, storing both grid values and pencil marks
 type HistoryEntry = [string[][], Set<string>[][]];

@@ -30,21 +30,21 @@ import KenkenGrid from "./components/KenkenGrid";
 import Timer from "./components/Timer";
 
 // Define the structure of a cage and the puzzle definition
-interface Cage {
+type Cage = {
   value: number;
   operation: string;
   cells: number[];
-}
+};
 
-interface PuzzleDefinition {
+type PuzzleDefinition = {
   size: number;
   cages: Cage[];
-}
+};
 
-// New interface including the solution
-interface PuzzleData extends PuzzleDefinition {
+// New type including the solution
+type PuzzleData = PuzzleDefinition & {
   solution: number[][];
-}
+};
 
 // Removed placeholder functions generatePlaceholderPuzzle and fetchPuzzleDefinition
 

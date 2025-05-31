@@ -6,12 +6,12 @@ import {
   IconPlayerPlay,
 } from "@tabler/icons-react";
 
-interface TimerProps {
+type TimerProps = {
   // Add any props needed, e.g., initial time, callbacks
   isRunning: boolean; // Receive running state as a prop
   setIsRunning: React.Dispatch<React.SetStateAction<boolean>>; // Receive setter as a prop
   resetKey?: number; // Optional key to trigger timer reset
-}
+};
 
 const Timer: React.FC<TimerProps> = ({ isRunning, setIsRunning, resetKey }) => {
   // Destructure props
