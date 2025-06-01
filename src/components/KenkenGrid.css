@@ -119,6 +119,67 @@
   border-color: #f97316 !important;
 }
 
+/* Text colors that complement each cage color */
+.cage-text-color-0 .cell-input,
+.cage-text-color-0 .pencil-mark {
+  color: #be185d !important; /* Deep pink to complement light pink background */
+}
+
+.cage-text-color-1 .cell-input,
+.cage-text-color-1 .pencil-mark {
+  color: #d97706 !important; /* Deep amber to complement yellow background */
+}
+
+.cage-text-color-2 .cell-input,
+.cage-text-color-2 .pencil-mark {
+  color: #047857 !important; /* Deep emerald to complement green background */
+}
+
+.cage-text-color-3 .cell-input,
+.cage-text-color-3 .pencil-mark {
+  color: #1d4ed8 !important; /* Deep blue to complement blue background */
+}
+
+.cage-text-color-4 .cell-input,
+.cage-text-color-4 .pencil-mark {
+  color: #6b21a8 !important; /* Deep purple to complement purple background */
+}
+
+.cage-text-color-5 .cell-input,
+.cage-text-color-5 .pencil-mark {
+  color: #0369a1 !important; /* Deep sky blue to complement cyan background */
+}
+
+.cage-text-color-6 .cell-input,
+.cage-text-color-6 .pencil-mark {
+  color: #0f766e !important; /* Deep teal to complement teal background */
+}
+
+.cage-text-color-7 .cell-input,
+.cage-text-color-7 .pencil-mark {
+  color: #c2410c !important; /* Deep orange to complement orange background */
+}
+
+.cage-text-color-8 .cell-input,
+.cage-text-color-8 .pencil-mark {
+  color: #4338ca !important; /* Deep indigo to complement indigo background */
+}
+
+.cage-text-color-9 .cell-input,
+.cage-text-color-9 .pencil-mark {
+  color: #be185d !important; /* Deep pink to complement pink background */
+}
+
+.cage-text-color-10 .cell-input,
+.cage-text-color-10 .pencil-mark {
+  color: #15803d !important; /* Deep green to complement green background */
+}
+
+.cage-text-color-11 .cell-input,
+.cage-text-color-11 .pencil-mark {
+  color: #ea580c !important; /* Deep orange to complement orange background */
+}
+
 /* Enhanced hover effects for cage colors */
 .kenken-cell:hover {
   transform: translateY(-1px) scale(1.02);
@@ -132,12 +193,104 @@
 .kenken-cell:focus-within {
   outline: none;
   transform: translateY(-2px) scale(1.02);
+  z-index: 10;
+}
+
+/* Cage-specific focus indicators */
+.cage-color-0:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(236, 72, 153, 0.3),
+    0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+.cage-color-1:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(245, 158, 11, 0.3),
+    0 0 0 3px rgba(245, 158, 11, 0.2);
+}
+
+.cage-color-2:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(16, 185, 129, 0.3),
+    0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+.cage-color-3:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(59, 130, 246, 0.3),
+    0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.cage-color-4:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(139, 92, 246, 0.3),
+    0 0 0 3px rgba(139, 92, 246, 0.2);
+}
+
+.cage-color-5:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(14, 165, 233, 0.3),
+    0 0 0 3px rgba(14, 165, 233, 0.2);
+}
+
+.cage-color-6:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(20, 184, 166, 0.3),
+    0 0 0 3px rgba(20, 184, 166, 0.2);
+}
+
+.cage-color-7:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(234, 88, 12, 0.3),
+    0 0 0 3px rgba(234, 88, 12, 0.2);
+}
+
+.cage-color-8:focus-within {
   box-shadow: 
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(99, 102, 241, 0.3),
     0 0 0 3px rgba(99, 102, 241, 0.2);
-  z-index: 10;
+}
+
+.cage-color-9:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(236, 72, 153, 0.3),
+    0 0 0 3px rgba(236, 72, 153, 0.2);
+}
+
+.cage-color-10:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(34, 197, 94, 0.3),
+    0 0 0 3px rgba(34, 197, 94, 0.2);
+}
+
+.cage-color-11:focus-within {
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 12px 24px rgba(249, 115, 22, 0.3),
+    0 0 0 3px rgba(249, 115, 22, 0.2);
 }
 
 /* Pencil marks styling */
@@ -213,17 +366,136 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* Cage exterior border styles - medium gray borders around cage edges */
+.cage-border-top {
+  border-top: 2px solid #9ca3af;
+}
+
+.cage-border-right {
+  border-right: 2px solid #9ca3af;
+}
+
+.cage-border-bottom {
+  border-bottom: 2px solid #9ca3af;
+}
+
+.cage-border-left {
+  border-left: 2px solid #9ca3af;
+}
+
 /* Enhanced selected cell state - only border, no background change */
 .kenken-cell.selected-cell {
-  border: 4px solid #1f2937 !important;
+  z-index: 8;
+  transform: scale(1.02);
+}
+
+/* Cage-specific selection indicators */
+.cage-color-0.selected-cell {
+  border: 4px solid #ec4899 !important;
   box-shadow: 
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
-    0 0 0 3px rgba(31, 41, 55, 0.7),
-    0 8px 20px rgba(31, 41, 55, 0.5) !important;
-  z-index: 8;
-  transform: scale(1.02);
-  animation: pulsate-focus 2s infinite;
+    0 0 0 3px rgba(236, 72, 153, 0.7),
+    0 8px 20px rgba(236, 72, 153, 0.5) !important;
+}
+
+.cage-color-1.selected-cell {
+  border: 4px solid #f59e0b !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(245, 158, 11, 0.7),
+    0 8px 20px rgba(245, 158, 11, 0.5) !important;
+}
+
+.cage-color-2.selected-cell {
+  border: 4px solid #10b981 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(16, 185, 129, 0.7),
+    0 8px 20px rgba(16, 185, 129, 0.5) !important;
+}
+
+.cage-color-3.selected-cell {
+  border: 4px solid #3b82f6 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(59, 130, 246, 0.7),
+    0 8px 20px rgba(59, 130, 246, 0.5) !important;
+}
+
+.cage-color-4.selected-cell {
+  border: 4px solid #8b5cf6 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(139, 92, 246, 0.7),
+    0 8px 20px rgba(139, 92, 246, 0.5) !important;
+}
+
+.cage-color-5.selected-cell {
+  border: 4px solid #0ea5e9 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(14, 165, 233, 0.7),
+    0 8px 20px rgba(14, 165, 233, 0.5) !important;
+}
+
+.cage-color-6.selected-cell {
+  border: 4px solid #14b8a6 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(20, 184, 166, 0.7),
+    0 8px 20px rgba(20, 184, 166, 0.5) !important;
+}
+
+.cage-color-7.selected-cell {
+  border: 4px solid #ea580c !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(234, 88, 12, 0.7),
+    0 8px 20px rgba(234, 88, 12, 0.5) !important;
+}
+
+.cage-color-8.selected-cell {
+  border: 4px solid #6366f1 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(99, 102, 241, 0.7),
+    0 8px 20px rgba(99, 102, 241, 0.5) !important;
+}
+
+.cage-color-9.selected-cell {
+  border: 4px solid #ec4899 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(236, 72, 153, 0.7),
+    0 8px 20px rgba(236, 72, 153, 0.5) !important;
+}
+
+.cage-color-10.selected-cell {
+  border: 4px solid #22c55e !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(34, 197, 94, 0.7),
+    0 8px 20px rgba(34, 197, 94, 0.5) !important;
+}
+
+.cage-color-11.selected-cell {
+  border: 4px solid #f97316 !important;
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.6),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(249, 115, 22, 0.7),
+    0 8px 20px rgba(249, 115, 22, 0.5) !important;
 }
 
 /* Enhanced error states with better visibility */
@@ -245,6 +517,9 @@
 
 .input-error {
   color: #dc2626 !important;
+  text-decoration: line-through !important;
+  text-decoration-color: #dc2626 !important;
+  text-decoration-thickness: 2px !important;
 }
 
 /* Flash animation for invalid input */
@@ -268,25 +543,269 @@
   }
 }
 
-/* Pulsate animation for selected cells */
-@keyframes pulsate-focus {
+/* Pulsate animations for each cage color */
+.cage-color-0.selected-cell { animation: pulsate-focus-0 2s infinite; }
+.cage-color-1.selected-cell { animation: pulsate-focus-1 2s infinite; }
+.cage-color-2.selected-cell { animation: pulsate-focus-2 2s infinite; }
+.cage-color-3.selected-cell { animation: pulsate-focus-3 2s infinite; }
+.cage-color-4.selected-cell { animation: pulsate-focus-4 2s infinite; }
+.cage-color-5.selected-cell { animation: pulsate-focus-5 2s infinite; }
+.cage-color-6.selected-cell { animation: pulsate-focus-6 2s infinite; }
+.cage-color-7.selected-cell { animation: pulsate-focus-7 2s infinite; }
+.cage-color-8.selected-cell { animation: pulsate-focus-8 2s infinite; }
+.cage-color-9.selected-cell { animation: pulsate-focus-9 2s infinite; }
+.cage-color-10.selected-cell { animation: pulsate-focus-10 2s infinite; }
+.cage-color-11.selected-cell { animation: pulsate-focus-11 2s infinite; }
+
+@keyframes pulsate-focus-0 {
   0% {
     box-shadow: 
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
-      0 0 0 0 rgba(31, 41, 55, 0.7);
+      0 0 0 0 rgba(236, 72, 153, 0.7);
   }
   70% {
     box-shadow: 
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
-      0 0 0 8px rgba(31, 41, 55, 0.3);
+      0 0 0 8px rgba(236, 72, 153, 0.3);
   }
   100% {
     box-shadow: 
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
-      0 0 0 0 rgba(31, 41, 55, 0);
+      0 0 0 0 rgba(236, 72, 153, 0);
+  }
+}
+
+@keyframes pulsate-focus-1 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(245, 158, 11, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(245, 158, 11, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(245, 158, 11, 0);
+  }
+}
+
+@keyframes pulsate-focus-2 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(16, 185, 129, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes pulsate-focus-3 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(59, 130, 246, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+@keyframes pulsate-focus-4 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(139, 92, 246, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(139, 92, 246, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(139, 92, 246, 0);
+  }
+}
+
+@keyframes pulsate-focus-5 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(14, 165, 233, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(14, 165, 233, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(14, 165, 233, 0);
+  }
+}
+
+@keyframes pulsate-focus-6 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(20, 184, 166, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(20, 184, 166, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(20, 184, 166, 0);
+  }
+}
+
+@keyframes pulsate-focus-7 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(234, 88, 12, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(234, 88, 12, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(234, 88, 12, 0);
+  }
+}
+
+@keyframes pulsate-focus-8 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(99, 102, 241, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(99, 102, 241, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(99, 102, 241, 0);
+  }
+}
+
+@keyframes pulsate-focus-9 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(236, 72, 153, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(236, 72, 153, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(236, 72, 153, 0);
+  }
+}
+
+@keyframes pulsate-focus-10 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@keyframes pulsate-focus-11 {
+  0% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(249, 115, 22, 0.7);
+  }
+  70% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 8px rgba(249, 115, 22, 0.3);
+  }
+  100% {
+    box-shadow: 
+      inset 0 2px 4px rgba(255, 255, 255, 0.6),
+      inset 0 -2px 4px rgba(0, 0, 0, 0.1),
+      0 0 0 0 rgba(249, 115, 22, 0);
   }
 }
 

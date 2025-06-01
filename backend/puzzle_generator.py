@@ -65,7 +65,10 @@ class KenkenGenerator:
         random.shuffle(cell_indices)
 
         # --- Adjust cage size parameters based on difficulty ---
-        if self.difficulty == "hard":
+        if self.difficulty == "expert":
+            max_cage_size = min(self.size, 7)  # Allow very large cages
+            min_cage_size = 3  # Force minimum cage size of 3
+        elif self.difficulty == "hard":
             max_cage_size = min(self.size, 5)
             min_cage_size = 2  # Force min size 2
         elif self.difficulty == "medium":
@@ -153,20 +156,88 @@ class KenkenGenerator:
                     self._raw_cages.append(current_cage_cells)
 
         # Ensure all cells are covered (handle potential leftover single cells)
+        leftover_cells = []
         for r in range(self.size):
             for c in range(self.size):
                 if not visited[r][c]:
-                    # Check if adding this single cell violates difficulty rules
-                    # (This check primarily applies to medium/hard where min_cage_size > 1)
-                    if min_cage_size > 1:
-                        # This leftover single cell violates the difficulty rule.
-                        # What to do? Merge it? Forcing a retry is safer.
+                    leftover_cells.append((r, c))
+
+        if leftover_cells:
+            # For expert difficulty, we need to merge leftover cells with existing cages
+            # or create larger cages to meet minimum size requirements
+            if self.difficulty == "expert" or min_cage_size > 1:
+                print(
+                    f"Found {len(leftover_cells)} leftover cells for difficulty '{self.difficulty}' (min size {min_cage_size})"
+                )
+
+                # Try to merge leftover cells with adjacent existing cages
+                for r, c in leftover_cells:
+                    merged = False
+                    # Find adjacent cages to merge with
+                    for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < self.size and 0 <= nc < self.size:
+                            # Find which cage contains this adjacent cell
+                            for cage_idx, cage_cells in enumerate(self._raw_cages):
+                                if (nr, nc) in cage_cells:
+                                    # Merge the leftover cell with this cage
+                                    self._raw_cages[cage_idx].append((r, c))
+                                    visited[r][c] = True
+                                    merged = True
+                                    print(
+                                        f"  Merged leftover cell ({r},{c}) with cage {cage_idx}"
+                                    )
+                                    break
+                            if merged:
+                                break
+
+                    # If we couldn't merge with an adjacent cage, try to group leftover cells together
+                    if not merged:
+                        # Find other unmerged leftover cells nearby to form a new cage
+                        remaining_leftover = [
+                            (lr, lc) for lr, lc in leftover_cells if not visited[lr][lc]
+                        ]
+                        if len(remaining_leftover) >= min_cage_size:
+                            # Create a new cage with enough leftover cells
+                            new_cage = []
+                            q = deque([(r, c)])
+                            visited[r][c] = True
+                            new_cage.append((r, c))
+
+                            while len(new_cage) < min_cage_size and q:
+                                curr_r, curr_c = q.popleft()
+                                for dr, dc in [(0, 1), (0, -1), (1, 0), (-1, 0)]:
+                                    nr, nc = curr_r + dr, curr_c + dc
+                                    if (
+                                        0 <= nr < self.size
+                                        and 0 <= nc < self.size
+                                        and not visited[nr][nc]
+                                        and (nr, nc) in remaining_leftover
+                                    ):
+                                        visited[nr][nc] = True
+                                        new_cage.append((nr, nc))
+                                        q.append((nr, nc))
+                                        if len(new_cage) >= min_cage_size:
+                                            break
+
+                            if len(new_cage) >= min_cage_size:
+                                self._raw_cages.append(new_cage)
+                                print(
+                                    f"  Created new cage with {len(new_cage)} leftover cells"
+                                )
+                                merged = True
+
+                    # Last resort: if we still can't merge and it's a single cell,
+                    # add it anyway but warn (this should trigger a retry)
+                    if not merged and not visited[r][c]:
                         print(
-                            f"WARNING: Leftover single cell ({r},{c}) found for difficulty '{self.difficulty}' which requires min cage size {min_cage_size}. This generation might fail uniqueness or be invalid."
+                            f"  WARNING: Could not merge leftover cell ({r},{c}), adding as single cell"
                         )
-                        # We could try merging it here with a neighbor cage, but that's complex.
-                        # For now, we'll let it be created and rely on the uniqueness check / max_attempts.
-                        pass
+                        self._raw_cages.append([(r, c)])
+                        visited[r][c] = True
+            else:
+                # For easy difficulty, single cells are OK
+                for r, c in leftover_cells:
                     self._raw_cages.append([(r, c)])
                     visited[r][c] = True
 
@@ -182,11 +253,14 @@ class KenkenGenerator:
         elif self.difficulty == "medium":
             allowed_ops_base = {"+", "-", "*"}  # Add multiplication
             max_single_cells = total_cage_count // 4  # Fewer single cells
-        else:  # hard
+        elif self.difficulty == "hard":
             allowed_ops_base = {"+", "-", "*", "/"}  # Allow all ops
             max_single_cells = max(
                 1, total_cage_count // 8
             )  # Very few single cells (at least 1 maybe?)
+        else:  # expert
+            allowed_ops_base = {"+", "-", "*", "/"}  # Allow all ops
+            max_single_cells = 0  # No single cells for expert - maximum challenge
         # -----------------------------------------------------------
 
         print(
@@ -214,11 +288,21 @@ class KenkenGenerator:
                     )
                 else:
                     # Limit reached, cannot create this single-cell cage.
-                    # Skip adding it to self.cages. This might leave orphan cells.
-                    print(
-                        f"  Cage {linear_indices}: Skipping single cell cage creation (limit {max_single_cells} reached)"
-                    )
-                    op = None  # Ensure it's not added
+                    # For expert difficulty, this should not happen if partitioning worked correctly
+                    if self.difficulty == "expert":
+                        # Force create the cage anyway to avoid orphan cells
+                        print(
+                            f"  Cage {linear_indices}: FORCING single cell cage creation for expert (should not happen)"
+                        )
+                        op = "="
+                        target = cage_values[0]
+                        single_cell_cage_count += 1
+                    else:
+                        # Skip adding it to self.cages. This might leave orphan cells.
+                        print(
+                            f"  Cage {linear_indices}: Skipping single cell cage creation (limit {max_single_cells} reached)"
+                        )
+                        op = None  # Ensure it's not added
             else:
                 # Multi-cell cage
                 possible_ops = list(allowed_ops_base)
@@ -620,3 +704,12 @@ if __name__ == "__main__":
         import json
 
         print(json.dumps(puzzle_hard, indent=2))
+
+    # Example: Generate an "expert" 6x6 (all ops, largest cages, no single cells)
+    print("\nGenerating Expert 6x6:")
+    generator_expert = KenkenGenerator(size=6, difficulty="expert")
+    puzzle_expert = generator_expert.generate()
+    if puzzle_expert:
+        import json
+
+        print(json.dumps(puzzle_expert, indent=2))

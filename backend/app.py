@@ -1,7 +1,9 @@
+import json
 import logging
+import os
 import random  # Import random for size selection within difficulty
 from flask import Flask, jsonify, request
-from .puzzle_generator import KenkenGenerator
+from .kenken import generate_kenken_puzzle
 
 app = Flask(__name__)
 
@@ -19,10 +21,13 @@ else:
     app.logger.info("Flask logger configured for DEBUG level.")
 # -------------------------------------
 
+PUZZLES_FILE = "all_puzzles.jsonl"
 
-@app.route("/api/hello")
-def hello_world():
-    return jsonify(message="Hello from Flask!")
+ALL_PUZZLES = []
+if os.path.exists(PUZZLES_FILE):
+    with open(PUZZLES_FILE, "r") as f:
+        for line in f:
+            ALL_PUZZLES.append(json.loads(line))
 
 
 @app.route("/api/puzzle")
@@ -31,11 +36,13 @@ def get_puzzle():
 
     # --- Difficulty Handling ---
     difficulty = request.args.get("difficulty", "medium").lower()
-    valid_difficulties = ["easy", "medium", "hard"]
+    valid_difficulties = ["easiest", "easy", "medium", "hard", "expert"]
     if difficulty not in valid_difficulties:
         app.logger.warning(f"Invalid difficulty requested: {difficulty}")
         return jsonify(
-            {"error": "Invalid difficulty parameter. Must be easy, medium, or hard."}
+            {
+                "error": "Invalid difficulty parameter. Must be easiest, easy, medium, hard, or expert."
+            }
         ), 400
     app.logger.info(f"Validated difficulty: {difficulty}")
 
@@ -70,11 +77,43 @@ def get_puzzle():
         app.logger.info(
             f"Attempting generation for size {size}, difficulty '{difficulty}'..."
         )
-        # Pass determined operations and difficulty to generator
-        generator = KenkenGenerator(
-            size=size, operations=allowed_operations, difficulty=difficulty
-        )
-        puzzle_definition = generator.generate()
+        if ALL_PUZZLES:
+            app.logger.info(f"Found {len(ALL_PUZZLES)} puzzles in database.")
+
+            # Get difficulty range for the requested size and difficulty
+            from .kenken import _get_difficulty_range
+
+            min_score, max_score = _get_difficulty_range(size, difficulty)
+            app.logger.info(
+                f"Target difficulty range for {size}x{size} {difficulty}: {min_score} - {max_score}"
+            )
+
+            # Filter puzzles by size and difficulty score range
+            matching_puzzles = [
+                puzzle
+                for puzzle in ALL_PUZZLES
+                if puzzle["puzzle"]["size"] == size
+                and min_score <= puzzle["puzzle"]["difficulty_operations"] <= max_score
+            ]
+
+            if matching_puzzles:
+                app.logger.info(
+                    f"Found {len(matching_puzzles)} matching puzzles for {size}x{size} {difficulty}"
+                )
+                puzzle_definition = random.choice(matching_puzzles)["puzzle"]
+            else:
+                app.logger.warning(
+                    f"No puzzles found for {size}x{size} {difficulty} in range {min_score}-{max_score}"
+                )
+                # Fall back to generating a new puzzle
+                puzzle_definition = generate_kenken_puzzle(
+                    size, difficulty=difficulty, max_attempts=500
+                )
+        else:
+            app.logger.info("No puzzles found in database, generating new puzzle.")
+            puzzle_definition = generate_kenken_puzzle(
+                size, difficulty=difficulty, max_attempts=500
+            )
 
         if puzzle_definition is None:
             app.logger.error(

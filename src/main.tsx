@@ -5,9 +5,7 @@ import App from "./App";
 import "./index.css"; // Import Tailwind and custom application styles
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <MantineProvider>
-      <App />
-    </MantineProvider>
-  </React.StrictMode>
+  <MantineProvider>
+    <App />
+  </MantineProvider>
 );

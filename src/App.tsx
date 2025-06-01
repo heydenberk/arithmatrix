@@ -16,6 +16,7 @@ import {
   ThemeIcon,
   Center,
   Button,
+  Tooltip,
   rem,
 } from "@mantine/core";
 import {
@@ -39,14 +40,83 @@ type Cage = {
 type PuzzleDefinition = {
   size: number;
   cages: Cage[];
+  difficulty_operations?: number;
+};
+
+// New type for the raw data structure from JSONL
+type RawPuzzleData = {
+  puzzle: {
+    size: number;
+    cages: Cage[];
+    solution: number[][];
+    difficulty_operations?: number;
+  };
+  metadata: {
+    size: number;
+    actual_difficulty: string;
+    operation_count: number;
+    generation_time: number;
+    generated_at: string;
+    generator_version: string;
+  };
 };
 
 // New type including the solution
 type PuzzleData = PuzzleDefinition & {
   solution: number[][];
+  difficulty: string;
+  difficulty_operations?: number;
 };
 
 // Removed placeholder functions generatePlaceholderPuzzle and fetchPuzzleDefinition
+
+// Difficulty bounds based on difficulty_operations per size
+const difficultyBounds = {
+  4: {
+    easiest: [10, 16],
+    easy: [16, 18],
+    medium: [18, 20],
+    hard: [20, 22],
+    expert: [22, 29],
+  },
+  5: {
+    easiest: [16, 24],
+    easy: [24, 26],
+    medium: [26, 28],
+    hard: [28, 30],
+    expert: [30, 40],
+  },
+  6: {
+    easiest: [28, 35],
+    easy: [35, 37],
+    medium: [37, 39],
+    hard: [39, 42],
+    expert: [42, 55],
+  },
+  7: {
+    easiest: [38, 47],
+    easy: [47, 49],
+    medium: [49, 52],
+    hard: [52, 55],
+    expert: [55, 65],
+  },
+};
+
+// Helper function to get difficulty bounds for a given size and difficulty
+const getDifficultyBounds = (
+  size: number,
+  difficulty: string
+): [number, number] => {
+  const sizeBounds = difficultyBounds[size as keyof typeof difficultyBounds];
+  if (!sizeBounds) {
+    // Default to size 7 bounds if size not found
+    return (difficultyBounds[7][
+      difficulty as keyof (typeof difficultyBounds)[7]
+    ] || [49, 52]) as [number, number];
+  }
+  return (sizeBounds[difficulty as keyof typeof sizeBounds] ||
+    sizeBounds.medium) as [number, number];
+};
 
 // Helper functions for URL parameter management
 const getURLParams = () => {
@@ -54,11 +124,11 @@ const getURLParams = () => {
   const size = parseInt(params.get("size") || "7", 10);
   const difficulty = params.get("difficulty") || "medium";
 
-  // Validate size (between 4 and 9)
-  const validSize = size >= 4 && size <= 9 ? size : 7;
+  // Validate size (between 4 and 7)
+  const validSize = size >= 4 && size <= 7 ? size : 7;
 
   // Validate difficulty
-  const validDifficulties = ["easy", "medium", "hard", "expert"];
+  const validDifficulties = ["easiest", "easy", "medium", "hard", "expert"];
   const validDifficulty = validDifficulties.includes(difficulty)
     ? difficulty
     : "medium";
@@ -82,8 +152,16 @@ function App() {
   const [difficulty, setDifficulty] = useState<string>(
     initialParams.difficulty
   );
+
+  // Separate state for UI selections (what user has selected but not yet applied)
+  const [selectedSize, setSelectedSize] = useState<number>(initialParams.size);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<string>(
+    initialParams.difficulty
+  );
+
   const [puzzleDefinition, setPuzzleDefinition] =
     useState<PuzzleDefinition | null>(null);
+
   const [solutionGrid, setSolutionGrid] = useState<number[][] | null>(null); // State for the solution
   const [loading, setLoading] = useState<boolean>(true); // Start loading initially
   const [error, setError] = useState<string | null>(null);
@@ -92,9 +170,10 @@ function App() {
   const [showNewGameControls, setShowNewGameControls] =
     useState<boolean>(false); // State for showing new game controls
   const [resetKey, setResetKey] = useState<number>(0); // Key to force KenkenGrid re-render for reset
+  const [puzzleRefreshKey, setPuzzleRefreshKey] = useState<number>(0); // Key to force new puzzle fetch
 
   useEffect(() => {
-    // Function to fetch puzzle data from the backend API
+    // Function to fetch puzzle data from the JSONL file
     const loadPuzzle = async () => {
       setLoading(true);
       setError(null);
@@ -105,25 +184,71 @@ function App() {
       ); // Updated log
 
       try {
-        const response = await fetch(
-          `/api/puzzle?size=${puzzleSize}&difficulty=${difficulty}`
-        );
+        const response = await fetch("/all_puzzles.jsonl");
         if (!response.ok) {
-          let errorMsg = `HTTP error! status: ${response.status}`;
-          try {
-            // Try to parse a JSON error message from the backend
-            const errorData = await response.json();
-            errorMsg = errorData.error || errorMsg; // Use backend error if available
-          } catch (parseError) {
-            // If response is not JSON, use the status text or default message
-            errorMsg = response.statusText || errorMsg;
-          }
-          throw new Error(errorMsg);
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const data: PuzzleData = await response.json();
-        console.log("Puzzle data received:", data); // Debug log
-        setPuzzleDefinition({ size: data.size, cages: data.cages }); // Set definition part
-        setSolutionGrid(data.solution); // Set the solution grid
+
+        const text = await response.text();
+        const lines = text.trim().split("\n");
+        const puzzles: PuzzleData[] = [];
+
+        // Parse each line as JSON
+        for (const line of lines) {
+          if (line.trim()) {
+            try {
+              const rawPuzzle = JSON.parse(line) as RawPuzzleData;
+              // Transform the raw data into our expected format
+              const puzzle: PuzzleData = {
+                size: rawPuzzle.puzzle.size,
+                cages: rawPuzzle.puzzle.cages,
+                solution: rawPuzzle.puzzle.solution,
+                difficulty: rawPuzzle.metadata.actual_difficulty,
+                difficulty_operations: rawPuzzle.puzzle.difficulty_operations,
+              };
+              puzzles.push(puzzle);
+            } catch (parseError) {
+              console.warn("Failed to parse line:", line, parseError);
+            }
+          }
+        }
+
+        console.log(`Loaded ${puzzles.length} total puzzles`);
+        console.log("puzzles", puzzles);
+
+        // Get difficulty bounds for the selected size and difficulty
+        const [minOps, maxOps] = getDifficultyBounds(puzzleSize, difficulty);
+
+        // Filter puzzles by size and difficulty_operations bounds
+        const filteredPuzzles = puzzles.filter(
+          (puzzle) =>
+            puzzle.size === puzzleSize &&
+            puzzle.difficulty_operations !== undefined &&
+            puzzle.difficulty_operations >= minOps &&
+            puzzle.difficulty_operations <= maxOps
+        );
+
+        console.log(
+          `Found ${filteredPuzzles.length} puzzles matching size ${puzzleSize} and difficulty ${difficulty} (operations: ${minOps}-${maxOps})`
+        );
+
+        if (filteredPuzzles.length === 0) {
+          throw new Error(
+            `No puzzles found for size ${puzzleSize} and difficulty ${difficulty}`
+          );
+        }
+
+        // Select a random puzzle from the filtered results
+        const randomIndex = Math.floor(Math.random() * filteredPuzzles.length);
+        const selectedPuzzle = filteredPuzzles[randomIndex];
+
+        console.log("Puzzle data received:", selectedPuzzle); // Debug log
+        setPuzzleDefinition({
+          size: selectedPuzzle.size,
+          cages: selectedPuzzle.cages,
+          difficulty_operations: selectedPuzzle.difficulty_operations,
+        }); // Set definition part
+        setSolutionGrid(selectedPuzzle.solution); // Set the solution grid
       } catch (err) {
         console.error("Failed to fetch puzzle:", err); // Debug log
         setError(
@@ -139,25 +264,18 @@ function App() {
     loadPuzzle();
     setIsGameWon(false); // Reset win state when puzzle settings change
     setShowNewGameControls(false); // Hide new game controls when loading new puzzle
-    // Dependency array now includes difficulty
-  }, [puzzleSize, difficulty]); // Refetch when puzzleSize or difficulty changes
+  }, [puzzleSize, difficulty, puzzleRefreshKey]); // Refetch when puzzleSize, difficulty, or puzzleRefreshKey changes
 
-  // Effect to handle browser back/forward navigation and initial URL sync
+  // Effect to handle browser back/forward navigation only
   useEffect(() => {
-    // Update URL on initial load if parameters are missing or invalid
-    const currentParams = getURLParams();
-    if (
-      currentParams.size !== puzzleSize ||
-      currentParams.difficulty !== difficulty
-    ) {
-      updateURL(puzzleSize, difficulty);
-    }
-
     // Handle browser back/forward navigation
     const handlePopState = () => {
       const urlParams = getURLParams();
       setPuzzleSize(urlParams.size);
       setDifficulty(urlParams.difficulty);
+      // Also update the selected values to match URL
+      setSelectedSize(urlParams.size);
+      setSelectedDifficulty(urlParams.difficulty);
     };
 
     window.addEventListener("popstate", handlePopState);
@@ -165,7 +283,7 @@ function App() {
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, []); // Run only on mount
+  }, []); // Empty dependency array - only set up listener once
 
   // Effect to handle window focus/blur for timer pause/resume
   useEffect(() => {
@@ -189,25 +307,30 @@ function App() {
     };
   }, []); // Empty dependency array ensures this runs only once on mount/unmount
 
-  // Handlers for size and difficulty changes - Now updates URL
+  // Handlers for size and difficulty changes - Now only update UI state
   const handleSizeChange = (value: string | null) => {
     if (value) {
       const newSize = parseInt(value, 10);
-      setPuzzleSize(newSize);
-      updateURL(newSize, difficulty); // Update URL with new size
-      setIsTimerRunning(true); // Ensure timer is running for new puzzle
-      setShowNewGameControls(false); // Hide controls after selection
+      setSelectedSize(newSize);
     }
   };
 
-  // Handler for difficulty change
+  // Handler for difficulty change - Now only update UI state
   const handleDifficultyChange = (value: string | null) => {
     if (value) {
-      setDifficulty(value);
-      updateURL(puzzleSize, value); // Update URL with new difficulty
-      setIsTimerRunning(true); // Ensure timer is running for new puzzle
-      setShowNewGameControls(false); // Hide controls after selection
+      setSelectedDifficulty(value);
     }
+  };
+
+  // Handler for starting a new game with selected settings
+  const handleStartNewGame = () => {
+    setPuzzleSize(selectedSize);
+    setDifficulty(selectedDifficulty);
+    updateURL(selectedSize, selectedDifficulty);
+    setIsTimerRunning(true);
+    setShowNewGameControls(false);
+    setResetKey((prev) => prev + 1); // Reset the grid key as well
+    setPuzzleRefreshKey((prev) => prev + 1); // Force new puzzle fetch even if settings are the same
   };
 
   // Handler for reset button - resets current puzzle progress
@@ -218,8 +341,13 @@ function App() {
     console.log("Puzzle reset");
   };
 
-  // Handler for new game button - shows size/difficulty controls
+  // Handler for new game button - shows size/difficulty controls and resets selections
   const handleNewGame = () => {
+    if (!showNewGameControls) {
+      // When opening the menu, reset selections to current values
+      setSelectedSize(puzzleSize);
+      setSelectedDifficulty(difficulty);
+    }
     setShowNewGameControls(!showNewGameControls);
   };
 
@@ -562,96 +690,129 @@ function App() {
                 </Button>
 
                 {/* Combined Size and Difficulty Pill */}
-                <Badge
-                  size="lg"
-                  radius="xl"
-                  variant="gradient"
-                  gradient={{ from: "indigo", to: "pink" }}
-                  style={{
-                    textTransform: "capitalize",
-                    padding: `${rem(8)} ${rem(16)}`,
-                    fontSize: rem(14),
-                    fontWeight: 600,
-                    height: rem(36), // Match button height
-                    display: "flex",
-                    alignItems: "center",
-                  }}
+                <Tooltip
+                  label={
+                    puzzleDefinition?.difficulty_operations
+                      ? `Difficulty: ${puzzleDefinition.difficulty_operations.toLocaleString()} operations`
+                      : "Difficulty information not available"
+                  }
+                  position="bottom"
                 >
-                  {puzzleSize}×{puzzleSize} • {difficulty}
-                </Badge>
+                  <Badge
+                    size="lg"
+                    radius="xl"
+                    variant="gradient"
+                    gradient={{ from: "indigo", to: "pink" }}
+                    style={{
+                      textTransform: "capitalize",
+                      padding: `${rem(8)} ${rem(16)}`,
+                      fontSize: rem(14),
+                      fontWeight: 600,
+                      height: rem(36), // Match button height
+                      display: "flex",
+                      alignItems: "center",
+                      cursor: "help",
+                    }}
+                  >
+                    {puzzleSize}×{puzzleSize} • {difficulty}
+                  </Badge>
+                </Tooltip>
               </Group>
             )}
 
             {/* Conditional Puzzle Settings - Only show when New Game is clicked */}
             {showNewGameControls && (
-              <Stack align="center" gap="sm">
-                <Group justify="center" gap="md">
-                  {/* Size Selector */}
-                  <Stack align="center" gap="xs">
-                    <Text size="sm" fw={600} c="gray.6">
-                      Size
-                    </Text>
-                    <Select
-                      value={puzzleSize.toString()}
-                      onChange={handleSizeChange}
-                      data={[
-                        { value: "4", label: "4×4" },
-                        { value: "5", label: "5×5" },
-                        { value: "6", label: "6×6" },
-                        { value: "7", label: "7×7" },
-                        { value: "8", label: "8×8" },
-                        { value: "9", label: "9×9" },
-                      ]}
-                      styles={{
-                        input: {
-                          background:
-                            "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
-                          color: "white",
-                          border: "none",
-                          borderRadius: rem(50),
-                          fontWeight: 600,
-                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                          "&:focus": {
-                            boxShadow: "0 0 0 4px rgba(139, 92, 246, 0.3)",
-                          },
+              <Group justify="center" gap="sm" wrap="wrap">
+                {/* Size Selector */}
+                <Stack align="center" gap={rem(4)}>
+                  <Text size="xs" fw={600} c="gray.6">
+                    Size
+                  </Text>
+                  <Select
+                    value={selectedSize.toString()}
+                    onChange={handleSizeChange}
+                    size="xs"
+                    data={[
+                      { value: "4", label: "4×4" },
+                      { value: "5", label: "5×5" },
+                      { value: "6", label: "6×6" },
+                      { value: "7", label: "7×7" },
+                    ]}
+                    styles={{
+                      input: {
+                        background:
+                          "linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: rem(50),
+                        fontWeight: 600,
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                        "&:focus": {
+                          boxShadow: "0 0 0 4px rgba(139, 92, 246, 0.3)",
                         },
-                      }}
-                    />
-                  </Stack>
+                      },
+                    }}
+                  />
+                </Stack>
 
-                  {/* Difficulty Selector */}
-                  <Stack align="center" gap="xs">
-                    <Text size="sm" fw={600} c="gray.6">
-                      Difficulty
-                    </Text>
-                    <Select
-                      value={difficulty}
-                      onChange={handleDifficultyChange}
-                      data={[
-                        { value: "easy", label: "Easy" },
-                        { value: "medium", label: "Medium" },
-                        { value: "hard", label: "Hard" },
-                        { value: "expert", label: "Expert" },
-                      ]}
-                      styles={{
-                        input: {
-                          background:
-                            "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
-                          color: "white",
-                          border: "none",
-                          borderRadius: rem(50),
-                          fontWeight: 600,
-                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                          textTransform: "capitalize",
-                          "&:focus": {
-                            boxShadow: "0 0 0 4px rgba(236, 72, 153, 0.3)",
-                          },
+                {/* Difficulty Selector */}
+                <Stack align="center" gap={rem(4)}>
+                  <Text size="xs" fw={600} c="gray.6">
+                    Difficulty
+                  </Text>
+                  <Select
+                    value={selectedDifficulty}
+                    onChange={handleDifficultyChange}
+                    size="xs"
+                    data={[
+                      { value: "easiest", label: "Easiest" },
+                      { value: "easy", label: "Easy" },
+                      { value: "medium", label: "Medium" },
+                      { value: "hard", label: "Hard" },
+                      { value: "expert", label: "Expert" },
+                    ]}
+                    styles={{
+                      input: {
+                        background:
+                          "linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: rem(50),
+                        fontWeight: 600,
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                        textTransform: "capitalize",
+                        "&:focus": {
+                          boxShadow: "0 0 0 4px rgba(236, 72, 153, 0.3)",
                         },
-                      }}
-                    />
-                  </Stack>
-                </Group>
-              </Stack>
+                      },
+                    }}
+                  />
+                </Stack>
+
+                {/* Start New Game Button */}
+                <Stack align="center" gap={rem(4)}>
+                  <Text size="xs" fw={600} c="gray.6">
+                    Action
+                  </Text>
+                  <Button
+                    onClick={handleStartNewGame}
+                    radius="xl"
+                    size="xs"
+                    variant="gradient"
+                    gradient={{ from: "violet", to: "cyan" }}
+                    leftSection={<IconSparkles size="0.9rem" />}
+                    style={{
+                      transition: "all 200ms ease",
+                      fontWeight: 600,
+                      "&:hover": {
+                        transform: "scale(1.05)",
+                      },
+                    }}
+                  >
+                    Start New Game
+                  </Button>
+                </Stack>
+              </Group>
             )}
           </Stack>
         </Paper>
