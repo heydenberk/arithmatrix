@@ -19,15 +19,18 @@
  * and integrate with different state management approaches.
  */
 
-import React from "react";
-import { Group, ActionIcon, Tooltip, rem, Box } from "@mantine/core";
+import React from 'react';
+import { Group, ActionIcon, Tooltip, rem, Box } from '@mantine/core';
 import {
   IconPencil,
   IconCheck,
   IconArrowBackUp,
   IconArrowForwardUp,
-} from "@tabler/icons-react";
-import { KenkenControlsProps } from "../types/KenkenTypes";
+  IconBookmark,
+  IconBookmarkOff,
+  IconRestore,
+} from '@tabler/icons-react';
+import { KenkenControlsProps } from '../types/KenkenTypes';
 
 const KenkenControls: React.FC<KenkenControlsProps> = ({
   isPencilMode,
@@ -38,30 +41,30 @@ const KenkenControls: React.FC<KenkenControlsProps> = ({
   onRedo,
   onCheckCell,
   onCheckPuzzle,
+  hasCheckpoint = false,
+  onCreateCheckpoint,
+  onRevertToCheckpoint,
 }) => {
   return (
     <Group justify="center" gap="md">
       {/* Pencil Mode Toggle Button */}
-      <Tooltip
-        label={`Toggle pencil mode (${isPencilMode ? "On" : "Off"})`}
-        position="bottom"
-      >
-        <Box style={{ position: "relative" }}>
+      <Tooltip label={`Toggle pencil mode (${isPencilMode ? 'On' : 'Off'})`} position="bottom">
+        <Box style={{ position: 'relative' }}>
           <ActionIcon
             onClick={onTogglePencilMode}
             size={rem(40)}
             radius="xl"
-            variant={isPencilMode ? "gradient" : "filled"}
-            gradient={isPencilMode ? { from: "blue", to: "indigo" } : undefined}
-            color={isPencilMode ? undefined : "gray"}
+            variant={isPencilMode ? 'gradient' : 'filled'}
+            gradient={isPencilMode ? { from: 'blue', to: 'indigo' } : undefined}
+            color={isPencilMode ? undefined : 'gray'}
             style={{
-              transition: "all 300ms ease",
-              transform: "scale(1)",
+              transition: 'all 300ms ease',
+              transform: 'scale(1)',
               boxShadow: isPencilMode
-                ? "0 15px 30px -8px rgba(59, 130, 246, 0.3)"
-                : "0 15px 30px -8px rgba(0, 0, 0, 0.25)",
-              "&:hover": {
-                transform: "scale(1.1)",
+                ? '0 15px 30px -8px rgba(59, 130, 246, 0.3)'
+                : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
+              '&:hover': {
+                transform: 'scale(1.1)',
               },
             }}
           >
@@ -72,15 +75,15 @@ const KenkenControls: React.FC<KenkenControlsProps> = ({
           {isPencilMode && (
             <Box
               style={{
-                position: "absolute",
+                position: 'absolute',
                 top: rem(-4),
                 right: rem(-4),
                 width: rem(12),
                 height: rem(12),
-                backgroundColor: "#10b981",
-                borderRadius: "50%",
-                border: "3px solid white",
-                boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                backgroundColor: '#10b981',
+                borderRadius: '50%',
+                border: '3px solid white',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
               }}
               className="animate-pulse"
             />
@@ -89,22 +92,19 @@ const KenkenControls: React.FC<KenkenControlsProps> = ({
       </Tooltip>
 
       {/* Check Puzzle Button */}
-      <Tooltip
-        label="Check the entire puzzle for correctness"
-        position="bottom"
-      >
+      <Tooltip label="Check the entire puzzle for correctness" position="bottom">
         <ActionIcon
           onClick={onCheckPuzzle}
           size={rem(40)}
           radius="xl"
           variant="gradient"
-          gradient={{ from: "teal", to: "green" }}
+          gradient={{ from: 'teal', to: 'green' }}
           style={{
-            transition: "all 300ms ease",
-            transform: "scale(1)",
-            boxShadow: "0 15px 30px -8px rgba(16, 185, 129, 0.3)",
-            "&:hover": {
-              transform: "scale(1.1)",
+            transition: 'all 300ms ease',
+            transform: 'scale(1)',
+            boxShadow: '0 15px 30px -8px rgba(16, 185, 129, 0.3)',
+            '&:hover': {
+              transform: 'scale(1.1)',
             },
           }}
         >
@@ -120,16 +120,16 @@ const KenkenControls: React.FC<KenkenControlsProps> = ({
           size={rem(40)}
           radius="xl"
           variant="gradient"
-          gradient={{ from: "yellow", to: "orange" }}
+          gradient={{ from: 'yellow', to: 'orange' }}
           style={{
-            transition: "all 300ms ease",
-            transform: "scale(1)",
+            transition: 'all 300ms ease',
+            transform: 'scale(1)',
             boxShadow: canUndo
-              ? "0 15px 30px -8px rgba(251, 191, 36, 0.3)"
-              : "0 15px 30px -8px rgba(0, 0, 0, 0.25)",
+              ? '0 15px 30px -8px rgba(251, 191, 36, 0.3)'
+              : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
             opacity: !canUndo ? 0.5 : 1,
-            "&:hover": {
-              transform: canUndo ? "scale(1.1)" : "scale(1)",
+            '&:hover': {
+              transform: canUndo ? 'scale(1.1)' : 'scale(1)',
             },
           }}
         >
@@ -145,22 +145,73 @@ const KenkenControls: React.FC<KenkenControlsProps> = ({
           size={rem(40)}
           radius="xl"
           variant="gradient"
-          gradient={{ from: "indigo", to: "purple" }}
+          gradient={{ from: 'indigo', to: 'purple' }}
           style={{
-            transition: "all 300ms ease",
-            transform: "scale(1)",
+            transition: 'all 300ms ease',
+            transform: 'scale(1)',
             boxShadow: canRedo
-              ? "0 15px 30px -8px rgba(99, 102, 241, 0.3)"
-              : "0 15px 30px -8px rgba(0, 0, 0, 0.25)",
+              ? '0 15px 30px -8px rgba(99, 102, 241, 0.3)'
+              : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
             opacity: !canRedo ? 0.5 : 1,
-            "&:hover": {
-              transform: canRedo ? "scale(1.1)" : "scale(1)",
+            '&:hover': {
+              transform: canRedo ? 'scale(1.1)' : 'scale(1)',
             },
           }}
         >
           <IconArrowForwardUp size="1.2rem" />
         </ActionIcon>
       </Tooltip>
+
+      {/* Checkpoint Controls */}
+      {onCreateCheckpoint && (
+        <Tooltip label={hasCheckpoint ? 'Clear checkpoint' : 'Create checkpoint'} position="bottom">
+          <ActionIcon
+            onClick={onCreateCheckpoint}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={hasCheckpoint ? { from: 'red', to: 'orange' } : { from: 'green', to: 'teal' }}
+            style={{
+              transition: 'all 300ms ease',
+              transform: 'scale(1)',
+              boxShadow: hasCheckpoint
+                ? '0 15px 30px -8px rgba(239, 68, 68, 0.3)'
+                : '0 15px 30px -8px rgba(16, 185, 129, 0.3)',
+              '&:hover': {
+                transform: 'scale(1.1)',
+              },
+            }}
+          >
+            {hasCheckpoint ? <IconBookmarkOff size="1.2rem" /> : <IconBookmark size="1.2rem" />}
+          </ActionIcon>
+        </Tooltip>
+      )}
+
+      {onRevertToCheckpoint && (
+        <Tooltip label="Revert to checkpoint" position="bottom">
+          <ActionIcon
+            onClick={onRevertToCheckpoint}
+            disabled={!hasCheckpoint}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'purple', to: 'indigo' }}
+            style={{
+              transition: 'all 300ms ease',
+              transform: 'scale(1)',
+              boxShadow: hasCheckpoint
+                ? '0 15px 30px -8px rgba(147, 51, 234, 0.3)'
+                : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
+              opacity: !hasCheckpoint ? 0.5 : 1,
+              '&:hover': {
+                transform: hasCheckpoint ? 'scale(1.1)' : 'scale(1)',
+              },
+            }}
+          >
+            <IconRestore size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      )}
     </Group>
   );
 };

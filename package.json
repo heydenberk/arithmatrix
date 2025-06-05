@@ -10,7 +10,12 @@
     "preview": "vite preview",
     "backend:install": "python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt",
     "backend:dev": "backend/.venv/bin/flask --app backend.app run --debug --port 5001",
-    "start:dev": "concurrently \"npm:dev\" \"npm:backend:dev\""
+    "start:dev": "concurrently \"npm:dev\" \"npm:backend:dev\"",
+    "lint": "eslint src --ext .ts,.tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "type-check": "tsc --noEmit"
   },
   "keywords": [],
   "author": "",
@@ -18,8 +23,14 @@
   "devDependencies": {
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",
+    "@typescript-eslint/eslint-plugin": "^8.33.0",
+    "@typescript-eslint/parser": "^8.33.0",
     "@vitejs/plugin-react": "^4.4.1",
     "concurrently": "^8.2.2",
+    "eslint": "^9.28.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "prettier": "^3.5.3",
     "typescript": "^5.8.3",
     "vite": "^6.3.3"
   },

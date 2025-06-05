@@ -46,6 +46,20 @@ export type KenkenGridProps = {
   isTimerRunning: boolean;
   /** Whether the game has been won */
   isGameWon: boolean;
+  /** Initial grid values for restoring saved state */
+  initialGridValues?: string[][];
+  /** Initial pencil marks for restoring saved state */
+  initialPencilMarks?: Set<string>[][];
+  /** Callback for when grid state changes (for persistence) */
+  onStateChange?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
+  /** Callback for when a checkpoint is requested from the parent */
+  onCheckpointRequested?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
+  /** Whether a checkpoint exists */
+  hasCheckpoint?: boolean;
+  /** Handler for creating/clearing checkpoint */
+  onCreateCheckpoint?: () => void;
+  /** Handler for reverting to checkpoint */
+  onRevertToCheckpoint?: () => void;
 };
 
 /**
@@ -131,4 +145,10 @@ export type KenkenControlsProps = {
   onCheckCell: () => void;
   /** Handler for checking the entire puzzle */
   onCheckPuzzle: () => void;
+  /** Whether a checkpoint exists */
+  hasCheckpoint?: boolean;
+  /** Handler for creating/clearing checkpoint */
+  onCreateCheckpoint?: () => void;
+  /** Handler for reverting to checkpoint */
+  onRevertToCheckpoint?: () => void;
 };

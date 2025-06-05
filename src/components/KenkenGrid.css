@@ -871,4 +871,10 @@
 .cell-input:focus {
   caret-color: transparent;
   outline: none;
+}
+
+.cell-input:disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
 } 

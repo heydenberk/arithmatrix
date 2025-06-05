@@ -15,272 +15,287 @@
  * - Multi-cell selection and pencil mark support
  */
 
-import React, { useEffect, useMemo } from "react";
-import { Box, Stack } from "@mantine/core";
-import "./KenkenGrid.css"; // Essential for grid styling and layout
+import React, { useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
+import { Box, Stack } from '@mantine/core';
+import './KenkenGrid.css'; // Essential for grid styling and layout
 
 // Type imports
-import { KenkenGridProps } from "../types/KenkenTypes";
+import { KenkenGridProps } from '../types/KenkenTypes';
 
 // Component imports
-import KenkenCell from "./KenkenCell";
-import KenkenControls from "./KenkenControls";
+import KenkenCell from './KenkenCell';
+import KenkenControls from './KenkenControls';
 
 // Hook and utility imports
-import { useKenkenGame } from "../hooks/useKenkenGame";
+import { useKenkenGame } from '../hooks/useKenkenGame';
 import {
   generateCageColorMap,
   getCageColorClass,
   getCageTextColorClass,
   getBorderClasses,
   getCageInfo,
-} from "../utils/kenkenUtils";
+} from '../utils/kenkenUtils';
 
-const KenkenGrid: React.FC<KenkenGridProps> = ({
-  puzzleDefinition,
-  solution,
-  onWin,
-  isTimerRunning,
-  isGameWon,
-}) => {
-  const { size } = puzzleDefinition;
+// Define the methods that will be exposed via ref
+interface KenkenGridHandle {
+  createCheckpoint: () => void;
+}
 
-  // Use our custom hook for all game logic
-  const gameState = useKenkenGame({
-    puzzleDefinition,
-    solution,
-    onWin,
-    isTimerRunning,
-    isGameWon,
-  });
-
-  // Memoized cage color assignment
-  const cageColorMap = useMemo(() => {
-    return generateCageColorMap(puzzleDefinition);
-  }, [puzzleDefinition]);
-
-  // Global keyboard event listeners for undo/redo and secret shortcut
-  useEffect(() => {
-    const handleGlobalKeyDown = (event: KeyboardEvent) => {
-      // Check for Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
-      if ((event.metaKey || event.ctrlKey) && event.key === "z") {
-        event.preventDefault();
-        if (event.shiftKey) {
-          gameState.handleRedo();
-        } else {
-          gameState.handleUndo();
-        }
-      }
-      // Check for Cmd+Y (Mac) or Ctrl+Y (Windows/Linux) - alternative for Redo
-      else if ((event.metaKey || event.ctrlKey) && event.key === "y") {
-        event.preventDefault();
-        gameState.handleRedo();
-      }
-      // Secret shortcut: Shift + ` (backtick/tilde) to solve all but one square
-      else if (event.shiftKey && event.key === "`") {
-        event.preventDefault();
-        gameState.handleSecretShortcut();
-      }
-    };
-
-    window.addEventListener("keydown", handleGlobalKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleGlobalKeyDown);
-    };
-  }, [gameState]);
-
-  // Key handler for cell interactions
-  const handleKeyDown = (
-    e: React.KeyboardEvent<HTMLInputElement>,
-    rowIndex: number,
-    colIndex: number
+const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
+  (
+    {
+      puzzleDefinition,
+      solution,
+      onWin,
+      isTimerRunning,
+      isGameWon,
+      initialGridValues,
+      initialPencilMarks,
+      onStateChange,
+      onCheckpointRequested,
+      hasCheckpoint,
+      onCreateCheckpoint,
+      onRevertToCheckpoint,
+    },
+    ref
   ) => {
-    const key = e.key;
-    const numberPressed = /^[1-9]$/.test(key) ? parseInt(key, 10) : NaN;
+    const { size } = puzzleDefinition;
 
-    // Handle pencil mark input
-    if (
-      !isNaN(numberPressed) &&
-      numberPressed >= 1 &&
-      numberPressed <= size &&
-      gameState.isPencilMode
-    ) {
-      e.preventDefault();
-      gameState.handlePencilMarkInput(numberPressed);
+    // Use our custom hook for all game logic
+    const gameState = useKenkenGame({
+      puzzleDefinition,
+      solution,
+      onWin,
+      isTimerRunning,
+      isGameWon,
+      initialGridValues,
+      initialPencilMarks,
+      onStateChange,
+    });
 
-      // Refocus the input cell after handling pencil mark
-      setTimeout(() => {
-        gameState.inputRefs.current?.[rowIndex]?.[colIndex]?.focus();
-      }, 0);
-      return;
-    }
+    // Expose methods to parent component via ref
+    useImperativeHandle(
+      ref,
+      () => ({
+        createCheckpoint: () => {
+          if (onCheckpointRequested) {
+            onCheckpointRequested(gameState.gridValues, gameState.pencilMarks);
+          }
+        },
+      }),
+      [gameState.gridValues, gameState.pencilMarks, onCheckpointRequested]
+    );
 
-    // Handle cell deletion
-    if (key === "Backspace" || key === "Delete") {
-      e.preventDefault();
-      gameState.handleCellDeletion();
-      return;
-    }
+    // Memoized cage color assignment
+    const cageColorMap = useMemo(() => {
+      return generateCageColorMap(puzzleDefinition);
+    }, [puzzleDefinition]);
 
-    // Handle direct number input (overwrite existing values)
-    const isNormalNumberInput =
-      !gameState.isPencilMode &&
-      !isNaN(numberPressed) &&
-      numberPressed >= 1 &&
-      numberPressed <= size;
-
-    if (
-      isNormalNumberInput &&
-      gameState.gridValues[rowIndex][colIndex] !== ""
-    ) {
-      e.preventDefault();
-      gameState.handleDirectNumberInput(rowIndex, colIndex, numberPressed);
-      return;
-    }
-
-    // Handle Enter key to clear all selections
-    if (key === "Enter") {
-      e.preventDefault();
-      gameState.clearSelection();
-      return;
-    }
-
-    // Handle arrow key navigation
-    switch (key) {
-      case "ArrowUp":
-        e.preventDefault();
-        gameState.handleArrowNavigation(rowIndex, colIndex, "up");
-        break;
-      case "ArrowDown":
-        e.preventDefault();
-        gameState.handleArrowNavigation(rowIndex, colIndex, "down");
-        break;
-      case "ArrowLeft":
-        e.preventDefault();
-        gameState.handleArrowNavigation(rowIndex, colIndex, "left");
-        break;
-      case "ArrowRight":
-        e.preventDefault();
-        gameState.handleArrowNavigation(rowIndex, colIndex, "right");
-        break;
-      default:
-        // Prevent invalid keys
-        if (isNaN(numberPressed) || numberPressed < 1 || numberPressed > size) {
-          if (
-            ![
-              "Tab",
-              "Shift",
-              "Control",
-              "Alt",
-              "Meta",
-              "CapsLock",
-              "Escape",
-              "Enter",
-            ].includes(key)
-          ) {
-            e.preventDefault();
+    // Global keyboard event listeners for undo/redo and secret shortcut
+    useEffect(() => {
+      const handleGlobalKeyDown = (event: KeyboardEvent) => {
+        // Check for Cmd+Z (Mac) or Ctrl+Z (Windows/Linux)
+        if ((event.metaKey || event.ctrlKey) && event.key === 'z') {
+          event.preventDefault();
+          if (event.shiftKey) {
+            gameState.handleRedo();
+          } else {
+            gameState.handleUndo();
           }
         }
-        return;
-    }
-  };
-
-  // Handle cell focus events
-  const handleCellFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    gameState.clearErrors();
-    e.target.select();
-  };
-
-  // Guard against rendering if puzzleDefinition is not yet available
-  if (
-    !puzzleDefinition ||
-    gameState.gridValues.length === 0 ||
-    gameState.pencilMarks.length === 0
-  ) {
-    return null;
-  }
-
-  return (
-    <Stack align="center" gap="xl" w="100%">
-      <Box
-        className="kenken-grid"
-        style={{
-          gridTemplateColumns: `repeat(${size}, 65px)`,
-          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-        }}
-      >
-        {gameState.gridValues.map((row, rowIndex) =>
-          row.map((cellValue, colIndex) => {
-            const cellIndex = rowIndex * size + colIndex;
-            const cellKey = `${rowIndex}-${colIndex}`;
-
-            // Find the cage this cell belongs to for color assignment
-            const cageIndex = puzzleDefinition.cages.findIndex((c) =>
-              c.cells.includes(cellIndex)
-            );
-
-            return (
-              <KenkenCell
-                key={cellKey}
-                rowIndex={rowIndex}
-                colIndex={colIndex}
-                cellValue={cellValue}
-                pencilMarks={
-                  gameState.pencilMarks[rowIndex]?.[colIndex] ?? new Set()
-                }
-                gridSize={size}
-                isSelected={gameState.selectedCells.has(cellKey)}
-                isFlashing={gameState.flashingCells.has(cellKey)}
-                hasError={gameState.errorCells.has(cellIndex)}
-                cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
-                cageTextColorClass={getCageTextColorClass(
-                  cageIndex,
-                  cageColorMap
-                )}
-                borderClasses={getBorderClasses(
-                  rowIndex,
-                  colIndex,
-                  puzzleDefinition
-                )}
-                cageInfo={getCageInfo(rowIndex, colIndex, puzzleDefinition)}
-                isTimerRunning={isTimerRunning}
-                isGameWon={isGameWon}
-                inputRef={(el) => {
-                  if (!gameState.inputRefs.current[rowIndex]) {
-                    gameState.inputRefs.current[rowIndex] = [];
-                  }
-                  gameState.inputRefs.current[rowIndex][colIndex] = el;
-                }}
-                onValueChange={(value) =>
-                  gameState.handleInputChange(rowIndex, colIndex, value)
-                }
-                onFocus={handleCellFocus}
-                onKeyDown={(e) => handleKeyDown(e, rowIndex, colIndex)}
-                onClick={(e) =>
-                  gameState.handleCellClick(e, rowIndex, colIndex)
-                }
-              />
-            );
-          })
-        )}
-      </Box>
-
-      {/* Controls */}
-      <KenkenControls
-        isPencilMode={gameState.isPencilMode}
-        onTogglePencilMode={() =>
-          gameState.setIsPencilMode(!gameState.isPencilMode)
+        // Check for Cmd+Y (Mac) or Ctrl+Y (Windows/Linux) - alternative for Redo
+        else if ((event.metaKey || event.ctrlKey) && event.key === 'y') {
+          event.preventDefault();
+          gameState.handleRedo();
         }
-        canUndo={gameState.history.length > 0}
-        onUndo={gameState.handleUndo}
-        canRedo={gameState.redoStack.length > 0}
-        onRedo={gameState.handleRedo}
-        onCheckCell={gameState.handleCheckCell}
-        onCheckPuzzle={gameState.handleCheckPuzzle}
-      />
-    </Stack>
-  );
-};
+        // Secret shortcut: Shift + ` (backtick/tilde) to solve all but one square
+        else if (event.shiftKey && event.key === '`') {
+          event.preventDefault();
+          gameState.handleSecretShortcut();
+        }
+      };
+
+      window.addEventListener('keydown', handleGlobalKeyDown);
+
+      return () => {
+        window.removeEventListener('keydown', handleGlobalKeyDown);
+      };
+    }, [gameState]);
+
+    // Key handler for cell interactions
+    const handleKeyDown = (
+      e: React.KeyboardEvent<HTMLInputElement>,
+      rowIndex: number,
+      colIndex: number
+    ) => {
+      const key = e.key;
+      const numberPressed = /^[1-9]$/.test(key) ? parseInt(key, 10) : NaN;
+
+      // Handle pencil mark input
+      if (
+        !isNaN(numberPressed) &&
+        numberPressed >= 1 &&
+        numberPressed <= size &&
+        gameState.isPencilMode
+      ) {
+        e.preventDefault();
+        gameState.handlePencilMarkInput(numberPressed);
+
+        // Refocus the input cell after handling pencil mark
+        setTimeout(() => {
+          gameState.inputRefs.current?.[rowIndex]?.[colIndex]?.focus();
+        }, 0);
+        return;
+      }
+
+      // Handle cell deletion
+      if (key === 'Backspace' || key === 'Delete') {
+        e.preventDefault();
+        gameState.handleCellDeletion();
+        return;
+      }
+
+      // Handle direct number input (overwrite existing values)
+      const isNormalNumberInput =
+        !gameState.isPencilMode &&
+        !isNaN(numberPressed) &&
+        numberPressed >= 1 &&
+        numberPressed <= size;
+
+      if (isNormalNumberInput && gameState.gridValues[rowIndex][colIndex] !== '') {
+        e.preventDefault();
+        gameState.handleDirectNumberInput(rowIndex, colIndex, numberPressed);
+        return;
+      }
+
+      // Handle Enter key to clear all selections
+      if (key === 'Enter') {
+        e.preventDefault();
+        gameState.clearSelection();
+        return;
+      }
+
+      // Handle arrow key navigation
+      switch (key) {
+        case 'ArrowUp':
+          e.preventDefault();
+          gameState.handleArrowNavigation(rowIndex, colIndex, 'up');
+          break;
+        case 'ArrowDown':
+          e.preventDefault();
+          gameState.handleArrowNavigation(rowIndex, colIndex, 'down');
+          break;
+        case 'ArrowLeft':
+          e.preventDefault();
+          gameState.handleArrowNavigation(rowIndex, colIndex, 'left');
+          break;
+        case 'ArrowRight':
+          e.preventDefault();
+          gameState.handleArrowNavigation(rowIndex, colIndex, 'right');
+          break;
+        default:
+          // Prevent invalid keys
+          if (isNaN(numberPressed) || numberPressed < 1 || numberPressed > size) {
+            if (
+              !['Tab', 'Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape', 'Enter'].includes(
+                key
+              )
+            ) {
+              e.preventDefault();
+            }
+          }
+          return;
+      }
+    };
+
+    // Handle cell focus events
+    const handleCellFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+      gameState.clearErrors();
+      e.target.select();
+    };
+
+    // Guard against rendering if puzzleDefinition is not yet available
+    if (
+      !puzzleDefinition ||
+      gameState.gridValues.length === 0 ||
+      gameState.pencilMarks.length === 0
+    ) {
+      return null;
+    }
+
+    return (
+      <Stack align="center" gap="xl" w="100%">
+        <Box
+          className="kenken-grid"
+          style={{
+            gridTemplateColumns: `repeat(${size}, 65px)`,
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          {gameState.gridValues.map((row, rowIndex) =>
+            row.map((cellValue, colIndex) => {
+              const cellIndex = rowIndex * size + colIndex;
+              const cellKey = `${rowIndex}-${colIndex}`;
+
+              // Find the cage this cell belongs to for color assignment
+              const cageIndex = puzzleDefinition.cages.findIndex(c => c.cells.includes(cellIndex));
+
+              return (
+                <KenkenCell
+                  key={cellKey}
+                  rowIndex={rowIndex}
+                  colIndex={colIndex}
+                  cellValue={cellValue}
+                  pencilMarks={gameState.pencilMarks[rowIndex]?.[colIndex] ?? new Set()}
+                  gridSize={size}
+                  isSelected={gameState.selectedCells.has(cellKey)}
+                  isFlashing={gameState.flashingCells.has(cellKey)}
+                  hasError={gameState.errorCells.has(cellIndex)}
+                  cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
+                  cageTextColorClass={getCageTextColorClass(cageIndex, cageColorMap)}
+                  borderClasses={getBorderClasses(rowIndex, colIndex, puzzleDefinition)}
+                  cageInfo={getCageInfo(rowIndex, colIndex, puzzleDefinition)}
+                  isTimerRunning={isTimerRunning}
+                  isGameWon={isGameWon}
+                  inputRef={el => {
+                    if (!gameState.inputRefs.current[rowIndex]) {
+                      gameState.inputRefs.current[rowIndex] = [];
+                    }
+                    gameState.inputRefs.current[rowIndex][colIndex] = el;
+                  }}
+                  onValueChange={value => gameState.handleInputChange(rowIndex, colIndex, value)}
+                  onFocus={handleCellFocus}
+                  onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
+                  onClick={e => gameState.handleCellClick(e, rowIndex, colIndex)}
+                />
+              );
+            })
+          )}
+        </Box>
+
+        {/* Controls */}
+        <KenkenControls
+          isPencilMode={gameState.isPencilMode}
+          onTogglePencilMode={() => gameState.setIsPencilMode(!gameState.isPencilMode)}
+          canUndo={gameState.history.length > 0}
+          onUndo={gameState.handleUndo}
+          canRedo={gameState.redoStack.length > 0}
+          onRedo={gameState.handleRedo}
+          onCheckCell={gameState.handleCheckCell}
+          onCheckPuzzle={gameState.handleCheckPuzzle}
+          hasCheckpoint={hasCheckpoint}
+          onCreateCheckpoint={onCreateCheckpoint}
+          onRevertToCheckpoint={onRevertToCheckpoint}
+        />
+      </Stack>
+    );
+  }
+);
+
+// Add display name for debugging
+KenkenGrid.displayName = 'KenkenGrid';
+
+// Export the interface for use by parent components
+export type { KenkenGridHandle };
 
 export default KenkenGrid;
