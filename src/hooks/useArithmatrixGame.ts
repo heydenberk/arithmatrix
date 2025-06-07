@@ -1,7 +1,7 @@
 /**
- * useKenkenGame Hook
+ * useArithmatrixGame Hook
  *
- * A comprehensive custom hook that manages all KenKen game state and logic.
+ * A comprehensive custom hook that manages all Arithmatrix game state and logic.
  * This hook encapsulates:
  *
  * Game State Management:
@@ -28,10 +28,10 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/KenkenTypes';
-import { checkWinCondition, findConflictingCells } from '../utils/kenkenUtils';
+import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixTypes';
+import { checkWinCondition, findConflictingCells } from '../utils/arithmatrixUtils';
 
-interface UseKenkenGameProps {
+interface UseArithmatrixGameProps {
   puzzleDefinition: PuzzleDefinition;
   solution: number[][];
   onWin: () => void;
@@ -42,7 +42,7 @@ interface UseKenkenGameProps {
   onStateChange?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
 }
 
-export const useKenkenGame = ({
+export const useArithmatrixGame = ({
   puzzleDefinition,
   solution,
   onWin,
@@ -51,7 +51,7 @@ export const useKenkenGame = ({
   initialGridValues,
   initialPencilMarks,
   onStateChange,
-}: UseKenkenGameProps) => {
+}: UseArithmatrixGameProps) => {
   const { size, cages } = puzzleDefinition;
 
   // Core game state

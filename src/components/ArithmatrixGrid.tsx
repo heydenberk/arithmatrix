@@ -1,7 +1,7 @@
 /**
- * KenkenGrid Component
+ * ArithmatrixGrid Component
  *
- * Main component for rendering and managing a KenKen puzzle grid.
+ * Main component for rendering and managing a Arithmatrix puzzle grid.
  * This refactored version delegates most logic to custom hooks and sub-components
  * for better maintainability and testability.
  *
@@ -17,31 +17,31 @@
 
 import React, { useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Box, Stack } from '@mantine/core';
-import './KenkenGrid.css'; // Essential for grid styling and layout
+import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 
 // Type imports
-import { KenkenGridProps } from '../types/KenkenTypes';
+import { ArithmatrixGridProps } from '../types/ArithmatrixTypes';
 
 // Component imports
-import KenkenCell from './KenkenCell';
-import KenkenControls from './KenkenControls';
+import ArithmatrixCell from './ArithmatrixCell';
+import ArithmatrixControls from './ArithmatrixControls';
 
 // Hook and utility imports
-import { useKenkenGame } from '../hooks/useKenkenGame';
+import { useArithmatrixGame } from '../hooks/useArithmatrixGame';
 import {
   generateCageColorMap,
   getCageColorClass,
   getCageTextColorClass,
   getBorderClasses,
   getCageInfo,
-} from '../utils/kenkenUtils';
+} from '../utils/arithmatrixUtils';
 
 // Define the methods that will be exposed via ref
-interface KenkenGridHandle {
+interface ArithmatrixGridHandle {
   createCheckpoint: () => void;
 }
 
-const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
+const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
   (
     {
       puzzleDefinition,
@@ -62,7 +62,7 @@ const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
     const { size } = puzzleDefinition;
 
     // Use our custom hook for all game logic
-    const gameState = useKenkenGame({
+    const gameState = useArithmatrixGame({
       puzzleDefinition,
       solution,
       onWin,
@@ -226,7 +226,7 @@ const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
     return (
       <Stack align="center" gap="xl" w="100%">
         <Box
-          className="kenken-grid"
+          className="arithmatrix-grid"
           style={{
             gridTemplateColumns: `repeat(${size}, 65px)`,
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
@@ -241,7 +241,7 @@ const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
               const cageIndex = puzzleDefinition.cages.findIndex(c => c.cells.includes(cellIndex));
 
               return (
-                <KenkenCell
+                <ArithmatrixCell
                   key={cellKey}
                   rowIndex={rowIndex}
                   colIndex={colIndex}
@@ -274,7 +274,7 @@ const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
         </Box>
 
         {/* Controls */}
-        <KenkenControls
+        <ArithmatrixControls
           isPencilMode={gameState.isPencilMode}
           onTogglePencilMode={() => gameState.setIsPencilMode(!gameState.isPencilMode)}
           canUndo={gameState.history.length > 0}
@@ -293,9 +293,9 @@ const KenkenGrid = forwardRef<KenkenGridHandle, KenkenGridProps>(
 );
 
 // Add display name for debugging
-KenkenGrid.displayName = 'KenkenGrid';
+ArithmatrixGrid.displayName = 'ArithmatrixGrid';
 
 // Export the interface for use by parent components
-export type { KenkenGridHandle };
+export type { ArithmatrixGridHandle };
 
-export default KenkenGrid;
+export default ArithmatrixGrid;

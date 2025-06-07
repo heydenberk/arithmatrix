@@ -1,12 +1,12 @@
 /**
- * Type definitions for the KenKen puzzle game.
+ * Type definitions for the Arithmatrix puzzle game.
  *
- * This file contains all the core types used throughout the KenKen application,
+ * This file contains all the core types used throughout the Arithmatrix application,
  * including puzzle structure, game state, and component props.
  */
 
 /**
- * Represents a cage in the KenKen puzzle.
+ * Represents a cage in the Arithmatrix puzzle.
  * A cage is a group of cells that must satisfy a mathematical operation.
  */
 export type Cage = {
@@ -19,7 +19,7 @@ export type Cage = {
 };
 
 /**
- * Complete definition of a KenKen puzzle.
+ * Complete definition of a Arithmatrix puzzle.
  * Contains the grid size and all the cages that define the constraints.
  */
 export type PuzzleDefinition = {
@@ -32,10 +32,10 @@ export type PuzzleDefinition = {
 };
 
 /**
- * Props for the main KenkenGrid component.
+ * Props for the main ArithmatrixGrid component.
  * Defines the interface between the game container and the grid component.
  */
-export type KenkenGridProps = {
+export type ArithmatrixGridProps = {
   /** The puzzle definition containing size and cages */
   puzzleDefinition: PuzzleDefinition;
   /** The correct solution grid for validation */
@@ -80,10 +80,10 @@ export type CellCoord = {
 };
 
 /**
- * Props for the individual KenkenCell component.
+ * Props for the individual ArithmatrixCell component.
  * Contains all the data and handlers needed to render and interact with a single cell.
  */
-export type KenkenCellProps = {
+export type ArithmatrixCellProps = {
   /** Zero-based row index of this cell */
   rowIndex: number;
   /** Zero-based column index of this cell */
@@ -125,10 +125,10 @@ export type KenkenCellProps = {
 };
 
 /**
- * Props for the KenkenControls component.
+ * Props for the ArithmatrixControls component.
  * Contains all the control state and handlers for the bottom control panel.
  */
-export type KenkenControlsProps = {
+export type ArithmatrixControlsProps = {
   /** Whether pencil mode is currently active */
   isPencilMode: boolean;
   /** Handler to toggle pencil mode */

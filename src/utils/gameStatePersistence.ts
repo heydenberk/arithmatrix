@@ -7,7 +7,7 @@
  * - Clear saved state when starting new games or completing puzzles
  */
 
-import { PuzzleDefinition } from '../types/KenkenTypes';
+import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 /**
  * Represents the complete game state that can be persisted.
@@ -34,7 +34,7 @@ export type PersistedGameState = {
   };
 };
 
-const GAME_STATE_STORAGE_KEY = 'kenken_current_game_state';
+const GAME_STATE_STORAGE_KEY = 'arithmatrix_current_game_state';
 
 /**
  * Saves the current game state to localStorage.

@@ -5,12 +5,12 @@ import os
 import time
 import shutil
 
-# Fix the import by temporarily modifying the kenken module
-with open("backend/kenken.py", "r") as f:
-    kenken_content = f.read()
+# Fix the import by temporarily modifying the arithmatrix module
+with open("backend/arithmatrix.py", "r") as f:
+    arithmatrix_content = f.read()
 
 # Replace relative import with absolute import for standalone execution
-fixed_content = kenken_content.replace(
+fixed_content = arithmatrix_content.replace(
     "from .latin_square import get_latin_square",
     "from latin_square import get_latin_square",
 )
@@ -27,7 +27,7 @@ fixed_content = re.sub(r"app\.logger\.info\([^)]*\)", "pass", fixed_content)
 fixed_content = re.sub(r"app\.logger\.error\([^)]*\)", "pass", fixed_content)
 
 # Write to a temporary file
-with open("kenken_temp.py", "w") as f:
+with open("arithmatrix_temp.py", "w") as f:
     f.write(fixed_content)
 
 # Copy latin_square.py to current directory
@@ -35,7 +35,7 @@ if os.path.exists("backend/latin_square.py"):
     shutil.copy("backend/latin_square.py", "latin_square.py")
 
 # Now import from the temporary module
-import kenken_temp as kenken
+import arithmatrix_temp as arithmatrix
 
 
 def test_new_difficulty_ranges():
@@ -51,7 +51,7 @@ def test_new_difficulty_ranges():
     for size in test_sizes:
         print(f"\n{size}x{size} puzzles:")
         for difficulty in difficulty_levels:
-            min_ops, max_ops = kenken._get_difficulty_range(size, difficulty)
+            min_ops, max_ops = arithmatrix._get_difficulty_range(size, difficulty)
             print(f"  {difficulty:>8}: {min_ops:>6,} - {max_ops:<8,} operations")
 
     # Compare with old data (manually entered for reference)
@@ -70,7 +70,7 @@ def test_new_difficulty_ranges():
     for size in test_sizes:
         if size in old_data:
             old_min, old_max = old_data[size]["medium"]
-            new_min, new_max = kenken._get_difficulty_range(size, "medium")
+            new_min, new_max = arithmatrix._get_difficulty_range(size, "medium")
 
             old_avg = (old_min + old_max) / 2
             new_avg = (new_min + new_max) / 2
@@ -94,7 +94,7 @@ def test_generation_with_new_system():
 
         start_time = time.time()
         try:
-            puzzle = kenken.generate_kenken_puzzle(
+            puzzle = arithmatrix.generate_arithmatrix_puzzle(
                 size=size,
                 difficulty=difficulty,
                 max_difficulty_attempts=5,  # Quick test
@@ -132,7 +132,7 @@ def show_scaling_comparison():
     for difficulty in difficulty_levels:
         print(f"{difficulty.upper()} difficulty:")
         for size in [4, 5, 6, 7]:
-            min_ops, max_ops = kenken._get_difficulty_range(size, difficulty)
+            min_ops, max_ops = arithmatrix._get_difficulty_range(size, difficulty)
             avg_ops = (min_ops + max_ops) / 2
 
             # Estimate time (assuming faster solving due to optimizations)
@@ -166,7 +166,7 @@ if __name__ == "__main__":
         traceback.print_exc()
     finally:
         # Clean up temporary files
-        for temp_file in ["kenken_temp.py", "latin_square.py", "__pycache__"]:
+        for temp_file in ["arithmatrix_temp.py", "latin_square.py", "__pycache__"]:
             if os.path.exists(temp_file):
                 if os.path.isdir(temp_file):
                     shutil.rmtree(temp_file)

@@ -12,7 +12,7 @@ This KenKen application includes a comprehensive statistics tracking system that
   - Timestamp of completion
   - Unique puzzle ID
 
-- **Local Storage**: All data is stored in browser localStorage under the key `kenken_puzzle_stats`
+- **Local Storage**: All data is stored in browser localStorage under the key `arithmatrix_puzzle_stats`
 
 - **Window-bound Query Functions**: Access stats via browser dev tools using `window.puzzleStats`
 

@@ -1,7 +1,7 @@
 /**
- * KenkenCell Component
+ * ArithmatrixCell Component
  *
- * Renders an individual cell in the KenKen puzzle grid. This component handles:
+ * Renders an individual cell in the Arithmatrix puzzle grid. This component handles:
  * - Displaying the cell value or pencil marks
  * - Showing cage information (target value and operation) in the top-left cell of each cage
  * - Managing visual states (selected, error, flashing)
@@ -13,9 +13,9 @@
  */
 
 import React from 'react';
-import { KenkenCellProps } from '../types/KenkenTypes';
+import { ArithmatrixCellProps } from '../types/ArithmatrixTypes';
 
-const KenkenCell: React.FC<KenkenCellProps> = ({
+const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   rowIndex,
   colIndex,
   cellValue,
@@ -50,7 +50,7 @@ const KenkenCell: React.FC<KenkenCellProps> = ({
 
   return (
     <div
-      className={`kenken-cell relative ${cageColorClass} ${cageTextColorClass} ${borderClasses} ${
+      className={`arithmatrix-cell relative ${cageColorClass} ${cageTextColorClass} ${borderClasses} ${
         isSelected ? 'selected-cell' : ''
       } ${hasError ? 'error-cell' : ''}`}
       onClick={onClick}
@@ -104,4 +104,4 @@ const KenkenCell: React.FC<KenkenCellProps> = ({
   );
 };
 
-export default KenkenCell;
+export default ArithmatrixCell;

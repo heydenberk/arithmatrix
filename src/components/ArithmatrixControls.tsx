@@ -1,7 +1,7 @@
 /**
- * KenkenControls Component
+ * ArithmatrixControls Component
  *
- * Renders the control panel at the bottom of the KenKen puzzle interface.
+ * Renders the control panel at the bottom of the Arithmatrix puzzle interface.
  * This component provides users with essential game controls including:
  *
  * - Pencil Mode Toggle: Switch between normal entry and pencil mark mode
@@ -30,9 +30,9 @@ import {
   IconBookmarkOff,
   IconRestore,
 } from '@tabler/icons-react';
-import { KenkenControlsProps } from '../types/KenkenTypes';
+import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
 
-const KenkenControls: React.FC<KenkenControlsProps> = ({
+const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   isPencilMode,
   onTogglePencilMode,
   canUndo,
@@ -216,4 +216,4 @@ const KenkenControls: React.FC<KenkenControlsProps> = ({
   );
 };
 
-export default KenkenControls;
+export default ArithmatrixControls;

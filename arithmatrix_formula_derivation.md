@@ -1,8 +1,8 @@
-# KenKen Difficulty Formula Derivation
+# Arithmatrix Difficulty Formula Derivation
 
 ## Executive Summary
 
-Based on analysis of 100+ generated and solved KenKen puzzles across sizes 4x4 to 7x7, we have derived practical formulas to estimate solving difficulty (operation count) from puzzle size.
+Based on analysis of 100+ generated and solved Arithmatrix puzzles across sizes 4x4 to 7x7, we have derived practical formulas to estimate solving difficulty (operation count) from puzzle size.
 
 **Key Finding**: Difficulty grows exponentially with puzzle size, but with enormous variance due to random cage generation patterns.
 
@@ -159,8 +159,8 @@ This shows that constraint density increases dramatically with size.
 def generate_with_difficulty_target(size, target_operations):
     attempts = 0
     while attempts < max_attempts:
-        puzzle = generate_kenken_puzzle(size)
-        difficulty = solve_kenken_puzzle(puzzle)
+        puzzle = generate_arithmatrix_puzzle(size)
+        difficulty = solve_arithmatrix_puzzle(puzzle)
 
         # Check if within acceptable range
         if target_operations * 0.5 <= difficulty <= target_operations * 2:
@@ -204,9 +204,9 @@ The formulas provide **median estimates only**. Actual solving times can vary by
 For most practical applications:
 
 ```python
-def estimate_kenken_operations(size):
+def estimate_arithmatrix_operations(size):
     """
-    Estimate median operation count for solving a KenKen puzzle.
+    Estimate median operation count for solving a Arithmatrix puzzle.
 
     Returns (median_estimate, confidence_range)
     """
@@ -232,7 +232,7 @@ def estimate_kenken_operations(size):
     return median, confidence_range
 
 # Example usage:
-# median, (low, high) = estimate_kenken_operations(7)
+# median, (low, high) = estimate_arithmatrix_operations(7)
 # print(f"7x7 puzzle: ~{median:,} operations (range: {low:,} - {high:,})")
 ```
 

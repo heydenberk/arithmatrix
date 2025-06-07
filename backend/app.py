@@ -3,7 +3,7 @@ import logging
 import os
 import random  # Import random for size selection within difficulty
 from flask import Flask, jsonify, request
-from .kenken import generate_kenken_puzzle
+from .arithmatrix import generate_arithmatrix_puzzle
 
 app = Flask(__name__)
 
@@ -81,7 +81,7 @@ def get_puzzle():
             app.logger.info(f"Found {len(ALL_PUZZLES)} puzzles in database.")
 
             # Get difficulty range for the requested size and difficulty
-            from .kenken import _get_difficulty_range
+            from .arithmatrix import _get_difficulty_range
 
             min_score, max_score = _get_difficulty_range(size, difficulty)
             app.logger.info(
@@ -106,12 +106,12 @@ def get_puzzle():
                     f"No puzzles found for {size}x{size} {difficulty} in range {min_score}-{max_score}"
                 )
                 # Fall back to generating a new puzzle
-                puzzle_definition = generate_kenken_puzzle(
+                puzzle_definition = generate_arithmatrix_puzzle(
                     size, difficulty=difficulty, max_attempts=500
                 )
         else:
             app.logger.info("No puzzles found in database, generating new puzzle.")
-            puzzle_definition = generate_kenken_puzzle(
+            puzzle_definition = generate_arithmatrix_puzzle(
                 size, difficulty=difficulty, max_attempts=500
             )
 

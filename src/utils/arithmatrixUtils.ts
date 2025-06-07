@@ -1,5 +1,5 @@
 /**
- * Utility functions for KenKen puzzle game.
+ * Utility functions for Arithmatrix puzzle game.
  *
  * This file contains helper functions for:
  * - Cage color assignment and management
@@ -8,7 +8,7 @@
  * - Mathematical operations for cage constraint validation
  */
 
-import { Cage, PuzzleDefinition } from "../types/KenkenTypes";
+import { Cage, PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 /**
  * Generates an optimized color assignment for puzzle cages.
@@ -19,9 +19,7 @@ import { Cage, PuzzleDefinition } from "../types/KenkenTypes";
  * @param puzzleDefinition - The complete puzzle definition
  * @returns Map from cage index to color index (0-11)
  */
-export const generateCageColorMap = (
-  puzzleDefinition: PuzzleDefinition
-): Map<number, number> => {
+export const generateCageColorMap = (puzzleDefinition: PuzzleDefinition): Map<number, number> => {
   if (!puzzleDefinition) return new Map<number, number>();
 
   const { size, cages } = puzzleDefinition;
@@ -38,10 +36,7 @@ export const generateCageColorMap = (
         const c2 = cell2 % size;
 
         // Check if cells are adjacent (horizontally or vertically)
-        if (
-          (Math.abs(r1 - r2) === 1 && c1 === c2) ||
-          (Math.abs(c1 - c2) === 1 && r1 === r2)
-        ) {
+        if ((Math.abs(r1 - r2) === 1 && c1 === c2) || (Math.abs(c1 - c2) === 1 && r1 === r2)) {
           return true;
         }
       }
@@ -123,10 +118,7 @@ export const generateCageColorMap = (
  * @param cageColorMap - Map from cage index to color index
  * @returns CSS class name for the cage color
  */
-export const getCageColorClass = (
-  cageIndex: number,
-  cageColorMap: Map<number, number>
-): string => {
+export const getCageColorClass = (cageIndex: number, cageColorMap: Map<number, number>): string => {
   return `cage-color-${cageColorMap.get(cageIndex) || 0}`;
 };
 
@@ -160,23 +152,23 @@ export const getBorderClasses = (
   colIndex: number,
   puzzleDefinition: PuzzleDefinition
 ): string => {
-  if (!puzzleDefinition) return "";
+  if (!puzzleDefinition) return '';
 
   const { size, cages } = puzzleDefinition;
   const cellIndex = rowIndex * size + colIndex;
 
   // Find which cage this cell belongs to
-  const currentCage = cages.find((cage) => cage.cells.includes(cellIndex));
-  if (!currentCage) return "";
+  const currentCage = cages.find(cage => cage.cells.includes(cellIndex));
+  if (!currentCage) return '';
 
   const borders = [];
 
   // Check each direction for cage boundaries
   const directions = [
-    { direction: "top", dr: -1, dc: 0, class: "cage-border-top" },
-    { direction: "right", dr: 0, dc: 1, class: "cage-border-right" },
-    { direction: "bottom", dr: 1, dc: 0, class: "cage-border-bottom" },
-    { direction: "left", dr: 0, dc: -1, class: "cage-border-left" },
+    { direction: 'top', dr: -1, dc: 0, class: 'cage-border-top' },
+    { direction: 'right', dr: 0, dc: 1, class: 'cage-border-right' },
+    { direction: 'bottom', dr: 1, dc: 0, class: 'cage-border-bottom' },
+    { direction: 'left', dr: 0, dc: -1, class: 'cage-border-left' },
   ];
 
   for (const { dr, dc, class: borderClass } of directions) {
@@ -185,19 +177,12 @@ export const getBorderClasses = (
 
     // If we're at the grid edge, or the neighbor is in a different cage,
     // add a border on this side
-    if (
-      neighborRow < 0 ||
-      neighborRow >= size ||
-      neighborCol < 0 ||
-      neighborCol >= size
-    ) {
+    if (neighborRow < 0 || neighborRow >= size || neighborCol < 0 || neighborCol >= size) {
       // At grid edge - add border
       borders.push(borderClass);
     } else {
       const neighborCellIndex = neighborRow * size + neighborCol;
-      const neighborCage = cages.find((cage) =>
-        cage.cells.includes(neighborCellIndex)
-      );
+      const neighborCage = cages.find(cage => cage.cells.includes(neighborCellIndex));
 
       // If neighbor is in different cage, add border
       if (!neighborCage || neighborCage !== currentCage) {
@@ -206,7 +191,7 @@ export const getBorderClasses = (
     }
   }
 
-  return borders.join(" ");
+  return borders.join(' ');
 };
 
 /**
@@ -226,7 +211,7 @@ export const getCageInfo = (
   puzzleDefinition: PuzzleDefinition
 ): { text: string; position: string } | null => {
   const cellIndex = rowIndex * puzzleDefinition.size + colIndex;
-  const cage = puzzleDefinition.cages.find((c) => c.cells.includes(cellIndex));
+  const cage = puzzleDefinition.cages.find(c => c.cells.includes(cellIndex));
   if (!cage) return null;
 
   // Display cage info only in the top-leftmost cell of the cage
@@ -234,24 +219,23 @@ export const getCageInfo = (
   if (cellIndex === minCellIndexInCage) {
     const targetStr = cage.value.toString();
     const operationStr =
-      cage.operation === "*"
-        ? "×"
-        : cage.operation === "/"
-        ? "÷"
-        : cage.operation === "=" // Handle single-cell cage indicator
-        ? "" // No operation displayed for single cell
-        : cage.operation;
+      cage.operation === '*'
+        ? '×'
+        : cage.operation === '/'
+          ? '÷'
+          : cage.operation === '=' // Handle single-cell cage indicator
+            ? '' // No operation displayed for single cell
+            : cage.operation;
     // Display only value for single cell cages
-    const displayText =
-      cage.operation === "=" ? targetStr : `${targetStr}${operationStr}`;
-    return { text: displayText, position: "top-left" };
+    const displayText = cage.operation === '=' ? targetStr : `${targetStr}${operationStr}`;
+    return { text: displayText, position: 'top-left' };
   }
 
   return null;
 };
 
 /**
- * Validates if a grid satisfies all KenKen puzzle constraints.
+ * Validates if a grid satisfies all Arithmatrix puzzle constraints.
  *
  * Checks three main requirements:
  * 1. All cells are filled with valid numbers (1 to size)
@@ -277,7 +261,7 @@ export const checkWinCondition = (
     .map(() => Array(size).fill(0));
   for (let r = 0; r < size; r++) {
     for (let c = 0; c < size; c++) {
-      if (gridValues[r][c] === "") {
+      if (gridValues[r][c] === '') {
         // Cell is empty, puzzle not complete
         return false; // Not all cells are filled
       }
@@ -308,7 +292,7 @@ export const checkWinCondition = (
   // 3. Check Cage Constraints
   // Check cage constraints
   for (const cage of cages) {
-    const cageValues: number[] = cage.cells.map((cellIndex) => {
+    const cageValues: number[] = cage.cells.map(cellIndex => {
       const r = Math.floor(cellIndex / size);
       const c = cellIndex % size;
       return numberGrid[r][c];
@@ -319,14 +303,14 @@ export const checkWinCondition = (
       console.log(
         `Cage constraint failed: operation="${cage.operation}", target=${
           cage.value
-        }, values=[${cageValues.join(", ")}]`
+        }, values=[${cageValues.join(', ')}]`
       );
       return false;
     }
   }
 
   // All checks passed!
-  console.log("Win condition met!");
+  console.log('Win condition met!');
   return true;
 };
 
@@ -337,32 +321,29 @@ export const checkWinCondition = (
  * @param cageValues - Array of numbers currently in the cage
  * @returns true if the cage constraint is satisfied
  */
-export const validateCageConstraint = (
-  cage: Cage,
-  cageValues: number[]
-): boolean => {
+export const validateCageConstraint = (cage: Cage, cageValues: number[]): boolean => {
   let result: number;
 
   switch (cage.operation) {
-    case "+":
+    case '+':
       result = cageValues.reduce((sum, val) => sum + val, 0);
       break;
-    case "*":
+    case '*':
       result = cageValues.reduce((prod, val) => prod * val, 1);
       break;
-    case "-": // Assumes exactly two cells
+    case '-': // Assumes exactly two cells
       if (cageValues.length !== 2) return false;
       result = Math.abs(cageValues[0] - cageValues[1]);
       break;
-    case "/": // Assumes exactly two cells
+    case '/': // Assumes exactly two cells
       if (cageValues.length !== 2) return false;
       const maxVal = Math.max(cageValues[0], cageValues[1]);
       const minVal = Math.min(cageValues[0], cageValues[1]);
       if (minVal === 0 || maxVal % minVal !== 0) return false;
       result = maxVal / minVal;
       break;
-    case "=": // Single cell cage with explicit equals
-    case "": // Single cell cage with empty operation
+    case '=': // Single cell cage with explicit equals
+    case '': // Single cell cage with empty operation
       if (cageValues.length !== 1) return false;
       result = cageValues[0];
       break;

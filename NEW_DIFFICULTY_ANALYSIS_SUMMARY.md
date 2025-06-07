@@ -1,8 +1,8 @@
-# KenKen Difficulty Analysis - Optimized Solver Update
+# Arithmatrix Difficulty Analysis - Optimized Solver Update
 
 ## Executive Summary
 
-The solver optimizations have **dramatically changed** the difficulty landscape for KenKen puzzles. Operation counts are now 1-8x lower, with much more predictable and consistent results.
+The solver optimizations have **dramatically changed** the difficulty landscape for Arithmatrix puzzles. Operation counts are now 1-8x lower, with much more predictable and consistent results.
 
 ## Key Changes from Solver Optimizations
 
@@ -176,7 +176,7 @@ def _estimate_percentiles_for_size(size):
 
 ## Conclusion
 
-The solver optimizations represent a **major improvement** to the KenKen difficulty system. While some fine-tuning is needed for optimal targeting accuracy, the new system provides:
+The solver optimizations represent a **major improvement** to the Arithmatrix difficulty system. While some fine-tuning is needed for optimal targeting accuracy, the new system provides:
 
 - **Faster generation** (5-8x improvement)
 - **More predictable difficulty** (lower variance)

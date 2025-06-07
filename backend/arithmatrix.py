@@ -335,9 +335,9 @@ def analyze_division_possibilities(cage_values):
     return division_results
 
 
-def create_kenken_puzzle(original_square, caged_square, cage_operations):
+def create_arithmatrix_puzzle(original_square, caged_square, cage_operations):
     """
-    Create a structured KenKen puzzle object from the components.
+    Create a structured Arithmatrix puzzle object from the components.
 
     Args:
         original_square: A numpy array with the original numbers (solution)
@@ -400,14 +400,14 @@ def create_kenken_puzzle(original_square, caged_square, cage_operations):
     return puzzle
 
 
-def generate_kenken_puzzle(
+def generate_arithmatrix_puzzle(
     size,
     difficulty: Literal["easiest", "easy", "medium", "hard", "expert"] = "medium",
     max_attempts=500,
     max_difficulty_attempts=20,
 ):
     """
-    Generate a complete KenKen puzzle of the specified size and difficulty.
+    Generate a complete Arithmatrix puzzle of the specified size and difficulty.
 
     Args:
         size: The size of the square (e.g., 7 for a 7x7 puzzle)
@@ -446,7 +446,7 @@ def generate_kenken_puzzle(
 
             # Measure its difficulty
             app.logger.info(f"Solving puzzle for size {size}")
-            actual_difficulty = solve_kenken_puzzle(puzzle)
+            actual_difficulty = solve_arithmatrix_puzzle(puzzle)
             app.logger.info(f"Actual difficulty: {actual_difficulty}")
 
             # Check if it's in our target range
@@ -485,14 +485,14 @@ def generate_kenken_puzzle(
     else:
         # If we couldn't generate anything, fall back to basic generation
         puzzle = _generate_basic_puzzle(size, max_attempts)
-        actual_difficulty = solve_kenken_puzzle(puzzle)
+        actual_difficulty = solve_arithmatrix_puzzle(puzzle)
         puzzle["difficulty_operations"] = actual_difficulty
         puzzle["target_difficulty_range"] = (target_min, target_max)
         return puzzle
 
 
 def _generate_basic_puzzle(size, max_attempts=500):
-    """Generate a basic KenKen puzzle without difficulty filtering."""
+    """Generate a basic Arithmatrix puzzle without difficulty filtering."""
     # Generate Latin square
     square = get_latin_square(size, max_steps=1000)
 
@@ -515,7 +515,7 @@ def _generate_basic_puzzle(size, max_attempts=500):
     cage_operations = assign_operations(cage_values)
 
     # Create the final puzzle structure
-    puzzle = create_kenken_puzzle(square, caged_square, cage_operations)
+    puzzle = create_arithmatrix_puzzle(square, caged_square, cage_operations)
 
     return puzzle
 
@@ -593,9 +593,9 @@ def _estimate_percentiles_for_size(size):
     }
 
 
-def solve_kenken_puzzle(puzzle):
+def solve_arithmatrix_puzzle(puzzle):
     """
-    Solve a KenKen puzzle and return the difficulty measured by number of operations.
+    Solve a Arithmatrix puzzle and return the difficulty measured by number of operations.
 
     Args:
         puzzle: A dictionary containing the puzzle structure with cages, size, and solution
@@ -923,10 +923,10 @@ def verify_solution(puzzle):
 
 
 if __name__ == "__main__":
-    # Generate a 5x5 KenKen puzzle for easier testing
-    puzzle = generate_kenken_puzzle(5)
+    # Generate a 5x5 Arithmatrix puzzle for easier testing
+    puzzle = generate_arithmatrix_puzzle(5)
 
-    print("Generated KenKen Puzzle:")
+    print("Generated Arithmatrix Puzzle:")
     print(json.dumps(puzzle, indent=2))
 
     # Optional: Show some debug information
@@ -954,7 +954,7 @@ if __name__ == "__main__":
     # Test the solver
     print("\nTesting Solver:")
     try:
-        difficulty = solve_kenken_puzzle(puzzle)
+        difficulty = solve_arithmatrix_puzzle(puzzle)
         print(f"Puzzle solved successfully!")
         print(f"Difficulty score (operations required): {difficulty}")
 
@@ -977,8 +977,8 @@ if __name__ == "__main__":
     print("\nTesting different puzzle sizes:")
     for size in [4, 5, 6]:
         try:
-            small_puzzle = generate_kenken_puzzle(size)
-            difficulty = solve_kenken_puzzle(small_puzzle)
+            small_puzzle = generate_arithmatrix_puzzle(size)
+            difficulty = solve_arithmatrix_puzzle(small_puzzle)
             print(f"{size}x{size} puzzle difficulty: {difficulty}")
         except Exception as e:
             print(f"{size}x{size} puzzle failed: {e}")

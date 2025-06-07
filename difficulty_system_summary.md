@@ -70,7 +70,7 @@ The system defines 5 difficulty levels based on percentiles of operation count d
 ### Updated Function Signature
 
 ```python
-def generate_kenken_puzzle(
+def generate_arithmatrix_puzzle(
     size,
     difficulty: Literal["easiest", "easy", "medium", "hard", "expert"] = "medium",
     max_attempts=500,
@@ -94,12 +94,12 @@ def generate_kenken_puzzle(
 
 ```python
 # Generate an easy 5x5 puzzle
-puzzle = generate_kenken_puzzle(size=5, difficulty='easy')
+puzzle = generate_arithmatrix_puzzle(size=5, difficulty='easy')
 print(f"Generated puzzle with {puzzle['difficulty_operations']} operations")
 print(f"Target was {puzzle['target_difficulty_range'][0]}-{puzzle['target_difficulty_range'][1]}")
 
 # Generate an expert 7x7 puzzle
-puzzle = generate_kenken_puzzle(size=7, difficulty='expert', max_difficulty_attempts=10)
+puzzle = generate_arithmatrix_puzzle(size=7, difficulty='expert', max_difficulty_attempts=10)
 ```
 
 ## Key Insights

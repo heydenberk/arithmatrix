@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package kenken;
+package arithmatrix;
 
-// A single cage within a KenKen puzzle.
+// A single cage within a Arithmatrix puzzle.
 message Cage {
   // List of 0-based cell indices belonging to this cage (flattened row-major).
   repeated uint32 cells = 1;
@@ -14,7 +14,7 @@ message Cage {
   uint32 value = 3;
 }
 
-// A single KenKen puzzle.
+// A single Arithmatrix puzzle.
 message Puzzle {
   // Grid dimension n (n × n).
   uint32 size = 1;

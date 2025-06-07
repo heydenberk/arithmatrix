@@ -30,7 +30,7 @@ import {
   IconBookmarkOff,
   IconRestore,
 } from '@tabler/icons-react';
-import KenkenGrid, { KenkenGridHandle } from './components/KenkenGrid';
+import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import {
@@ -167,7 +167,7 @@ function App() {
     const loadSavedStateOnStartup = async () => {
       console.log('🎯 App startup effect running...');
       console.log('🔍 hasSavedGameState():', hasSavedGameState());
-      console.log('🗂️ localStorage item:', localStorage.getItem('kenken_current_game_state'));
+      console.log('🗂️ localStorage item:', localStorage.getItem('arithmatrix_current_game_state'));
 
       if (hasSavedGameState()) {
         try {
@@ -189,7 +189,7 @@ function App() {
             // Update URL to match restored settings
             updateURL(savedState.puzzleSettings.size, savedState.puzzleSettings.difficulty);
 
-            // Prepare initial state for KenkenGrid
+            // Prepare initial state for ArithmatrixGrid
             setInitialGridValues(savedState.gridValues);
             setInitialPencilMarks(deserializePencilMarks(savedState.pencilMarks));
 
@@ -233,7 +233,7 @@ function App() {
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true); // Add state for timer
   const [isGameWon, setIsGameWon] = useState<boolean>(false); // State for win condition
   const [showNewGameControls, setShowNewGameControls] = useState<boolean>(false); // State for showing new game controls
-  const [resetKey, setResetKey] = useState<number>(0); // Key to force KenkenGrid re-render for reset
+  const [resetKey, setResetKey] = useState<number>(0); // Key to force ArithmatrixGrid re-render for reset
   const [puzzleRefreshKey, setPuzzleRefreshKey] = useState<number>(0); // Key to force new puzzle fetch
   const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time
   const [initialGridValues, setInitialGridValues] = useState<string[][] | undefined>(undefined);
@@ -249,8 +249,8 @@ function App() {
   const [checkpointPencilMarks, setCheckpointPencilMarks] = useState<Set<string>[][] | null>(null);
   const [hasCheckpoint, setHasCheckpoint] = useState<boolean>(false);
 
-  // Ref for KenkenGrid component
-  const kenkenGridRef = useRef<KenkenGridHandle>(null);
+  // Ref for ArithmatrixGrid component
+  const arithmatrixGridRef = useRef<ArithmatrixGridHandle>(null);
 
   useEffect(() => {
     console.log('🧩 Puzzle loading effect triggered with:', {
@@ -473,7 +473,7 @@ function App() {
 
   // Handler for reset button - resets current puzzle progress
   const handleReset = () => {
-    setResetKey(prev => prev + 1); // Force KenkenGrid to re-render and reset
+    setResetKey(prev => prev + 1); // Force ArithmatrixGrid to re-render and reset
     setIsTimerRunning(true); // Resume timer
     setIsGameWon(false); // Reset win state
     setCurrentCompletionTime(0); // Reset completion time
@@ -504,8 +504,8 @@ function App() {
       console.log('Checkpoint cleared');
     } else {
       // Create new checkpoint by calling the grid component's method
-      if (kenkenGridRef.current) {
-        kenkenGridRef.current.createCheckpoint();
+      if (arithmatrixGridRef.current) {
+        arithmatrixGridRef.current.createCheckpoint();
       }
     }
   };
@@ -516,12 +516,12 @@ function App() {
       // Set the checkpoint data as initial values and force grid re-render
       setInitialGridValues(checkpointGridValues);
       setInitialPencilMarks(checkpointPencilMarks);
-      setResetKey(prev => prev + 1); // Force KenkenGrid to re-render with checkpoint data
+      setResetKey(prev => prev + 1); // Force ArithmatrixGrid to re-render with checkpoint data
       console.log('Reverted to checkpoint');
     }
   };
 
-  // Function to save checkpoint data (to be called by KenkenGrid)
+  // Function to save checkpoint data (to be called by ArithmatrixGrid)
   const saveCheckpoint = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
     setCheckpointGridValues(gridValues.map(row => [...row])); // Deep copy
     setCheckpointPencilMarks(pencilMarks.map(row => row.map(cell => new Set(cell)))); // Deep copy
@@ -688,7 +688,7 @@ function App() {
                   width: 'fit-content',
                 }}
               >
-                <KenkenGrid
+                <ArithmatrixGrid
                   puzzleDefinition={puzzleDefinition}
                   solution={solutionGrid}
                   onWin={handleWin}
@@ -702,7 +702,7 @@ function App() {
                   onCreateCheckpoint={handleCreateCheckpoint}
                   onRevertToCheckpoint={handleRevertToCheckpoint}
                   key={resetKey}
-                  ref={kenkenGridRef}
+                  ref={arithmatrixGridRef}
                 />
               </Paper>
             </Center>

@@ -1,8 +1,8 @@
 /**
  * Custom hook for managing puzzle data loading and caching
  */
-import { useState, useEffect } from "react";
-import { PuzzleDefinition } from "../types/KenkenTypes";
+import { useState, useEffect } from 'react';
+import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 type RawPuzzleData = {
   puzzle: {
@@ -33,13 +33,8 @@ interface UsePuzzleDataProps {
   refreshKey: number;
 }
 
-export const usePuzzleData = ({
-  puzzleSize,
-  difficulty,
-  refreshKey,
-}: UsePuzzleDataProps) => {
-  const [puzzleDefinition, setPuzzleDefinition] =
-    useState<PuzzleDefinition | null>(null);
+export const usePuzzleData = ({ puzzleSize, difficulty, refreshKey }: UsePuzzleDataProps) => {
+  const [puzzleDefinition, setPuzzleDefinition] = useState<PuzzleDefinition | null>(null);
   const [solutionGrid, setSolutionGrid] = useState<number[][] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -76,16 +71,15 @@ export const usePuzzleData = ({
     },
   } as const;
 
-  const getDifficultyBounds = (
-    size: number,
-    difficulty: string
-  ): [number, number] => {
+  const getDifficultyBounds = (size: number, difficulty: string): [number, number] => {
     const sizeBounds = difficultyBounds[size as keyof typeof difficultyBounds];
     if (!sizeBounds) {
       return difficultyBounds[7].medium as [number, number];
     }
-    return (sizeBounds[difficulty as keyof typeof sizeBounds] ||
-      sizeBounds.medium) as [number, number];
+    return (sizeBounds[difficulty as keyof typeof sizeBounds] || sizeBounds.medium) as [
+      number,
+      number,
+    ];
   };
 
   useEffect(() => {
@@ -95,18 +89,16 @@ export const usePuzzleData = ({
       setPuzzleDefinition(null);
       setSolutionGrid(null);
 
-      console.log(
-        `Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`
-      );
+      console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`);
 
       try {
-        const response = await fetch("/all_puzzles.jsonl");
+        const response = await fetch('/all_puzzles.jsonl');
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const text = await response.text();
-        const lines = text.trim().split("\n");
+        const lines = text.trim().split('\n');
         const puzzles: PuzzleData[] = [];
 
         // Parse each line as JSON
@@ -123,14 +115,14 @@ export const usePuzzleData = ({
               };
               puzzles.push(puzzle);
             } catch (parseError) {
-              console.warn("Failed to parse line:", line, parseError);
+              console.warn('Failed to parse line:', line, parseError);
             }
           }
         }
 
         const [minOps, maxOps] = getDifficultyBounds(puzzleSize, difficulty);
         const filteredPuzzles = puzzles.filter(
-          (puzzle) =>
+          puzzle =>
             puzzle.size === puzzleSize &&
             puzzle.difficulty_operations !== undefined &&
             puzzle.difficulty_operations >= minOps &&
@@ -138,9 +130,7 @@ export const usePuzzleData = ({
         );
 
         if (filteredPuzzles.length === 0) {
-          throw new Error(
-            `No puzzles found for size ${puzzleSize} and difficulty ${difficulty}`
-          );
+          throw new Error(`No puzzles found for size ${puzzleSize} and difficulty ${difficulty}`);
         }
 
         const randomIndex = Math.floor(Math.random() * filteredPuzzles.length);
@@ -153,10 +143,8 @@ export const usePuzzleData = ({
         });
         setSolutionGrid(selectedPuzzle.solution);
       } catch (err) {
-        console.error("Failed to fetch puzzle:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch puzzle data."
-        );
+        console.error('Failed to fetch puzzle:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch puzzle data.');
       } finally {
         setLoading(false);
       }

@@ -1,6 +1,6 @@
-# 🧩 KenKen Puzzle - Beautiful & Modern
+# 🧩 Arithmatrix Puzzle - Beautiful & Modern
 
-A stunning, interactive KenKen puzzle game built with React, TypeScript, and Mantine UI featuring a beautiful modern design with glass morphism effects, smooth animations, and an intuitive user interface.
+A stunning, interactive Arithmatrix puzzle game built with React, TypeScript, and Mantine UI featuring a beautiful modern design with glass morphism effects, smooth animations, and an intuitive user interface.
 
 ## ✨ Features
 
@@ -40,31 +40,31 @@ A stunning, interactive KenKen puzzle game built with React, TypeScript, and Man
 - **`usePuzzleData`** - Manages puzzle loading, filtering, and caching
 - **`useGameSettings`** - Handles URL synchronization and game settings
 - **`useTimer`** - Timer state and window focus/blur management
-- **`useKenkenGame`** - Complete game logic and state management
+- **`useArithmatrixGame`** - Complete game logic and state management
 
 ### Component Structure
 
 ```
 src/
 ├── components/
-│   ├── KenkenGrid.tsx        # Main game grid component
-│   ├── KenkenCell.tsx        # Individual cell component
-│   ├── KenkenControls.tsx    # Game control buttons
+│   ├── ArithmatrixGrid.tsx        # Main game grid component
+│   ├── ArithmatrixCell.tsx        # Individual cell component
+│   ├── ArithmatrixControls.tsx    # Game control buttons
 │   ├── Timer.tsx             # Timer component
 │   ├── GameSettingsPanel.tsx # Settings selection UI
 │   ├── LoadingState.tsx      # Reusable loading indicator
 │   ├── ErrorState.tsx        # Error display component
 │   └── ErrorBoundary.tsx     # Error boundary for crash recovery
 ├── hooks/
-│   ├── useKenkenGame.ts      # Game logic hook
+│   ├── useArithmatrixGame.ts      # Game logic hook
 │   ├── usePuzzleData.ts      # Puzzle data management
 │   ├── useGameSettings.ts    # Settings and URL sync
 │   └── useTimer.ts           # Timer functionality
 ├── types/
-│   ├── KenkenTypes.ts        # Core game types
+│   ├── ArithmatrixTypes.ts        # Core game types
 │   └── GameTypes.ts          # Additional application types
 ├── utils/
-│   ├── kenkenUtils.ts        # Game utility functions
+│   ├── arithmatrixUtils.ts        # Game utility functions
 │   └── performance.ts        # Performance optimization utilities
 ├── constants/
 │   └── gameConstants.ts      # Centralized configuration
@@ -294,10 +294,10 @@ The application includes performance utilities:
 ## 🎉 Acknowledgments
 
 - Beautiful design inspired by modern design systems
-- KenKen puzzle format created by Tetsuya Miyamoto
+- Arithmatrix puzzle format created by Tetsuya Miyamoto
 - Built with love using React, TypeScript, and Mantine UI
 - Performance patterns inspired by React best practices
 
 ---
 
-**Enjoy solving beautiful KenKen puzzles! 🧩✨**
+**Enjoy solving beautiful Arithmatrix puzzles! 🧩✨**

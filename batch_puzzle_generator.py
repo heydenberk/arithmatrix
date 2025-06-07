@@ -9,17 +9,17 @@ import glob
 from datetime import datetime
 from collections import defaultdict
 
-# Fix the import by temporarily modifying the kenken module
+# Fix the import by temporarily modifying the arithmatrix module
 # Use process ID to avoid conflicts in parallel execution
 process_id = os.getpid()
-temp_kenken_file = f"kenken_temp_{process_id}.py"
+temp_arithmatrix_file = f"arithmatrix_temp_{process_id}.py"
 temp_latin_file = f"latin_square_{process_id}.py"
 
-with open("backend/kenken.py", "r") as f:
-    kenken_content = f.read()
+with open("backend/arithmatrix.py", "r") as f:
+    arithmatrix_content = f.read()
 
 # Replace relative import with absolute import for standalone execution
-fixed_content = kenken_content.replace(
+fixed_content = arithmatrix_content.replace(
     "from .latin_square import get_latin_square",
     f"from latin_square_{process_id} import get_latin_square",
 )
@@ -36,7 +36,7 @@ fixed_content = re.sub(r"app\.logger\.info\([^)]*\)", "pass", fixed_content)
 fixed_content = re.sub(r"app\.logger\.error\([^)]*\)", "pass", fixed_content)
 
 # Write to a temporary file with process ID
-with open(temp_kenken_file, "w") as f:
+with open(temp_arithmatrix_file, "w") as f:
     f.write(fixed_content)
 
 # Copy latin_square.py to current directory with process ID
@@ -45,12 +45,12 @@ if os.path.exists("backend/latin_square.py"):
 
 # Now import from the temporary module
 sys.path.insert(0, os.getcwd())
-kenken_module = __import__(f"kenken_temp_{process_id}")
-kenken = kenken_module
+arithmatrix_module = __import__(f"arithmatrix_temp_{process_id}")
+arithmatrix = arithmatrix_module
 
 
 class BatchPuzzleGenerator:
-    """Generate KenKen puzzles in batch and save to a single JSONL file."""
+    """Generate Arithmatrix puzzles in batch and save to a single JSONL file."""
 
     def __init__(self, output_file="puzzles.jsonl"):
         self.output_file = output_file
@@ -65,7 +65,7 @@ class BatchPuzzleGenerator:
         # Get the difficulty ranges for this size
         ranges = {}
         for difficulty in self.difficulty_levels:
-            min_ops, max_ops = kenken._get_difficulty_range(size, difficulty)
+            min_ops, max_ops = arithmatrix._get_difficulty_range(size, difficulty)
             ranges[difficulty] = (min_ops, max_ops)
 
         # Find which range the operations fall into
@@ -99,8 +99,8 @@ class BatchPuzzleGenerator:
 
         try:
             # Generate a random puzzle
-            puzzle = kenken._generate_basic_puzzle(size, max_attempts=100)
-            operations = kenken.solve_kenken_puzzle(puzzle)
+            puzzle = arithmatrix._generate_basic_puzzle(size, max_attempts=100)
+            operations = arithmatrix.solve_arithmatrix_puzzle(puzzle)
             puzzle["difficulty_operations"] = operations
 
             generation_time = time.time() - start_time
@@ -242,7 +242,7 @@ def main():
     """Main function to run the batch generator."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Generate KenKen puzzles in batch")
+    parser = argparse.ArgumentParser(description="Generate Arithmatrix puzzles in batch")
     parser.add_argument(
         "--config",
         choices=["default", "quick", "custom"],
@@ -273,7 +273,7 @@ def main():
             # Convert string keys to integers for puzzle sizes
             config = {int(k): v for k, v in config_raw.items()}
 
-    print("🧩 KenKen Batch Puzzle Generator")
+    print("🧩 Arithmatrix Batch Puzzle Generator")
     print("=" * 50)
 
     try:
@@ -298,9 +298,9 @@ def main():
         # Clean up temporary files with process ID
         process_id = os.getpid()
         temp_files = [
-            f"kenken_temp_{process_id}.py",
+            f"arithmatrix_temp_{process_id}.py",
             f"latin_square_{process_id}.py",
-            f"__pycache__/kenken_temp_{process_id}.cpython-*.pyc",
+            f"__pycache__/arithmatrix_temp_{process_id}.cpython-*.pyc",
             f"__pycache__/latin_square_{process_id}.cpython-*.pyc",
         ]
 

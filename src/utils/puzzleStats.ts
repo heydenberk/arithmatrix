@@ -7,7 +7,7 @@
  * - Bind query functions to the window object for debugging/analysis
  */
 
-import { PuzzleDefinition } from '../types/KenkenTypes';
+import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 /**
  * Represents a completed puzzle record with all relevant statistics.
@@ -63,7 +63,7 @@ export type PuzzleStatsSummary = {
   recentCompletions: CompletedPuzzleStats[];
 };
 
-const STORAGE_KEY = 'kenken_puzzle_stats';
+const STORAGE_KEY = 'arithmatrix_puzzle_stats';
 
 /**
  * Saves a completed puzzle's statistics to localStorage.

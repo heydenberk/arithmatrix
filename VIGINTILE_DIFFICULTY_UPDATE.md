@@ -6,7 +6,7 @@ Successfully updated the KenKen puzzle difficulty selection system to use vigint
 
 ## Changes Made
 
-### 1. Backend Updates (`backend/kenken.py`)
+### 1. Backend Updates (`backend/arithmatrix.py`)
 
 - **Updated `empirical_percentiles`** with new human-aligned difficulty score ranges:
 
