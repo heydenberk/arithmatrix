@@ -13,15 +13,9 @@ export const PUZZLE_SIZES = {
 export const VALID_SIZES = [4, 5, 6, 7] as const;
 
 // Difficulty levels
-export const DIFFICULTY_LEVELS = [
-  "easiest",
-  "easy",
-  "medium",
-  "hard",
-  "expert",
-] as const;
+export const DIFFICULTY_LEVELS = ['easiest', 'easy', 'medium', 'hard', 'expert'] as const;
 
-export const DEFAULT_DIFFICULTY = "medium";
+export const DEFAULT_DIFFICULTY = 'medium';
 
 // Difficulty bounds based on difficulty_operations per size
 export const DIFFICULTY_BOUNDS = {
@@ -63,10 +57,10 @@ export const ANIMATION_DURATION = {
 } as const;
 
 export const BLUR_VALUES = {
-  LIGHT: "16px",
-  MEDIUM: "20px",
-  HEAVY: "40px",
-  EXTRA_HEAVY: "60px",
+  LIGHT: '16px',
+  MEDIUM: '20px',
+  HEAVY: '40px',
+  EXTRA_HEAVY: '60px',
 } as const;
 
 // File paths (root since site is served at domain root)
@@ -74,6 +68,6 @@ export const PUZZLE_DATA_FILE = `/all_puzzles.jsonl`;
 
 // CSS class names (for consistent styling)
 export const CSS_CLASSES = {
-  GRADIENT_BACKGROUND: "gradient-background",
-  ANIMATE_PULSE: "animate-pulse",
+  GRADIENT_BACKGROUND: 'gradient-background',
+  ANIMATE_PULSE: 'animate-pulse',
 } as const;
