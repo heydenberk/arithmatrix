@@ -70,7 +70,8 @@ export const BLUR_VALUES = {
 } as const;
 
 // File paths
-export const PUZZLE_DATA_FILE = "/all_puzzles.jsonl";
+// Use Vite base URL so it works on GitHub Pages subpath deployments
+export const PUZZLE_DATA_FILE = `${import.meta.env.BASE_URL}all_puzzles.jsonl`;
 
 // CSS class names (for consistent styling)
 export const CSS_CLASSES = {
