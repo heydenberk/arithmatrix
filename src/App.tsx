@@ -83,53 +83,8 @@ type PuzzleData = PuzzleDefinition & {
 
 // Removed placeholder functions generatePlaceholderPuzzle and fetchPuzzleDefinition
 
-// Difficulty bounds based on difficulty_operations per size
-const difficultyBounds = {
-  4: {
-    easiest: [10, 16],
-    easy: [16, 18],
-    medium: [18, 20],
-    hard: [20, 22],
-    expert: [22, 29],
-  },
-  5: {
-    easiest: [16, 24],
-    easy: [24, 26],
-    medium: [26, 28],
-    hard: [28, 30],
-    expert: [30, 40],
-  },
-  6: {
-    easiest: [28, 35],
-    easy: [35, 37],
-    medium: [37, 39],
-    hard: [39, 42],
-    expert: [42, 55],
-  },
-  7: {
-    easiest: [38, 47],
-    easy: [47, 49],
-    medium: [49, 52],
-    hard: [52, 55],
-    expert: [55, 65],
-  },
-};
-
-// Helper function to get difficulty bounds for a given size and difficulty
-const getDifficultyBounds = (size: number, difficulty: string): [number, number] => {
-  const sizeBounds = difficultyBounds[size as keyof typeof difficultyBounds];
-  if (!sizeBounds) {
-    // Default to size 7 bounds if size not found
-    return (difficultyBounds[7][difficulty as keyof (typeof difficultyBounds)[7]] || [49, 52]) as [
-      number,
-      number,
-    ];
-  }
-  return (sizeBounds[difficulty as keyof typeof sizeBounds] || sizeBounds.medium) as [
-    number,
-    number,
-  ];
-};
+// Note: Difficulty bounds removed - now using human-centered difficulty system
+// Puzzles are filtered by actual_difficulty field instead of difficulty_operations ranges
 
 // Helper functions for URL parameter management
 const getURLParams = () => {
@@ -313,20 +268,13 @@ function App() {
         console.log(`Loaded ${puzzles.length} total puzzles`);
         console.log('puzzles', puzzles);
 
-        // Get difficulty bounds for the selected size and difficulty
-        const [minOps, maxOps] = getDifficultyBounds(puzzleSize, difficulty);
-
-        // Filter puzzles by size and difficulty_operations bounds
+        // Filter puzzles by size and actual difficulty (new human-centered system)
         const filteredPuzzles = puzzles.filter(
-          puzzle =>
-            puzzle.size === puzzleSize &&
-            puzzle.difficulty_operations !== undefined &&
-            puzzle.difficulty_operations >= minOps &&
-            puzzle.difficulty_operations <= maxOps
+          puzzle => puzzle.size === puzzleSize && puzzle.difficulty === difficulty
         );
 
         console.log(
-          `Found ${filteredPuzzles.length} puzzles matching size ${puzzleSize} and difficulty ${difficulty} (operations: ${minOps}-${maxOps})`
+          `Found ${filteredPuzzles.length} puzzles matching size ${puzzleSize} and difficulty ${difficulty}`
         );
 
         if (filteredPuzzles.length === 0) {

@@ -39,48 +39,7 @@ export const usePuzzleData = ({ puzzleSize, difficulty, refreshKey }: UsePuzzleD
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Difficulty bounds configuration
-  const difficultyBounds = {
-    4: {
-      easiest: [10, 16],
-      easy: [16, 18],
-      medium: [18, 20],
-      hard: [20, 22],
-      expert: [22, 29],
-    },
-    5: {
-      easiest: [16, 24],
-      easy: [24, 26],
-      medium: [26, 28],
-      hard: [28, 30],
-      expert: [30, 40],
-    },
-    6: {
-      easiest: [28, 35],
-      easy: [35, 37],
-      medium: [37, 39],
-      hard: [39, 42],
-      expert: [42, 55],
-    },
-    7: {
-      easiest: [38, 47],
-      easy: [47, 49],
-      medium: [49, 52],
-      hard: [52, 55],
-      expert: [55, 65],
-    },
-  } as const;
-
-  const getDifficultyBounds = (size: number, difficulty: string): [number, number] => {
-    const sizeBounds = difficultyBounds[size as keyof typeof difficultyBounds];
-    if (!sizeBounds) {
-      return difficultyBounds[7].medium as [number, number];
-    }
-    return (sizeBounds[difficulty as keyof typeof sizeBounds] || sizeBounds.medium) as [
-      number,
-      number,
-    ];
-  };
+  // Note: Difficulty bounds removed - now using human-centered difficulty system
 
   useEffect(() => {
     const loadPuzzle = async () => {
@@ -120,13 +79,9 @@ export const usePuzzleData = ({ puzzleSize, difficulty, refreshKey }: UsePuzzleD
           }
         }
 
-        const [minOps, maxOps] = getDifficultyBounds(puzzleSize, difficulty);
+        // Filter puzzles by size and actual difficulty (new human-centered system)
         const filteredPuzzles = puzzles.filter(
-          puzzle =>
-            puzzle.size === puzzleSize &&
-            puzzle.difficulty_operations !== undefined &&
-            puzzle.difficulty_operations >= minOps &&
-            puzzle.difficulty_operations <= maxOps
+          puzzle => puzzle.size === puzzleSize && puzzle.difficulty === difficulty
         );
 
         if (filteredPuzzles.length === 0) {

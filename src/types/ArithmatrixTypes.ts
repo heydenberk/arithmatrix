@@ -112,6 +112,8 @@ export type ArithmatrixCellProps = {
   isTimerRunning: boolean;
   /** Whether the game is won (affects visibility) */
   isGameWon: boolean;
+  /** Whether pencil mode is currently active (for mobile indicators) */
+  isPencilMode?: boolean;
   /** Ref callback for the input element */
   inputRef: (el: HTMLInputElement | null) => void;
   /** Handler for value changes */
@@ -121,7 +123,9 @@ export type ArithmatrixCellProps = {
   /** Handler for key events */
   onKeyDown: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   /** Handler for cell clicks */
-  onClick: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onClick: (e?: React.MouseEvent<HTMLDivElement>) => void;
+  /** Handler for toggling pencil mode via long press */
+  onPencilModeToggle?: () => void;
 };
 
 /**
@@ -145,6 +149,8 @@ export type ArithmatrixControlsProps = {
   onCheckCell: () => void;
   /** Handler for checking the entire puzzle */
   onCheckPuzzle: () => void;
+  /** Handler for autofilling singles (single-cell cages and single-note cells) */
+  onAutofillSingles?: () => void;
   /** Whether a checkpoint exists */
   hasCheckpoint?: boolean;
   /** Handler for creating/clearing checkpoint */

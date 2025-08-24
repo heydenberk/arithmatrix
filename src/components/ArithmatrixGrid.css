@@ -827,19 +827,195 @@
 .size-3x3 .pencil-mark:nth-child(8) { grid-area: 3 / 2; }
 .size-3x3 .pencil-mark:nth-child(9) { grid-area: 3 / 3; }
 
-/* Responsive adjustments */
-@media (max-width: 640px) {
+/* Responsive adjustments - Enhanced mobile breakpoints */
+
+/* Small phones (320px-480px) */
+@media (max-width: 480px) {
+  .arithmatrix-container {
+    padding: 8px;
+  }
+
+  .arithmatrix-grid {
+    row-gap: 1px;
+    column-gap: 12px;
+    padding: 8px;
+    border-radius: 16px;
+  }
+
   .arithmatrix-cell {
-    width: 67px;
-    height: 67px;
+    width: 54px;
+    height: 54px;
+    border-radius: 6px;
+    /* Ensure minimum touch target size */
+    min-width: 44px;
+    min-height: 44px;
   }
   
   .cell-input {
-    font-size: 1.75rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  
+  .cage-info {
+    font-size: 0.55rem;
+    padding: 1px 3px;
+    border-radius: 2px;
+  }
+
+  .pencil-mark {
+    font-size: 0.7rem;
+  }
+
+  /* Ensure pencil marks are readable on small screens */
+  .pencil-marks-grid.size-3x3 {
+    gap: 1px;
+  }
+  
+  .pencil-marks-grid.size-2x2 {
+    gap: 2px;
+  }
+}
+
+/* Large phones (481px-768px) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .arithmatrix-container {
+    padding: 12px;
+  }
+
+  .arithmatrix-grid {
+    row-gap: 2px;
+    column-gap: 15px;
+    padding: 10px;
+    border-radius: 20px;
+  }
+
+  .arithmatrix-cell {
+    width: 64px;
+    height: 64px;
+    border-radius: 7px;
+  }
+  
+  .cell-input {
+    font-size: 1.6rem;
+    font-weight: 700;
+  }
+  
+  .cage-info {
+    font-size: 0.6rem;
+    padding: 2px 4px;
+  }
+
+  .pencil-mark {
+    font-size: 0.75rem;
+  }
+}
+
+/* Tablets portrait (769px-1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .arithmatrix-container {
+    padding: 16px;
+  }
+
+  .arithmatrix-grid {
+    row-gap: 2px;
+    column-gap: 16px;
+    padding: 12px;
+  }
+
+  .arithmatrix-cell {
+    width: 72px;
+    height: 72px;
+  }
+  
+  .cell-input {
+    font-size: 1.8rem;
   }
   
   .cage-info {
     font-size: 0.65rem;
+    padding: 2px 4px;
+  }
+}
+
+/* Landscape orientation handling */
+@media (orientation: landscape) and (max-height: 600px) {
+  .arithmatrix-container {
+    padding: 8px;
+  }
+
+  .arithmatrix-grid {
+    padding: 6px;
+  }
+
+  .arithmatrix-cell {
+    width: 48px;
+    height: 48px;
+  }
+  
+  .cell-input {
+    font-size: 1.4rem;
+  }
+  
+  .cage-info {
+    font-size: 0.5rem;
+    padding: 1px 2px;
+  }
+
+  .pencil-mark {
+    font-size: 0.65rem;
+  }
+}
+
+/* Touch target optimizations */
+@media (pointer: coarse) {
+  .arithmatrix-cell {
+    /* Ensure touch targets are at least 44px */
+    min-width: 44px;
+    min-height: 44px;
+    /* Add touch-specific styling */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .arithmatrix-cell:hover {
+    /* Reduce hover effects on touch devices */
+    transform: none;
+  }
+
+  .arithmatrix-cell:active {
+    /* Add visual feedback for touch */
+    transform: scale(0.95);
+    transition: transform 0.1s ease;
+  }
+}
+
+/* High density displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .cage-info {
+    /* Improve text rendering on high-DPI screens */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  .cell-input {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* Original mobile breakpoint - now enhanced */
+@media (max-width: 640px) {
+  .arithmatrix-cell {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .cell-input {
+    font-size: 1.6rem;
+  }
+  
+  .cage-info {
+    font-size: 0.6rem;
     padding: 2px 4px;
   }
 }
@@ -866,6 +1042,9 @@
   color: #1e293b;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   transition: color 0.2s ease;
+  /* Mobile optimizations */
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 .cell-input:focus {
@@ -877,4 +1056,24 @@
   opacity: 0.5;
   pointer-events: none;
   cursor: not-allowed;
+}
+
+/* Add mobile-specific classes */
+.mobile-optimized {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.touch-feedback {
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+  box-shadow: 
+    inset 0 2px 4px rgba(255, 255, 255, 0.8),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.15),
+    0 2px 4px rgba(0, 0, 0, 0.1);
 } 

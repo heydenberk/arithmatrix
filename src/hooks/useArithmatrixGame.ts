@@ -349,6 +349,82 @@ export const useArithmatrixGame = ({
     }
   };
 
+  // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
+  const handleAutofillSingles = () => {
+    const { size, cages } = puzzleDefinition;
+
+    let updated = false;
+
+    const nextGridValues = gridValues.map(row => [...row]);
+    const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
+
+    // Helper to set a value and clear pencils row/col like normal entry
+    const setCellValue = (r: number, c: number, valueStr: string) => {
+      if (nextGridValues[r][c] !== '') return;
+      nextGridValues[r][c] = valueStr;
+      // Clear pencils in the cell and remove candidate from row/col
+      for (let i = 0; i < size; i++) {
+        if (i === c) continue;
+        nextPencilMarks[r][i].delete(valueStr);
+      }
+      for (let i = 0; i < size; i++) {
+        if (i === r) continue;
+        nextPencilMarks[i][c].delete(valueStr);
+      }
+      nextPencilMarks[r][c] = new Set<string>();
+      updated = true;
+    };
+
+    // 1) Single-cell cages with explicit value
+    cages.forEach(cage => {
+      if (cage.cells.length === 1 && (cage.operation === '=' || cage.operation === '')) {
+        const cellIndex = cage.cells[0];
+        const r = Math.floor(cellIndex / size);
+        const c = cellIndex % size;
+        if (nextGridValues[r][c] === '') {
+          const valueStr = String(cage.value);
+          // Ensure value within 1..size and no row/col conflicts
+          const value = parseInt(valueStr, 10);
+          if (value >= 1 && value <= size) {
+            const conflicts = findConflictingCells(r, c, valueStr, nextGridValues, size);
+            if (conflicts.length === 0) {
+              setCellValue(r, c, valueStr);
+            }
+          }
+        }
+      }
+    });
+
+    // 2) Cells with exactly one pencil mark candidate
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        if (nextGridValues[r][c] === '' && nextPencilMarks[r][c].size === 1) {
+          const [only] = Array.from(nextPencilMarks[r][c]);
+          const value = parseInt(only, 10);
+          if (!isNaN(value) && value >= 1 && value <= size) {
+            const conflicts = findConflictingCells(r, c, only, nextGridValues, size);
+            if (conflicts.length === 0) {
+              setCellValue(r, c, only);
+            }
+          }
+        }
+      }
+    }
+
+    if (updated) {
+      setHistory(prevHistory => [...prevHistory, [gridValues, pencilMarks]]);
+      setRedoStack([]);
+      setGridValues(nextGridValues);
+      setPencilMarks(nextPencilMarks);
+      clearErrors();
+      setHasEnteredValueSinceSelection(true);
+
+      if (checkWinCondition(nextGridValues, puzzleDefinition)) {
+        onWin();
+      }
+    }
+  };
+
   // Handle direct number input (overwrite existing values)
   const handleDirectNumberInput = (rowIndex: number, colIndex: number, numberPressed: number) => {
     const newValue = String(numberPressed);
@@ -427,12 +503,12 @@ export const useArithmatrixGame = ({
 
   // Handle cell click for selection
   const handleCellClick = (
-    event: React.MouseEvent<HTMLDivElement>,
+    event: React.MouseEvent<HTMLDivElement> | undefined,
     rowIndex: number,
     colIndex: number
   ) => {
     const cellKey = `${rowIndex}-${colIndex}`;
-    const isShift = event.shiftKey;
+    const isShift = !!event?.shiftKey;
 
     if (isShift) {
       // Shift+click: Enter temporary pencil mode if not already in it
@@ -692,6 +768,7 @@ export const useArithmatrixGame = ({
     handleCellClick,
     handleCheckCell,
     handleCheckPuzzle,
+    handleAutofillSingles,
     handleSecretShortcut,
     clearErrors,
     clearSelection,

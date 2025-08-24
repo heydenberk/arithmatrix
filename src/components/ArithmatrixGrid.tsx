@@ -283,6 +283,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           onRedo={gameState.handleRedo}
           onCheckCell={gameState.handleCheckCell}
           onCheckPuzzle={gameState.handleCheckPuzzle}
+          onAutofillSingles={gameState.handleAutofillSingles}
           hasCheckpoint={hasCheckpoint}
           onCreateCheckpoint={onCreateCheckpoint}
           onRevertToCheckpoint={onRevertToCheckpoint}
