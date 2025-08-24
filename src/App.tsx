@@ -32,6 +32,7 @@ import {
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
+import { PUZZLE_DATA_FILE } from './constants/gameConstants';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import {
   saveGameState,
@@ -236,7 +237,7 @@ function App() {
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`); // Updated log
 
       try {
-        const response = await fetch('/all_puzzles.jsonl');
+        const response = await fetch(PUZZLE_DATA_FILE);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

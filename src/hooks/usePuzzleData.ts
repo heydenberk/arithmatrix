@@ -2,6 +2,7 @@
  * Custom hook for managing puzzle data loading and caching
  */
 import { useState, useEffect } from 'react';
+import { PUZZLE_DATA_FILE } from '../constants/gameConstants';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 type RawPuzzleData = {
@@ -51,7 +52,7 @@ export const usePuzzleData = ({ puzzleSize, difficulty, refreshKey }: UsePuzzleD
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`);
 
       try {
-        const response = await fetch('/all_puzzles.jsonl');
+        const response = await fetch(PUZZLE_DATA_FILE);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }

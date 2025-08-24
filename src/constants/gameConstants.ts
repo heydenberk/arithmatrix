@@ -70,7 +70,7 @@ export const BLUR_VALUES = {
 } as const;
 
 // File paths
-export const PUZZLE_DATA_FILE = "/all_puzzles.jsonl";
+export const PUZZLE_DATA_FILE = `${import.meta.env.BASE_URL}all_puzzles.jsonl`;
 
 // CSS class names (for consistent styling)
 export const CSS_CLASSES = {
