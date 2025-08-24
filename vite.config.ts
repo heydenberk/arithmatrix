@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // Custom domain (e.g., https://heydenberk.com) serves from root
-  base: '/',
+  // Project page served at /arithmatrix/
+  base: '/arithmatrix/',
   plugins: [react()],
   server: {
     proxy: {

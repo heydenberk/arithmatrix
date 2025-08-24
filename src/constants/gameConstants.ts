@@ -63,8 +63,8 @@ export const BLUR_VALUES = {
   EXTRA_HEAVY: '60px',
 } as const;
 
-// File paths (root since site is served at domain root)
-export const PUZZLE_DATA_FILE = `/all_puzzles.jsonl`;
+// File paths using Vite base so it works on project pages
+export const PUZZLE_DATA_FILE = `${import.meta.env.BASE_URL}all_puzzles.jsonl`;
 
 // CSS class names (for consistent styling)
 export const CSS_CLASSES = {
