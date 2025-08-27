@@ -9,7 +9,7 @@
 .arithmatrix-grid {
   display: grid;
   row-gap: 2px;
-  column-gap: 18px;
+  column-gap: 4px;
   padding: 12px;
   background: rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(20px);
@@ -24,6 +24,8 @@
   /* Ensure grid alignment */
   align-items: center;
   justify-items: center;
+  /* Prevent horizontal overflow on mobile */
+  max-width: 100%;
 }
 
 .arithmatrix-grid::before {
@@ -41,8 +43,8 @@
 
 .arithmatrix-cell {
   position: relative;
-  width: 80px;
-  height: 80px;
+  width: var(--cell-size, 80px);
+  height: var(--cell-size, 80px);
   background: linear-gradient(145deg, #ffffff, #f8fafc);
   border-radius: 8px;
   box-shadow: 
@@ -301,7 +303,7 @@
   width: 100%;
   height: 100%;
   background: transparent; /* Make transparent so cage colors show through */
-  padding-top: 1.75em;
+  padding-top: 1.75em; /* Slightly increased to move pencil marks lower */
   box-sizing: border-box;
   pointer-events: none;
   z-index: 5;
@@ -311,10 +313,10 @@
 .pencil-marks-grid {
   display: grid;
   width: 100%;
-  height: calc(100% - 1.75em);
+  height: calc(100% - 1.75em); /* Updated to match new padding-top */
   box-sizing: border-box;
-  padding: 4px;
-  gap: 1px;
+  padding: 2px; /* Reduced from 4px */
+  gap: 0.5px; /* Reduced from 1px */
 }
 
 .pencil-marks-grid.size-2x2 {
@@ -331,12 +333,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.75rem;
+  font-size: var(--pencil-font-size, 0.6rem); /* Reduced default size */
   font-weight: 600;
   color: #64748b;
   text-align: center;
-  line-height: 1;
-  border-radius: 4px;
+  line-height: 0.9; /* Tighter line height */
+  border-radius: 2px; /* Smaller border radius */
   background: rgba(255, 255, 255, 0.3);
   transition: all 0.2s ease;
 }
@@ -837,14 +839,14 @@
 
   .arithmatrix-grid {
     row-gap: 1px;
-    column-gap: 12px;
+    column-gap: 6px;
     padding: 8px;
     border-radius: 16px;
   }
 
   .arithmatrix-cell {
-    width: 54px;
-    height: 54px;
+    width: var(--cell-size, 54px);
+    height: var(--cell-size, 54px);
     border-radius: 6px;
     /* Ensure minimum touch target size */
     min-width: 44px;
@@ -863,16 +865,23 @@
   }
 
   .pencil-mark {
-    font-size: 0.7rem;
+    font-size: 0.5rem; /* Smaller for mobile */
+    line-height: 0.8;
   }
 
   /* Ensure pencil marks are readable on small screens */
   .pencil-marks-grid.size-3x3 {
-    gap: 1px;
+    gap: 0.5px;
+    padding: 1px;
   }
   
   .pencil-marks-grid.size-2x2 {
-    gap: 2px;
+    gap: 1px;
+    padding: 1px;
+  }
+  
+  .pencil-marks-container.overlay {
+    padding-top: 1.5em; /* Slightly increased for mobile positioning */
   }
 }
 
@@ -884,14 +893,14 @@
 
   .arithmatrix-grid {
     row-gap: 2px;
-    column-gap: 15px;
+    column-gap: 8px;
     padding: 10px;
     border-radius: 20px;
   }
 
   .arithmatrix-cell {
-    width: 64px;
-    height: 64px;
+    width: var(--cell-size, 64px);
+    height: var(--cell-size, 64px);
     border-radius: 7px;
   }
   
@@ -906,7 +915,8 @@
   }
 
   .pencil-mark {
-    font-size: 0.75rem;
+    font-size: 0.55rem; /* Smaller for large phones */
+    line-height: 0.85;
   }
 }
 
@@ -918,13 +928,13 @@
 
   .arithmatrix-grid {
     row-gap: 2px;
-    column-gap: 16px;
+    column-gap: 10px;
     padding: 12px;
   }
 
   .arithmatrix-cell {
-    width: 72px;
-    height: 72px;
+    width: var(--cell-size, 72px);
+    height: var(--cell-size, 72px);
   }
   
   .cell-input {
@@ -948,8 +958,8 @@
   }
 
   .arithmatrix-cell {
-    width: 48px;
-    height: 48px;
+    width: var(--cell-size, 48px);
+    height: var(--cell-size, 48px);
   }
   
   .cell-input {
@@ -962,7 +972,8 @@
   }
 
   .pencil-mark {
-    font-size: 0.65rem;
+    font-size: 0.5rem; /* Smaller for landscape */
+    line-height: 0.8;
   }
 }
 
@@ -1006,8 +1017,8 @@
 /* Original mobile breakpoint - now enhanced */
 @media (max-width: 640px) {
   .arithmatrix-cell {
-    width: 60px;
-    height: 60px;
+    width: var(--cell-size, 60px);
+    height: var(--cell-size, 60px);
   }
   
   .cell-input {
@@ -1017,6 +1028,11 @@
   .cage-info {
     font-size: 0.6rem;
     padding: 2px 4px;
+  }
+  
+  .pencil-mark {
+    font-size: 0.55rem; /* Smaller for general mobile */
+    line-height: 0.85;
   }
 }
 
@@ -1033,7 +1049,7 @@
   width: 100%;
   height: 100%;
   text-align: center;
-  font-size: 2rem;
+  font-size: var(--cell-font-size, 2rem);
   font-weight: 700;
   border: none;
   background-color: transparent;

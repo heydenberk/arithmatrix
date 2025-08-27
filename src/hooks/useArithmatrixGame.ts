@@ -353,7 +353,7 @@ export const useArithmatrixGame = ({
   const handleAutofillSingles = () => {
     const { size, cages } = puzzleDefinition;
 
-    let updated = false;
+    let anyUpdated = false;
 
     const nextGridValues = gridValues.map(row => [...row]);
     const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
@@ -364,54 +364,70 @@ export const useArithmatrixGame = ({
       nextGridValues[r][c] = valueStr;
       // Clear pencils in the cell and remove candidate from row/col
       for (let i = 0; i < size; i++) {
-        if (i === c) continue;
-        nextPencilMarks[r][i].delete(valueStr);
+        if (i !== c) {
+          nextPencilMarks[r][i].delete(valueStr);
+        }
       }
       for (let i = 0; i < size; i++) {
-        if (i === r) continue;
-        nextPencilMarks[i][c].delete(valueStr);
+        if (i !== r) {
+          nextPencilMarks[i][c].delete(valueStr);
+        }
       }
       nextPencilMarks[r][c] = new Set<string>();
-      updated = true;
     };
 
-    // 1) Single-cell cages with explicit value
-    cages.forEach(cage => {
-      if (cage.cells.length === 1 && (cage.operation === '=' || cage.operation === '')) {
-        const cellIndex = cage.cells[0];
-        const r = Math.floor(cellIndex / size);
-        const c = cellIndex % size;
-        if (nextGridValues[r][c] === '') {
-          const valueStr = String(cage.value);
-          // Ensure value within 1..size and no row/col conflicts
-          const value = parseInt(valueStr, 10);
-          if (value >= 1 && value <= size) {
-            const conflicts = findConflictingCells(r, c, valueStr, nextGridValues, size);
-            if (conflicts.length === 0) {
-              setCellValue(r, c, valueStr);
-            }
-          }
-        }
-      }
-    });
+    // Iterate until no more autofills are possible
+    // This captures cascading singles after each placement updates row/col pencil marks
+    // to potentially produce new single-candidate cells
+    // Safeguard: with finite grid and monotonic fills, this will terminate quickly
+    // even if users have many pencil marks
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      let updatedInPass = false;
 
-    // 2) Cells with exactly one pencil mark candidate
-    for (let r = 0; r < size; r++) {
-      for (let c = 0; c < size; c++) {
-        if (nextGridValues[r][c] === '' && nextPencilMarks[r][c].size === 1) {
-          const [only] = Array.from(nextPencilMarks[r][c]);
-          const value = parseInt(only, 10);
-          if (!isNaN(value) && value >= 1 && value <= size) {
-            const conflicts = findConflictingCells(r, c, only, nextGridValues, size);
-            if (conflicts.length === 0) {
-              setCellValue(r, c, only);
+      // 1) Single-cell cages with explicit value
+      cages.forEach(cage => {
+        if (cage.cells.length === 1 && (cage.operation === '=' || cage.operation === '')) {
+          const cellIndex = cage.cells[0];
+          const r = Math.floor(cellIndex / size);
+          const c = cellIndex % size;
+          if (nextGridValues[r][c] === '') {
+            const valueStr = String(cage.value);
+            const value = parseInt(valueStr, 10);
+            if (value >= 1 && value <= size) {
+              const conflicts = findConflictingCells(r, c, valueStr, nextGridValues, size);
+              if (conflicts.length === 0) {
+                setCellValue(r, c, valueStr);
+                updatedInPass = true;
+                anyUpdated = true;
+              }
+            }
+          }
+        }
+      });
+
+      // 2) Cells with exactly one pencil mark candidate
+      for (let r = 0; r < size; r++) {
+        for (let c = 0; c < size; c++) {
+          if (nextGridValues[r][c] === '' && nextPencilMarks[r][c].size === 1) {
+            const [only] = Array.from(nextPencilMarks[r][c]);
+            const value = parseInt(only, 10);
+            if (!isNaN(value) && value >= 1 && value <= size) {
+              const conflicts = findConflictingCells(r, c, only, nextGridValues, size);
+              if (conflicts.length === 0) {
+                setCellValue(r, c, only);
+                updatedInPass = true;
+                anyUpdated = true;
+              }
             }
           }
         }
       }
+
+      if (!updatedInPass) break;
     }
 
-    if (updated) {
+    if (anyUpdated) {
       setHistory(prevHistory => [...prevHistory, [gridValues, pencilMarks]]);
       setRedoStack([]);
       setGridValues(nextGridValues);

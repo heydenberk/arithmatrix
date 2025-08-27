@@ -19,6 +19,18 @@ import React, { useEffect, useMemo, useImperativeHandle, forwardRef } from 'reac
 import { Box, Stack } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 
+// Column gap constants for consistent spacing across all breakpoints
+// NOTE: These values should be kept in sync with ArithmatrixGrid.css responsive breakpoints
+const COLUMN_GAP = {
+  DESKTOP: 2, // Desktop (>1024px) - matches CSS column-gap: 4px
+  TABLET: 5, // Tablets (769-1024px) - matches CSS column-gap: 10px
+  LARGE_PHONE: 4, // Large phones (481-768px) - matches CSS column-gap: 8px
+  SMALL_PHONE: 3, // Small phones (≤480px) - matches CSS column-gap: 6px
+  EMERGENCY: 2, // Emergency fallback for very small screens
+  DYNAMIC_MIN: 2, // Minimum for dynamic calculation
+  DYNAMIC_MAX: 3, // Maximum for dynamic calculation
+};
+
 // Type imports
 import { ArithmatrixGridProps } from '../types/ArithmatrixTypes';
 
@@ -28,6 +40,7 @@ import ArithmatrixControls from './ArithmatrixControls';
 
 // Hook and utility imports
 import { useArithmatrixGame } from '../hooks/useArithmatrixGame';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   generateCageColorMap,
   getCageColorClass,
@@ -60,6 +73,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     ref
   ) => {
     const { size } = puzzleDefinition;
+    const layout = useResponsiveLayout();
 
     // Use our custom hook for all game logic
     const gameState = useArithmatrixGame({
@@ -223,12 +237,76 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       return null;
     }
 
+    // Compute a cell size that guarantees the grid fits within the viewport on mobile
+    const computeFittingCellSize = (): number => {
+      const viewportWidth = layout.width || window.innerWidth;
+      // Page horizontal padding/margins outside grid
+      const outerMargin = 32; // matches useResponsiveLayout calculation
+      const availableWidth = Math.max(0, viewportWidth - outerMargin);
+
+      // Match CSS gaps/padding per breakpoints
+      let columnGap =
+        viewportWidth <= 480
+          ? COLUMN_GAP.SMALL_PHONE
+          : viewportWidth <= 768
+            ? COLUMN_GAP.LARGE_PHONE
+            : viewportWidth <= 1024
+              ? COLUMN_GAP.TABLET
+              : COLUMN_GAP.DESKTOP;
+      let gridPadding = viewportWidth <= 480 ? 8 : viewportWidth <= 768 ? 10 : 12; // per CSS
+
+      // Minimum touch target size
+      const minCell = layout.isTouchDevice ? 44 : 32;
+      // Maximum desktop size to match aesthetics
+      const maxCell = 80;
+
+      let sizeByWidth = Math.floor(
+        (availableWidth - (size - 1) * columnGap - gridPadding * 2) / size
+      );
+
+      // If we can't achieve the minimum touch target, progressively tighten spacing
+      if (sizeByWidth < minCell && viewportWidth <= 480) {
+        columnGap = COLUMN_GAP.EMERGENCY; // tighter gaps on very small screens
+        gridPadding = 8;
+        sizeByWidth = Math.floor(
+          (availableWidth - (size - 1) * columnGap - gridPadding * 2) / size
+        );
+      }
+
+      const clamped = Math.max(Math.min(sizeByWidth, maxCell), minCell);
+      return clamped;
+    };
+
+    const cellSize = computeFittingCellSize();
+    // Determine spacing proportional to the cell size for consistent feel
+    const viewportWidth = layout.width || window.innerWidth;
+    const dynamicColumnGap = Math.max(
+      COLUMN_GAP.DYNAMIC_MIN,
+      Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.06))
+    );
+    const dynamicPadding = viewportWidth <= 480 ? 8 : viewportWidth <= 768 ? 10 : 12;
+
+    // Scale fonts based on cell size
+    const cellFontRem = Math.max(1.2, Math.min(2.1, +(cellSize * 0.025).toFixed(2)));
+    // Reduce pencil mark font size to fit better - use smaller multiplier and max size
+    const pencilFontRem = Math.max(0.45, Math.min(0.75, +(cellSize * 0.0095).toFixed(2)));
+
     return (
       <Stack align="center" gap="xl" w="100%">
         <Box
           className="arithmatrix-grid"
           style={{
-            gridTemplateColumns: `repeat(${size}, 65px)`,
+            gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
+            columnGap: `${dynamicColumnGap}px`,
+            padding: `${dynamicPadding}px`,
+            // Provide a CSS variable so cells adopt the same size
+            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+            // @ts-ignore - CSS custom properties
+            ['--cell-size']: `${cellSize}px`,
+            // @ts-ignore
+            ['--cell-font-size']: `${cellFontRem}rem`,
+            // @ts-ignore
+            ['--pencil-font-size']: `${pencilFontRem}rem`,
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
           }}
         >
