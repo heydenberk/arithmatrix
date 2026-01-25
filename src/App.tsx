@@ -573,10 +573,10 @@ function App() {
         style={{
           position: 'relative',
           zIndex: 10,
-          paddingTop: isMobile ? rem(8) : rem(32),
-          paddingBottom: isMobile ? rem(8) : rem(16),
-          paddingLeft: isMobile ? rem(4) : undefined,
-          paddingRight: isMobile ? rem(4) : undefined,
+          paddingTop: isMobile ? rem(4) : rem(32),
+          paddingBottom: isMobile ? rem(4) : rem(16),
+          paddingLeft: isMobile ? 0 : undefined,
+          paddingRight: isMobile ? 0 : undefined,
           maxWidth: rem(700),
         }}
       >
@@ -635,15 +635,16 @@ function App() {
           {!loading && !error && puzzleDefinition && solutionGrid && (
             <Center>
               <Paper
-                radius={isMobile ? 'lg' : 'xl'}
-                p={isMobile ? 'xs' : 'lg'}
+                radius={isMobile ? 'md' : 'xl'}
+                p={isMobile ? 0 : 'lg'}
                 style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  backdropFilter: 'blur(20px)',
-                  WebkitBackdropFilter: 'blur(20px)',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  boxShadow:
-                    '0 20px 40px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
+                  backgroundColor: isMobile ? 'transparent' : 'rgba(255, 255, 255, 0.15)',
+                  backdropFilter: isMobile ? 'none' : 'blur(20px)',
+                  WebkitBackdropFilter: isMobile ? 'none' : 'blur(20px)',
+                  border: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: isMobile
+                    ? 'none'
+                    : '0 20px 40px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.3)',
                   display: 'inline-block',
                   width: 'fit-content',
                 }}

@@ -834,14 +834,14 @@
 /* Small phones (320px-480px) */
 @media (max-width: 480px) {
   .arithmatrix-container {
-    padding: 4px;
+    padding: 0;
   }
 
   .arithmatrix-grid {
     row-gap: 1px;
-    column-gap: 6px;
-    padding: 4px;
-    border-radius: 12px;
+    column-gap: 1px;
+    padding: 2px;
+    border-radius: 8px;
   }
 
   .arithmatrix-cell {
@@ -888,14 +888,14 @@
 /* Large phones (481px-768px) */
 @media (min-width: 481px) and (max-width: 768px) {
   .arithmatrix-container {
-    padding: 6px;
+    padding: 0;
   }
 
   .arithmatrix-grid {
-    row-gap: 2px;
-    column-gap: 8px;
-    padding: 6px;
-    border-radius: 16px;
+    row-gap: 1px;
+    column-gap: 2px;
+    padding: 4px;
+    border-radius: 12px;
   }
 
   .arithmatrix-cell {

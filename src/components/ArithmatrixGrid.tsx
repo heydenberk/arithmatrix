@@ -24,13 +24,13 @@ import MobileNumberPad from './MobileNumberPad';
 // Column gap constants for consistent spacing across all breakpoints
 // NOTE: These values should be kept in sync with ArithmatrixGrid.css responsive breakpoints
 const COLUMN_GAP = {
-  DESKTOP: 2, // Desktop (>1024px) - matches CSS column-gap: 4px
-  TABLET: 5, // Tablets (769-1024px) - matches CSS column-gap: 10px
-  LARGE_PHONE: 4, // Large phones (481-768px) - matches CSS column-gap: 8px
-  SMALL_PHONE: 3, // Small phones (≤480px) - matches CSS column-gap: 6px
-  EMERGENCY: 2, // Emergency fallback for very small screens
-  DYNAMIC_MIN: 2, // Minimum for dynamic calculation
-  DYNAMIC_MAX: 3, // Maximum for dynamic calculation
+  DESKTOP: 2, // Desktop (>1024px)
+  TABLET: 3, // Tablets (769-1024px)
+  LARGE_PHONE: 2, // Large phones (481-768px) - minimal gaps
+  SMALL_PHONE: 1, // Small phones (≤480px) - minimal gaps
+  EMERGENCY: 1, // Emergency fallback for very small screens
+  DYNAMIC_MIN: 1, // Minimum for dynamic calculation
+  DYNAMIC_MAX: 2, // Maximum for dynamic calculation
 };
 
 // Type imports
@@ -315,11 +315,11 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // Compute a cell size that guarantees the grid fits within the viewport on mobile
     const computeFittingCellSize = (): number => {
       const viewportWidth = layout.width || window.innerWidth;
-      // Page horizontal padding/margins outside grid
-      const outerMargin = 32; // matches useResponsiveLayout calculation
+      // Page horizontal padding/margins outside grid - minimal on mobile
+      const outerMargin = viewportWidth <= 768 ? 8 : 32;
       const availableWidth = Math.max(0, viewportWidth - outerMargin);
 
-      // Match CSS gaps/padding per breakpoints
+      // Match CSS gaps/padding per breakpoints - minimal on mobile
       let columnGap =
         viewportWidth <= 480
           ? COLUMN_GAP.SMALL_PHONE
@@ -328,7 +328,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             : viewportWidth <= 1024
               ? COLUMN_GAP.TABLET
               : COLUMN_GAP.DESKTOP;
-      let gridPadding = viewportWidth <= 480 ? 8 : viewportWidth <= 768 ? 10 : 12; // per CSS
+      let gridPadding = viewportWidth <= 480 ? 2 : viewportWidth <= 768 ? 4 : 12;
 
       // Minimum touch target size
       const minCell = layout.isTouchDevice ? 44 : 32;
@@ -341,8 +341,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
 
       // If we can't achieve the minimum touch target, progressively tighten spacing
       if (sizeByWidth < minCell && viewportWidth <= 480) {
-        columnGap = COLUMN_GAP.EMERGENCY; // tighter gaps on very small screens
-        gridPadding = 8;
+        columnGap = COLUMN_GAP.EMERGENCY;
+        gridPadding = 0;
         sizeByWidth = Math.floor(
           (availableWidth - (size - 1) * columnGap - gridPadding * 2) / size
         );
@@ -357,9 +357,10 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const viewportWidth = layout.width || window.innerWidth;
     const dynamicColumnGap = Math.max(
       COLUMN_GAP.DYNAMIC_MIN,
-      Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.06))
+      Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.04))
     );
-    const dynamicPadding = viewportWidth <= 480 ? 8 : viewportWidth <= 768 ? 10 : 12;
+    // Minimal padding on mobile to maximize puzzle size
+    const dynamicPadding = viewportWidth <= 480 ? 2 : viewportWidth <= 768 ? 4 : 12;
 
     // Scale fonts based on cell size - smaller on mobile for better fit
     const isMobileViewport = viewportWidth <= 768;
