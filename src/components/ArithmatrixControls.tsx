@@ -233,6 +233,25 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
         </ActionIcon>
       </Tooltip>
 
+      {/* Autofill Singles (Zap) */}
+      {onAutofillSingles && (
+        <Tooltip label="Autofill cells with only one possibility" position="bottom">
+          <ActionIcon
+            onClick={onAutofillSingles}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'yellow', to: 'amber' }}
+            style={{
+              transition: 'all 300ms ease',
+              boxShadow: '0 15px 30px -8px rgba(251, 191, 36, 0.3)',
+            }}
+          >
+            <IconBolt size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      )}
+
       {/* Undo */}
       <Tooltip label="Undo last action" position="bottom">
         <ActionIcon
