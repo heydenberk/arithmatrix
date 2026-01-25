@@ -14,7 +14,7 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconRefresh,
-  IconBolt,
+  IconBoltFilled,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import './MobileNumberPad.css';
@@ -162,7 +162,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
             variant="light"
             color="yellow"
           >
-            <IconBolt size={iconSize} />
+            <IconBoltFilled size={iconSize} />
           </ActionIcon>
         )}
 

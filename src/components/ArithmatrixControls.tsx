@@ -14,7 +14,7 @@ import {
   IconArrowForwardUp,
   IconRefresh,
   IconPlus,
-  IconBolt,
+  IconBoltFilled,
 } from '@tabler/icons-react';
 import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
@@ -169,7 +169,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
               boxShadow: '0 15px 30px -8px rgba(251, 191, 36, 0.3)',
             }}
           >
-            <IconBolt size="1.2rem" />
+            <IconBoltFilled size="1.2rem" />
           </ActionIcon>
         </Tooltip>
       )}
