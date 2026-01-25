@@ -374,8 +374,32 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // Reduce pencil mark font size to fit better - use smaller multiplier and max size
     const pencilFontRem = Math.max(0.45, Math.min(0.75, +(cellSize * 0.0095).toFixed(2)));
 
+    // Controls component (rendered at top on mobile, bottom on desktop)
+    const controlsElement = (
+      <ArithmatrixControls
+        isPencilMode={gameState.isPencilMode}
+        onTogglePencilMode={() => gameState.setIsPencilMode(!gameState.isPencilMode)}
+        canUndo={gameState.history.length > 0}
+        onUndo={gameState.handleUndo}
+        canRedo={gameState.redoStack.length > 0}
+        onRedo={gameState.handleRedo}
+        onCheckCell={gameState.handleCheckCell}
+        onCheckPuzzle={gameState.handleCheckPuzzle}
+        onAutofillSingles={gameState.handleAutofillSingles}
+        hasCheckpoint={hasCheckpoint}
+        onCreateCheckpoint={onCreateCheckpoint}
+        onRevertToCheckpoint={onRevertToCheckpoint}
+        timerElement={timerElement}
+        onReset={onReset}
+        onNewGame={onNewGame}
+      />
+    );
+
     return (
-      <Stack align="center" gap="xl" w="100%">
+      <Stack align="center" gap={isMobile ? 'xs' : 'xl'} w="100%">
+        {/* Controls at top on mobile */}
+        {isMobile && controlsElement}
+
         <Box
           className="arithmatrix-grid"
           style={{
@@ -434,24 +458,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           )}
         </Box>
 
-        {/* Controls */}
-        <ArithmatrixControls
-          isPencilMode={gameState.isPencilMode}
-          onTogglePencilMode={() => gameState.setIsPencilMode(!gameState.isPencilMode)}
-          canUndo={gameState.history.length > 0}
-          onUndo={gameState.handleUndo}
-          canRedo={gameState.redoStack.length > 0}
-          onRedo={gameState.handleRedo}
-          onCheckCell={gameState.handleCheckCell}
-          onCheckPuzzle={gameState.handleCheckPuzzle}
-          onAutofillSingles={gameState.handleAutofillSingles}
-          hasCheckpoint={hasCheckpoint}
-          onCreateCheckpoint={onCreateCheckpoint}
-          onRevertToCheckpoint={onRevertToCheckpoint}
-          timerElement={timerElement}
-          onReset={onReset}
-          onNewGame={onNewGame}
-        />
+        {/* Controls at bottom on desktop */}
+        {!isMobile && controlsElement}
 
         {/* Mobile Number Pad - always visible on mobile */}
         {isMobile && !isGameWon && (

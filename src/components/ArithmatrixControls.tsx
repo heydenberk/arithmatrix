@@ -56,7 +56,16 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   // Mobile layout: single compact row with timer, controls, and menu
   if (layout.isMobile) {
     return (
-      <Box>
+      <Box
+        style={{
+          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          borderRadius: 12,
+          padding: '8px 12px',
+          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+        }}
+      >
         <Group justify="space-between" gap={4} wrap="nowrap" w="100%">
           {/* Timer */}
           {timerElement}
