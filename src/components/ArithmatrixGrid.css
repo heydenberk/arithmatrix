@@ -840,8 +840,8 @@
   .arithmatrix-grid {
     row-gap: 1px;
     column-gap: 1px;
-    padding: 2px;
-    border-radius: 8px;
+    padding: 1px;
+    border-radius: 6px;
   }
 
   .arithmatrix-cell {
@@ -893,9 +893,9 @@
 
   .arithmatrix-grid {
     row-gap: 1px;
-    column-gap: 2px;
-    padding: 4px;
-    border-radius: 12px;
+    column-gap: 1px;
+    padding: 1px;
+    border-radius: 8px;
   }
 
   .arithmatrix-cell {

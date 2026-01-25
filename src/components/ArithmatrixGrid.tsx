@@ -71,6 +71,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       hasCheckpoint,
       onCreateCheckpoint,
       onRevertToCheckpoint,
+      timerElement,
+      onReset,
+      onNewGame,
     },
     ref
   ) => {
@@ -359,8 +362,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       COLUMN_GAP.DYNAMIC_MIN,
       Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.04))
     );
-    // Minimal padding on mobile to maximize puzzle size
-    const dynamicPadding = viewportWidth <= 480 ? 2 : viewportWidth <= 768 ? 4 : 12;
+    // Minimal padding on mobile to maximize puzzle size (1px on mobile)
+    const dynamicPadding = viewportWidth <= 768 ? 1 : 12;
 
     // Scale fonts based on cell size - smaller on mobile for better fit
     const isMobileViewport = viewportWidth <= 768;
@@ -445,6 +448,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           hasCheckpoint={hasCheckpoint}
           onCreateCheckpoint={onCreateCheckpoint}
           onRevertToCheckpoint={onRevertToCheckpoint}
+          timerElement={timerElement}
+          onReset={onReset}
+          onNewGame={onNewGame}
         />
 
         {/* Mobile Number Pad - always visible on mobile */}

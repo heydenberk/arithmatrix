@@ -60,6 +60,12 @@ export type ArithmatrixGridProps = {
   onCreateCheckpoint?: () => void;
   /** Handler for reverting to checkpoint */
   onRevertToCheckpoint?: () => void;
+  /** Timer element to render on mobile (passed from parent) */
+  timerElement?: React.ReactNode;
+  /** Handler for reset action on mobile */
+  onReset?: () => void;
+  /** Handler for new game action on mobile */
+  onNewGame?: () => void;
 };
 
 /**
@@ -157,4 +163,10 @@ export type ArithmatrixControlsProps = {
   onCreateCheckpoint?: () => void;
   /** Handler for reverting to checkpoint */
   onRevertToCheckpoint?: () => void;
+  /** Timer element to render on mobile (passed from parent) */
+  timerElement?: React.ReactNode;
+  /** Handler for reset action on mobile */
+  onReset?: () => void;
+  /** Handler for new game action on mobile */
+  onNewGame?: () => void;
 };
