@@ -70,7 +70,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           {/* Timer */}
           {timerElement}
 
-          {/* Check and New Game */}
+          {/* Check, Reset, New Game */}
           <Group gap={6} wrap="nowrap">
             {/* Check */}
             <ActionIcon
@@ -81,6 +81,17 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
               color="green"
             >
               <IconCheck size={iconSize} />
+            </ActionIcon>
+
+            {/* Reset */}
+            <ActionIcon
+              onClick={handleButtonPress(onReset || (() => {}), 'medium')}
+              size={buttonSize}
+              radius="xl"
+              variant="light"
+              color="red"
+            >
+              <IconRefresh size={iconSize} />
             </ActionIcon>
 
             {/* New Game */}

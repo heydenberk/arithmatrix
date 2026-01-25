@@ -474,7 +474,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onTogglePencilMode={handleMobileTogglePencilMode}
             onUndo={gameState.handleUndo}
             onRedo={gameState.handleRedo}
-            onReset={onReset || (() => {})}
             onAutofillSingles={gameState.handleAutofillSingles}
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}

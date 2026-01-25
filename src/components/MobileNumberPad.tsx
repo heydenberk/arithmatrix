@@ -13,7 +13,6 @@ import {
   IconPencil,
   IconArrowBackUp,
   IconArrowForwardUp,
-  IconRefresh,
   IconBoltFilled,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
@@ -27,7 +26,6 @@ interface MobileNumberPadProps {
   onTogglePencilMode: () => void;
   onUndo: () => void;
   onRedo: () => void;
-  onReset: () => void;
   onAutofillSingles?: () => void;
   canUndo: boolean;
   canRedo: boolean;
@@ -41,7 +39,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   onTogglePencilMode,
   onUndo,
   onRedo,
-  onReset,
   onAutofillSingles,
   canUndo,
   canRedo,
@@ -88,17 +85,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
 
       {/* Control buttons row */}
       <Group gap={6} justify="center" wrap="nowrap" mt={8}>
-        {/* Reset */}
-        <ActionIcon
-          onClick={() => handleButtonPress(onReset)}
-          size={buttonSize}
-          radius="xl"
-          variant="light"
-          color="red"
-        >
-          <IconRefresh size={iconSize} />
-        </ActionIcon>
-
         {/* Undo */}
         <ActionIcon
           onClick={() => handleButtonPress(onUndo)}
