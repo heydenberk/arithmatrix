@@ -15,7 +15,7 @@
  * - Multi-cell selection and pencil mark support
  */
 
-import React, { useEffect, useMemo, useImperativeHandle, forwardRef, useState } from 'react';
+import React, { useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Box, Stack } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 import { isTouchDevice } from '../utils/touchUtils';
@@ -77,8 +77,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const { size } = puzzleDefinition;
     const layout = useResponsiveLayout();
 
-    // Mobile number pad state
-    const [showMobileNumberPad, setShowMobileNumberPad] = useState(false);
     // Show mobile UI for touch devices OR small screens (for DevTools testing)
     const isMobile = isTouchDevice() || layout.width <= 768;
 
@@ -112,13 +110,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       return generateCageColorMap(puzzleDefinition);
     }, [puzzleDefinition]);
 
-    // Show/hide mobile number pad based on cell selection
-    useEffect(() => {
-      if (isMobile && gameState.selectedCells.size > 0 && !isGameWon) {
-        setShowMobileNumberPad(true);
-      }
-    }, [isMobile, gameState.selectedCells.size, isGameWon]);
-
     // Handlers for mobile number pad
     const handleMobileNumberSelect = (num: number) => {
       if (gameState.isPencilMode) {
@@ -146,7 +137,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     };
 
     const handleMobileClose = () => {
-      setShowMobileNumberPad(false);
       gameState.clearSelection();
     };
 
@@ -451,8 +441,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           onRevertToCheckpoint={onRevertToCheckpoint}
         />
 
-        {/* Mobile Number Pad */}
-        {isMobile && showMobileNumberPad && gameState.selectedCells.size > 0 && (
+        {/* Mobile Number Pad - always visible on mobile */}
+        {isMobile && !isGameWon && (
           <MobileNumberPad
             gridSize={size}
             isPencilMode={gameState.isPencilMode}

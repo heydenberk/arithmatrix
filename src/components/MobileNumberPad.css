@@ -1,158 +1,81 @@
-/* MobileNumberPad Styles */
+/* MobileNumberPad Styles - Compact fixed panel */
 
-.mobile-number-pad-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  pointer-events: auto;
-}
-
-.mobile-number-pad-backdrop {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(2px);
-  animation: fadeIn 0.2s ease-out;
-}
-
-.mobile-number-pad {
-  position: relative;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top-left-radius: 24px;
-  border-top-right-radius: 24px;
-  padding: 16px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  box-shadow:
-    0 -10px 40px rgba(0, 0, 0, 0.15),
-    0 -2px 10px rgba(0, 0, 0, 0.1);
-  animation: slideUp 0.25s ease-out;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-/* Handle indicator at top */
-.mobile-number-pad::before {
-  content: '';
-  position: absolute;
-  top: 8px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 40px;
-  height: 4px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 2px;
-}
-
-/* Number buttons container */
-.number-buttons-container {
+.mobile-number-pad-fixed {
   width: 100%;
-  flex-wrap: wrap;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  padding: 10px 12px;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  margin-top: 8px;
 }
 
-/* Number buttons - large touch targets */
-.number-pad-button {
-  min-width: 56px !important;
-  min-height: 56px !important;
-  font-size: 1.5rem !important;
+/* Number buttons row */
+.number-buttons-row {
+  width: 100%;
+}
+
+/* Number buttons - compact touch targets */
+.number-pad-button-compact {
+  min-width: 40px !important;
+  min-height: 40px !important;
+  padding: 0 !important;
+  font-size: 1.1rem !important;
   font-weight: 700 !important;
-  border-radius: 14px !important;
-  flex: 1 1 calc(25% - 8px);
-  max-width: 80px;
-  transition: transform 0.1s ease, box-shadow 0.1s ease !important;
+  border-radius: 10px !important;
+  flex: 1;
+  max-width: 52px;
+  transition: transform 0.1s ease !important;
 
   /* Touch optimizations */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-.number-pad-button:active {
+.number-pad-button-compact:active {
   transform: scale(0.95) !important;
 }
 
-/* Action buttons */
-.action-button {
-  min-height: 48px !important;
+/* Action buttons - compact */
+.action-button-compact {
+  min-height: 32px !important;
   font-weight: 600 !important;
-  border-radius: 12px !important;
-  flex: 1;
-  max-width: 150px;
+  border-radius: 8px !important;
+  padding: 0 12px !important;
+  font-size: 0.8rem !important;
 
   /* Touch optimizations */
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 
-.action-button:active {
+.action-button-compact:active {
   transform: scale(0.97);
-}
-
-/* Animations */
-@keyframes slideUp {
-  from {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 /* Responsive adjustments for very small screens */
 @media (max-width: 360px) {
-  .mobile-number-pad {
-    padding: 12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  .mobile-number-pad-fixed {
+    padding: 8px 10px;
   }
 
-  .number-pad-button {
-    min-width: 48px !important;
-    min-height: 48px !important;
-    font-size: 1.3rem !important;
+  .number-pad-button-compact {
+    min-width: 36px !important;
+    min-height: 36px !important;
+    font-size: 1rem !important;
   }
 
-  .action-button {
-    min-height: 44px !important;
-    font-size: 0.9rem !important;
-  }
-}
-
-/* Landscape adjustments */
-@media (orientation: landscape) and (max-height: 500px) {
-  .mobile-number-pad {
-    padding: 12px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    max-height: 70vh;
-  }
-
-  .number-pad-button {
-    min-width: 48px !important;
-    min-height: 44px !important;
-    font-size: 1.2rem !important;
-  }
-
-  .number-buttons-container {
-    gap: 6px;
+  .action-button-compact {
+    min-height: 28px !important;
+    font-size: 0.75rem !important;
+    padding: 0 8px !important;
   }
 }
 
 /* Hide on large screens with mouse (desktop) */
 @media (hover: hover) and (pointer: fine) and (min-width: 769px) {
-  .mobile-number-pad-overlay {
+  .mobile-number-pad-fixed {
     display: none;
   }
 }

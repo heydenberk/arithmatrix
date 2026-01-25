@@ -1,20 +1,20 @@
 /**
  * MobileNumberPad Component
  *
- * A touch-friendly number input overlay for mobile devices.
- * Appears at the bottom of the screen when a cell is selected.
+ * A touch-friendly number input panel for mobile devices.
+ * Fixed at the bottom of the screen, always visible during gameplay.
  *
  * Features:
  * - Large touch-friendly number buttons (min 44px)
  * - Clear button for deleting cell contents
  * - Pencil mode toggle for adding candidate numbers
  * - Haptic feedback on interactions
- * - Slide-up animation from bottom
+ * - Non-blocking design allows grid interaction
  */
 
 import React from 'react';
-import { Box, Button, Group, ActionIcon, Text } from '@mantine/core';
-import { IconEraser, IconPencil, IconPencilOff, IconX } from '@tabler/icons-react';
+import { Box, Button, Group, Text } from '@mantine/core';
+import { IconEraser, IconPencil, IconPencilOff } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import './MobileNumberPad.css';
 
@@ -34,8 +34,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   onNumberSelect,
   onClear,
   onTogglePencilMode,
-  onClose,
-  selectedCellValue,
 }) => {
   const handleNumberClick = (num: number) => {
     triggerHapticFeedback('light');
@@ -52,85 +50,61 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
     onTogglePencilMode();
   };
 
-  const handleClose = () => {
-    triggerHapticFeedback('light');
-    onClose();
-  };
-
   // Generate number buttons based on grid size
   const numberButtons = Array.from({ length: gridSize }, (_, i) => i + 1);
 
   return (
-    <Box className="mobile-number-pad-overlay">
-      <Box className="mobile-number-pad-backdrop" onClick={handleClose} />
-      <Box className="mobile-number-pad">
-        {/* Header with mode indicator and close button */}
-        <Group justify="space-between" mb="xs" px="xs">
-          <Text size="sm" fw={600} c="gray.6">
-            {isPencilMode ? 'Pencil Mode' : 'Enter Number'}
-            {selectedCellValue && !isPencilMode && (
-              <Text span c="gray.4" ml="xs">
-                (Current: {selectedCellValue})
-              </Text>
-            )}
-          </Text>
-          <ActionIcon
-            variant="subtle"
-            color="gray"
-            size="md"
-            onClick={handleClose}
-            aria-label="Close number pad"
-          >
-            <IconX size="1.1rem" />
-          </ActionIcon>
-        </Group>
+    <Box className="mobile-number-pad-fixed">
+      {/* Mode indicator */}
+      <Text size="xs" fw={600} c={isPencilMode ? 'blue' : 'gray.6'} ta="center" mb={4}>
+        {isPencilMode ? '✏️ Pencil Mode - Tap cells to select, then number' : 'Tap a cell, then a number'}
+      </Text>
 
-        {/* Number buttons grid */}
-        <Group gap="xs" justify="center" mb="sm" className="number-buttons-container">
-          {numberButtons.map(num => (
-            <Button
-              key={num}
-              className="number-pad-button"
-              variant={isPencilMode ? 'light' : 'filled'}
-              color={isPencilMode ? 'blue' : 'indigo'}
-              size="lg"
-              onClick={() => handleNumberClick(num)}
-              aria-label={`Enter ${num}`}
-            >
-              {num}
-            </Button>
-          ))}
-        </Group>
-
-        {/* Action buttons */}
-        <Group gap="sm" justify="center">
-          {/* Clear button */}
+      {/* Number buttons in a single row */}
+      <Group gap={6} justify="center" mb={8} wrap="nowrap" className="number-buttons-row">
+        {numberButtons.map(num => (
           <Button
-            className="action-button"
-            variant="light"
-            color="red"
-            size="md"
-            leftSection={<IconEraser size="1.1rem" />}
-            onClick={handleClear}
-            aria-label="Clear cell"
+            key={num}
+            className="number-pad-button-compact"
+            variant={isPencilMode ? 'light' : 'filled'}
+            color={isPencilMode ? 'blue' : 'indigo'}
+            size="sm"
+            onClick={() => handleNumberClick(num)}
+            aria-label={`Enter ${num}`}
           >
-            Clear
+            {num}
           </Button>
+        ))}
+      </Group>
 
-          {/* Pencil mode toggle */}
-          <Button
-            className="action-button"
-            variant={isPencilMode ? 'filled' : 'light'}
-            color="blue"
-            size="md"
-            leftSection={isPencilMode ? <IconPencilOff size="1.1rem" /> : <IconPencil size="1.1rem" />}
-            onClick={handleTogglePencilMode}
-            aria-label={isPencilMode ? 'Exit pencil mode' : 'Enter pencil mode'}
-          >
-            {isPencilMode ? 'Exit Pencil' : 'Pencil'}
-          </Button>
-        </Group>
-      </Box>
+      {/* Action buttons */}
+      <Group gap={8} justify="center" wrap="nowrap">
+        {/* Clear button */}
+        <Button
+          className="action-button-compact"
+          variant="light"
+          color="red"
+          size="xs"
+          leftSection={<IconEraser size="0.9rem" />}
+          onClick={handleClear}
+          aria-label="Clear cell"
+        >
+          Clear
+        </Button>
+
+        {/* Pencil mode toggle */}
+        <Button
+          className="action-button-compact"
+          variant={isPencilMode ? 'filled' : 'light'}
+          color="blue"
+          size="xs"
+          leftSection={isPencilMode ? <IconPencilOff size="0.9rem" /> : <IconPencil size="0.9rem" />}
+          onClick={handleTogglePencilMode}
+          aria-label={isPencilMode ? 'Exit pencil mode' : 'Enter pencil mode'}
+        >
+          {isPencilMode ? 'Exit Pencil' : 'Pencil'}
+        </Button>
+      </Group>
     </Box>
   );
 };
