@@ -766,6 +766,8 @@ export const useArithmatrixGame = ({
     flashingCells,
     selectedCells,
     setSelectedCells,
+    hasEnteredValueSinceSelection,
+    setHasEnteredValueSinceSelection,
     inputRefs,
     lastFocusedCell,
 

@@ -114,16 +114,15 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const handleMobileNumberSelect = (num: number) => {
       if (gameState.isPencilMode) {
         // In pencil mode, toggle the pencil mark for all selected cells
+        // Don't clear selection - the flag will start fresh on next click
         gameState.handlePencilMarkInput(num);
-        // After entering a pencil mark, clear selection to start fresh
-        gameState.setSelectedCells(new Set());
       } else {
         // In normal mode, enter the number in all selected cells
         gameState.selectedCells.forEach(cellKey => {
           const [rowIndex, colIndex] = cellKey.split('-').map(Number);
           gameState.handleDirectNumberInput(rowIndex, colIndex, num);
         });
-        // Clear selection after entering number
+        // Clear selection after entering number (cell is now filled)
         gameState.setSelectedCells(new Set());
       }
     };
@@ -149,8 +148,14 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       const cellKey = `${rowIndex}-${colIndex}`;
 
       if (isMobile && gameState.isPencilMode) {
-        // In mobile pencil mode, accumulate selections (toggle cell in selection)
+        // In mobile pencil mode, accumulate selections BUT start fresh after entering a value
         gameState.setSelectedCells(prev => {
+          // If values were entered since last selection, start fresh
+          if (gameState.hasEnteredValueSinceSelection) {
+            gameState.setHasEnteredValueSinceSelection(false);
+            return new Set([cellKey]);
+          }
+          // Otherwise accumulate (toggle cell in selection)
           const newSet = new Set(prev);
           if (newSet.has(cellKey)) {
             newSet.delete(cellKey);

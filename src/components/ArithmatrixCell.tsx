@@ -148,7 +148,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
         <input
           ref={inputRef}
           type="text"
-          inputMode="numeric"
+          inputMode={isTouchDevice() ? 'none' : 'numeric'}
           pattern="[0-9]*"
           value={shouldShowContent ? cellValue : ''} // Hide value when timer paused
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
