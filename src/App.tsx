@@ -32,7 +32,9 @@ import {
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
+import MobileSettingsPanel from './components/MobileSettingsPanel';
 import { PUZZLE_DATA_FILE } from './constants/gameConstants';
+import { isTouchDevice } from './utils/touchUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import {
   saveGameState,
@@ -207,6 +209,10 @@ function App() {
 
   // Ref for ArithmatrixGrid component
   const arithmatrixGridRef = useRef<ArithmatrixGridHandle>(null);
+
+  // Mobile settings panel state
+  const [showMobileSettings, setShowMobileSettings] = useState<boolean>(false);
+  const isMobile = isTouchDevice() || (typeof window !== 'undefined' && window.innerWidth <= 768);
 
   useEffect(() => {
     console.log('🧩 Puzzle loading effect triggered with:', {
@@ -819,12 +825,14 @@ function App() {
                   {showNewGameControls ? 'Settings' : 'New Game'}
                 </Button>
 
-                {/* Combined Size and Difficulty Pill */}
+                {/* Combined Size and Difficulty Pill - clickable on mobile */}
                 <Tooltip
                   label={
-                    puzzleDefinition?.difficulty_operations
-                      ? `Difficulty: ${puzzleDefinition.difficulty_operations.toLocaleString()} operations`
-                      : 'Difficulty information not available'
+                    isMobile
+                      ? 'Tap to change settings'
+                      : puzzleDefinition?.difficulty_operations
+                        ? `Difficulty: ${puzzleDefinition.difficulty_operations.toLocaleString()} operations`
+                        : 'Difficulty information not available'
                   }
                   position="bottom"
                 >
@@ -833,6 +841,13 @@ function App() {
                     radius="xl"
                     variant="gradient"
                     gradient={{ from: 'indigo', to: 'pink' }}
+                    onClick={() => {
+                      if (isMobile) {
+                        setSelectedSize(puzzleSize);
+                        setSelectedDifficulty(difficulty);
+                        setShowMobileSettings(true);
+                      }
+                    }}
                     style={{
                       textTransform: 'capitalize',
                       padding: `${rem(8)} ${rem(16)}`,
@@ -841,7 +856,7 @@ function App() {
                       height: rem(36), // Match button height
                       display: 'flex',
                       alignItems: 'center',
-                      cursor: 'help',
+                      cursor: isMobile ? 'pointer' : 'help',
                     }}
                   >
                     {puzzleSize}×{puzzleSize} • {difficulty}
@@ -945,6 +960,20 @@ function App() {
           </Stack>
         </Paper>
       </Container>
+
+      {/* Mobile Settings Panel */}
+      {showMobileSettings && (
+        <MobileSettingsPanel
+          currentSize={puzzleSize}
+          currentDifficulty={difficulty}
+          selectedSize={selectedSize}
+          selectedDifficulty={selectedDifficulty}
+          onSizeChange={setSelectedSize}
+          onDifficultyChange={setSelectedDifficulty}
+          onStartGame={handleStartNewGame}
+          onClose={() => setShowMobileSettings(false)}
+        />
+      )}
     </Box>
   );
 }

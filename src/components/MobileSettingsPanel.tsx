@@ -1,0 +1,157 @@
+/**
+ * MobileSettingsPanel Component
+ *
+ * A touch-friendly settings panel for mobile devices.
+ * Appears as a bottom sheet when the settings badge is tapped.
+ *
+ * Features:
+ * - Segmented controls for grid size selection
+ * - Pill buttons for difficulty selection
+ * - Start New Game button
+ * - Haptic feedback on interactions
+ */
+
+import React from 'react';
+import { Box, Button, Group, Stack, Text, ActionIcon, SegmentedControl } from '@mantine/core';
+import { IconX, IconSparkles } from '@tabler/icons-react';
+import { triggerHapticFeedback } from '../utils/touchUtils';
+import './MobileSettingsPanel.css';
+
+interface MobileSettingsPanelProps {
+  currentSize: number;
+  currentDifficulty: string;
+  selectedSize: number;
+  selectedDifficulty: string;
+  onSizeChange: (size: number) => void;
+  onDifficultyChange: (difficulty: string) => void;
+  onStartGame: () => void;
+  onClose: () => void;
+}
+
+const SIZES = [4, 5, 6, 7];
+const DIFFICULTIES = ['easiest', 'easy', 'medium', 'hard', 'expert'];
+
+const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
+  currentSize,
+  currentDifficulty,
+  selectedSize,
+  selectedDifficulty,
+  onSizeChange,
+  onDifficultyChange,
+  onStartGame,
+  onClose,
+}) => {
+  const handleSizeChange = (value: string) => {
+    triggerHapticFeedback('light');
+    onSizeChange(parseInt(value, 10));
+  };
+
+  const handleDifficultyChange = (diff: string) => {
+    triggerHapticFeedback('light');
+    onDifficultyChange(diff);
+  };
+
+  const handleStartGame = () => {
+    triggerHapticFeedback('medium');
+    onStartGame();
+    onClose();
+  };
+
+  const handleClose = () => {
+    triggerHapticFeedback('light');
+    onClose();
+  };
+
+  const hasChanges = selectedSize !== currentSize || selectedDifficulty !== currentDifficulty;
+
+  return (
+    <Box className="mobile-settings-overlay">
+      <Box className="mobile-settings-backdrop" onClick={handleClose} />
+      <Box className="mobile-settings-panel">
+        {/* Header */}
+        <Group justify="space-between" mb="md" px="xs">
+          <Text size="lg" fw={700} c="gray.8">
+            Game Settings
+          </Text>
+          <ActionIcon
+            variant="subtle"
+            color="gray"
+            size="md"
+            onClick={handleClose}
+            aria-label="Close settings"
+          >
+            <IconX size="1.2rem" />
+          </ActionIcon>
+        </Group>
+
+        {/* Grid Size Selection */}
+        <Stack gap="xs" mb="md">
+          <Text size="sm" fw={600} c="gray.6">
+            Grid Size
+          </Text>
+          <SegmentedControl
+            value={selectedSize.toString()}
+            onChange={handleSizeChange}
+            data={SIZES.map(size => ({
+              value: size.toString(),
+              label: `${size}×${size}`,
+            }))}
+            fullWidth
+            size="md"
+            classNames={{
+              root: 'settings-segmented-root',
+              indicator: 'settings-segmented-indicator',
+              label: 'settings-segmented-label',
+            }}
+          />
+        </Stack>
+
+        {/* Difficulty Selection */}
+        <Stack gap="xs" mb="lg">
+          <Text size="sm" fw={600} c="gray.6">
+            Difficulty
+          </Text>
+          <Group gap="xs" justify="center" className="difficulty-pills">
+            {DIFFICULTIES.map(diff => (
+              <Button
+                key={diff}
+                variant={selectedDifficulty === diff ? 'filled' : 'light'}
+                color={selectedDifficulty === diff ? 'violet' : 'gray'}
+                size="sm"
+                radius="xl"
+                onClick={() => handleDifficultyChange(diff)}
+                className="difficulty-pill"
+                style={{ textTransform: 'capitalize' }}
+              >
+                {diff}
+              </Button>
+            ))}
+          </Group>
+        </Stack>
+
+        {/* Current vs Selected indicator */}
+        {hasChanges && (
+          <Text size="xs" c="dimmed" ta="center" mb="sm">
+            Current: {currentSize}×{currentSize} • {currentDifficulty}
+          </Text>
+        )}
+
+        {/* Start Game Button */}
+        <Button
+          fullWidth
+          size="lg"
+          radius="xl"
+          variant="gradient"
+          gradient={{ from: 'violet', to: 'cyan' }}
+          leftSection={<IconSparkles size="1.2rem" />}
+          onClick={handleStartGame}
+          className="start-game-button"
+        >
+          {hasChanges ? 'Start New Game' : 'New Puzzle'}
+        </Button>
+      </Box>
+    </Box>
+  );
+};
+
+export default MobileSettingsPanel;
