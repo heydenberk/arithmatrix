@@ -36,9 +36,9 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   const layout = useResponsiveLayout();
   const isTouch = isTouchDevice();
 
-  // Responsive sizing - compact on mobile
-  const buttonSize = layout.isMobile ? rem(28) : rem(40);
-  const iconSize = layout.isMobile ? '0.9rem' : '1.2rem';
+  // Responsive sizing
+  const buttonSize = layout.isMobile ? rem(36) : rem(40);
+  const iconSize = layout.isMobile ? '1.1rem' : '1.2rem';
 
   // Handle button press with haptic feedback
   const handleButtonPress = (
