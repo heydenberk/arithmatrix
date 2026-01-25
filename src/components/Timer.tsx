@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paper, Text, ActionIcon, Box, rem } from '@mantine/core';
-import { IconClock, IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
+import { Text, ActionIcon, Group, rem } from '@mantine/core';
+import { IconPlayerPause, IconPlayerPlay } from '@tabler/icons-react';
 
 type TimerProps = {
   // Add any props needed, e.g., initial time, callbacks
@@ -73,78 +73,30 @@ const Timer: React.FC<TimerProps> = ({
   };
 
   return (
-    <Box style={{ position: 'relative', display: 'inline-block' }}>
-      {/* Compact timer display with embedded pause button */}
-      <Paper
-        radius="xl"
-        px="xs"
-        py={rem(4)}
+    <Group gap={2} wrap="nowrap" align="center">
+      {/* Timer text */}
+      <Text
+        size="xs"
+        fw={600}
         style={{
-          background: 'linear-gradient(135deg, #334155 0%, #475569 100%)',
-          color: 'white',
-          border: '1px solid rgba(100, 116, 139, 0.5)',
-          boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: rem(6),
-          minWidth: rem(120),
-          height: rem(36), // Match button height
+          fontFamily: 'monospace',
+          color: '#374151',
         }}
       >
-        {/* Clock icon */}
-        <IconClock size="0.9rem" style={{ color: '#10b981', flexShrink: 0 }} />
+        {formatTime(seconds)}
+      </Text>
 
-        {/* Timer text */}
-        <Text
-          size="sm"
-          fw={600}
-          style={{
-            fontFamily: 'monospace',
-            letterSpacing: rem(0.5),
-            flex: 1,
-            textAlign: 'center',
-          }}
-        >
-          {formatTime(seconds)}
-        </Text>
-
-        {/* Embedded pause/play button */}
-        <ActionIcon
-          onClick={handleTogglePause}
-          size="xs"
-          radius="lg"
-          variant="subtle"
-          color={isRunning ? 'yellow' : 'teal'}
-          style={{
-            flexShrink: 0,
-            transition: 'all 200ms ease',
-            '&:hover': {
-              transform: 'scale(1.1)',
-            },
-          }}
-        >
-          {isRunning ? <IconPlayerPause size="0.75rem" /> : <IconPlayerPlay size="0.75rem" />}
-        </ActionIcon>
-      </Paper>
-
-      {/* Pulsing dot indicator when running */}
-      {isRunning && (
-        <Box
-          style={{
-            position: 'absolute',
-            top: rem(-3),
-            right: rem(-3),
-            width: rem(8),
-            height: rem(8),
-            backgroundColor: '#10b981',
-            borderRadius: '50%',
-            boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)',
-            zIndex: 10,
-          }}
-          className="animate-pulse"
-        />
-      )}
-    </Box>
+      {/* Pause/play button */}
+      <ActionIcon
+        onClick={handleTogglePause}
+        size={rem(20)}
+        radius="xl"
+        variant="subtle"
+        color={isRunning ? 'gray' : 'teal'}
+      >
+        {isRunning ? <IconPlayerPause size="0.7rem" /> : <IconPlayerPlay size="0.7rem" />}
+      </ActionIcon>
+    </Group>
   );
 };
 

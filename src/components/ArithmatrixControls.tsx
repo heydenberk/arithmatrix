@@ -14,6 +14,7 @@ import {
   IconArrowForwardUp,
   IconRefresh,
   IconPlus,
+  IconBolt,
 } from '@tabler/icons-react';
 import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
@@ -27,6 +28,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   canRedo,
   onRedo,
   onCheckPuzzle,
+  onAutofillSingles,
   timerElement,
   onReset,
   onNewGame,
@@ -108,6 +110,19 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
             >
               <IconCheck size={iconSize} />
             </ActionIcon>
+
+            {/* Autofill Singles (Zap) */}
+            {onAutofillSingles && (
+              <ActionIcon
+                onClick={handleButtonPress(onAutofillSingles, 'medium')}
+                size={buttonSize}
+                radius="xl"
+                variant="light"
+                color="yellow"
+              >
+                <IconBolt size={iconSize} />
+              </ActionIcon>
+            )}
 
             {/* Undo */}
             <ActionIcon
