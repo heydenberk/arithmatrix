@@ -53,7 +53,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
     };
   };
 
-  // Mobile layout: single compact row with all controls inline
+  // Mobile layout: just timer, check, and new game
   if (layout.isMobile) {
     return (
       <Box
@@ -62,44 +62,16 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderRadius: 12,
-          padding: '6px 8px',
+          padding: '6px 12px',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         }}
       >
-        <Group justify="space-between" gap={3} wrap="nowrap" w="100%">
+        <Group justify="space-between" gap={8} wrap="nowrap" w="100%">
           {/* Timer */}
           {timerElement}
 
-          {/* All controls inline */}
-          <Group gap={3} wrap="nowrap">
-            {/* Pencil Mode */}
-            <Box style={{ position: 'relative' }}>
-              <ActionIcon
-                onClick={handleButtonPress(onTogglePencilMode, 'medium')}
-                size={buttonSize}
-                radius="xl"
-                variant={isPencilMode ? 'gradient' : 'light'}
-                gradient={isPencilMode ? { from: 'blue', to: 'indigo' } : undefined}
-                color={isPencilMode ? undefined : 'gray'}
-              >
-                <IconPencil size={iconSize} />
-              </ActionIcon>
-              {isPencilMode && (
-                <Box
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    width: 6,
-                    height: 6,
-                    backgroundColor: '#10b981',
-                    borderRadius: '50%',
-                    border: '1px solid white',
-                  }}
-                />
-              )}
-            </Box>
-
+          {/* Check and New Game */}
+          <Group gap={6} wrap="nowrap">
             {/* Check */}
             <ActionIcon
               onClick={handleButtonPress(onCheckPuzzle, 'heavy')}
@@ -109,56 +81,6 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
               color="green"
             >
               <IconCheck size={iconSize} />
-            </ActionIcon>
-
-            {/* Autofill Singles (Zap) */}
-            {onAutofillSingles && (
-              <ActionIcon
-                onClick={handleButtonPress(onAutofillSingles, 'medium')}
-                size={buttonSize}
-                radius="xl"
-                variant="light"
-                color="yellow"
-              >
-                <IconBolt size={iconSize} />
-              </ActionIcon>
-            )}
-
-            {/* Undo */}
-            <ActionIcon
-              onClick={handleButtonPress(onUndo)}
-              disabled={!canUndo}
-              size={buttonSize}
-              radius="xl"
-              variant="light"
-              color="orange"
-              style={{ opacity: !canUndo ? 0.4 : 1 }}
-            >
-              <IconArrowBackUp size={iconSize} />
-            </ActionIcon>
-
-            {/* Redo */}
-            <ActionIcon
-              onClick={handleButtonPress(onRedo)}
-              disabled={!canRedo}
-              size={buttonSize}
-              radius="xl"
-              variant="light"
-              color="violet"
-              style={{ opacity: !canRedo ? 0.4 : 1 }}
-            >
-              <IconArrowForwardUp size={iconSize} />
-            </ActionIcon>
-
-            {/* Reset */}
-            <ActionIcon
-              onClick={handleButtonPress(onReset || (() => {}), 'medium')}
-              size={buttonSize}
-              radius="xl"
-              variant="light"
-              color="red"
-            >
-              <IconRefresh size={iconSize} />
             </ActionIcon>
 
             {/* New Game */}

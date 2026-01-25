@@ -461,7 +461,10 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         {/* Controls at bottom on desktop */}
         {!isMobile && controlsElement}
 
-        {/* Mobile Number Pad - always visible on mobile */}
+        {/* Spacer for fixed bottom bar on mobile */}
+        {isMobile && !isGameWon && <Box style={{ height: 120 }} />}
+
+        {/* Mobile Number Pad - fixed at bottom of viewport */}
         {isMobile && !isGameWon && (
           <MobileNumberPad
             gridSize={size}
@@ -469,8 +472,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onNumberSelect={handleMobileNumberSelect}
             onClear={handleMobileClear}
             onTogglePencilMode={handleMobileTogglePencilMode}
-            onClose={handleMobileClose}
-            selectedCellValue={getSelectedCellValue()}
+            onUndo={gameState.handleUndo}
+            onRedo={gameState.handleRedo}
+            onReset={onReset || (() => {})}
+            onAutofillSingles={gameState.handleAutofillSingles}
+            canUndo={gameState.history.length > 0}
+            canRedo={gameState.redoStack.length > 0}
           />
         )}
       </Stack>
