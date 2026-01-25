@@ -573,8 +573,10 @@ function App() {
         style={{
           position: 'relative',
           zIndex: 10,
-          paddingTop: rem(32),
-          paddingBottom: rem(16),
+          paddingTop: isMobile ? rem(8) : rem(32),
+          paddingBottom: isMobile ? rem(8) : rem(16),
+          paddingLeft: isMobile ? rem(4) : undefined,
+          paddingRight: isMobile ? rem(4) : undefined,
           maxWidth: rem(700),
         }}
       >
@@ -633,8 +635,8 @@ function App() {
           {!loading && !error && puzzleDefinition && solutionGrid && (
             <Center>
               <Paper
-                radius="xl"
-                p="lg"
+                radius={isMobile ? 'lg' : 'xl'}
+                p={isMobile ? 'xs' : 'lg'}
                 style={{
                   backgroundColor: 'rgba(255, 255, 255, 0.15)',
                   backdropFilter: 'blur(20px)',
