@@ -859,6 +859,8 @@
   }
   
   .cage-info {
+    top: 1px;
+    left: 1px;
     font-size: 0.55rem;
     padding: 1px 3px;
     border-radius: 2px;
@@ -903,13 +905,15 @@
     height: var(--cell-size, 64px);
     border-radius: 7px;
   }
-  
+
   .cell-input {
     font-size: 1.6rem;
     font-weight: 700;
   }
-  
+
   .cage-info {
+    top: 1px;
+    left: 1px;
     font-size: 0.6rem;
     padding: 2px 4px;
   }
