@@ -122,14 +122,18 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // Handlers for mobile number pad
     const handleMobileNumberSelect = (num: number) => {
       if (gameState.isPencilMode) {
-        // In pencil mode, toggle the pencil mark
+        // In pencil mode, toggle the pencil mark for all selected cells
         gameState.handlePencilMarkInput(num);
+        // After entering a pencil mark, clear selection to start fresh
+        gameState.setSelectedCells(new Set());
       } else {
         // In normal mode, enter the number in all selected cells
         gameState.selectedCells.forEach(cellKey => {
           const [rowIndex, colIndex] = cellKey.split('-').map(Number);
           gameState.handleDirectNumberInput(rowIndex, colIndex, num);
         });
+        // Clear selection after entering number
+        gameState.setSelectedCells(new Set());
       }
     };
 
@@ -144,6 +148,33 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const handleMobileClose = () => {
       setShowMobileNumberPad(false);
       gameState.clearSelection();
+    };
+
+    // Custom cell click handler for mobile that accumulates selection in pencil mode
+    const handleMobileCellClick = (
+      e: React.MouseEvent<HTMLDivElement> | undefined,
+      rowIndex: number,
+      colIndex: number
+    ) => {
+      const cellKey = `${rowIndex}-${colIndex}`;
+
+      if (isMobile && gameState.isPencilMode) {
+        // In mobile pencil mode, accumulate selections (toggle cell in selection)
+        gameState.setSelectedCells(prev => {
+          const newSet = new Set(prev);
+          if (newSet.has(cellKey)) {
+            newSet.delete(cellKey);
+          } else {
+            newSet.add(cellKey);
+          }
+          return newSet;
+        });
+        // Focus the cell
+        gameState.inputRefs.current?.[rowIndex]?.[colIndex]?.focus();
+      } else {
+        // Default behavior for non-mobile or non-pencil mode
+        gameState.handleCellClick(e, rowIndex, colIndex);
+      }
     };
 
     // Get the value of the first selected cell (for display in number pad)
@@ -335,8 +366,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     );
     const dynamicPadding = viewportWidth <= 480 ? 8 : viewportWidth <= 768 ? 10 : 12;
 
-    // Scale fonts based on cell size
-    const cellFontRem = Math.max(1.2, Math.min(2.1, +(cellSize * 0.025).toFixed(2)));
+    // Scale fonts based on cell size - smaller on mobile for better fit
+    const isMobileViewport = viewportWidth <= 768;
+    const cellFontMultiplier = isMobileViewport ? 0.02 : 0.025;
+    const cellFontMin = isMobileViewport ? 1.0 : 1.2;
+    const cellFontMax = isMobileViewport ? 1.6 : 2.1;
+    const cellFontRem = Math.max(cellFontMin, Math.min(cellFontMax, +(cellSize * cellFontMultiplier).toFixed(2)));
     // Reduce pencil mark font size to fit better - use smaller multiplier and max size
     const pencilFontRem = Math.max(0.45, Math.min(0.75, +(cellSize * 0.0095).toFixed(2)));
 
@@ -393,7 +428,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
                   onValueChange={value => gameState.handleInputChange(rowIndex, colIndex, value)}
                   onFocus={handleCellFocus}
                   onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
-                  onClick={e => gameState.handleCellClick(e, rowIndex, colIndex)}
+                  onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
                 />
               );
             })

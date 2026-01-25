@@ -29,6 +29,8 @@ import {
   IconBookmark,
   IconBookmarkOff,
   IconRestore,
+  IconMenu2,
+  IconX,
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
@@ -212,6 +214,7 @@ function App() {
 
   // Mobile settings panel state
   const [showMobileSettings, setShowMobileSettings] = useState<boolean>(false);
+  const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
   const isMobile = isTouchDevice() || (typeof window !== 'undefined' && window.innerWidth <= 768);
 
   useEffect(() => {
@@ -761,11 +764,11 @@ function App() {
           )}
         </Stack>
 
-        {/* Controls Section - Moved to bottom */}
+        {/* Controls Section - Compact on mobile */}
         <Paper
           mt="md"
           radius="xl"
-          p="md"
+          p={isMobile ? 'xs' : 'md'}
           style={{
             backgroundColor: 'rgba(255, 255, 255, 0.85)',
             backdropFilter: 'blur(16px)',
@@ -774,99 +777,173 @@ function App() {
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.4)',
           }}
         >
-          <Stack align="center" gap="sm">
+          <Stack align="center" gap="xs">
             {/* Timer and Action Buttons */}
             {!loading && !error && puzzleDefinition && solutionGrid && (
-              <Group justify="center" align="center" gap="md" wrap="wrap">
-                {/* Timer */}
-                <Timer
-                  isRunning={isTimerRunning}
-                  setIsRunning={setIsTimerRunning}
-                  resetKey={resetKey}
-                  initialTime={currentCompletionTime}
-                  onTimeUpdate={setCurrentCompletionTime}
-                />
+              <>
+                {/* Mobile: Compact single row */}
+                {isMobile ? (
+                  <Group justify="space-between" align="center" gap="xs" w="100%" px="xs">
+                    {/* Timer */}
+                    <Timer
+                      isRunning={isTimerRunning}
+                      setIsRunning={setIsTimerRunning}
+                      resetKey={resetKey}
+                      initialTime={currentCompletionTime}
+                      onTimeUpdate={setCurrentCompletionTime}
+                    />
 
-                {/* Reset Button */}
-                <Button
-                  onClick={handleReset}
-                  radius="xl"
-                  size="sm"
-                  variant="gradient"
-                  gradient={{ from: 'orange', to: 'red' }}
-                  leftSection={<IconRefresh size="1rem" />}
-                  style={{
-                    transition: 'all 200ms ease',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                    },
-                  }}
-                >
-                  Reset
-                </Button>
-
-                {/* New Game Button */}
-                <Button
-                  onClick={handleNewGame}
-                  radius="xl"
-                  size="sm"
-                  variant="gradient"
-                  gradient={{ from: 'teal', to: 'blue' }}
-                  leftSection={
-                    showNewGameControls ? <IconSettings size="1rem" /> : <IconPlus size="1rem" />
-                  }
-                  style={{
-                    transition: 'all 200ms ease',
-                    '&:hover': {
-                      transform: 'scale(1.05)',
-                    },
-                  }}
-                >
-                  {showNewGameControls ? 'Settings' : 'New Game'}
-                </Button>
-
-                {/* Combined Size and Difficulty Pill - clickable on mobile */}
-                <Tooltip
-                  label={
-                    isMobile
-                      ? 'Tap to change settings'
-                      : puzzleDefinition?.difficulty_operations
-                        ? `Difficulty: ${puzzleDefinition.difficulty_operations.toLocaleString()} operations`
-                        : 'Difficulty information not available'
-                  }
-                  position="bottom"
-                >
-                  <Badge
-                    size="lg"
-                    radius="xl"
-                    variant="gradient"
-                    gradient={{ from: 'indigo', to: 'pink' }}
-                    onClick={() => {
-                      if (isMobile) {
+                    {/* Settings badge - opens settings panel */}
+                    <Badge
+                      size="md"
+                      radius="xl"
+                      variant="gradient"
+                      gradient={{ from: 'indigo', to: 'pink' }}
+                      onClick={() => {
                         setSelectedSize(puzzleSize);
                         setSelectedDifficulty(difficulty);
                         setShowMobileSettings(true);
+                      }}
+                      style={{
+                        textTransform: 'capitalize',
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {puzzleSize}×{puzzleSize} • {difficulty}
+                    </Badge>
+
+                    {/* Menu toggle button */}
+                    <ActionIcon
+                      variant="light"
+                      color="gray"
+                      size="lg"
+                      radius="xl"
+                      onClick={() => setShowMobileMenu(!showMobileMenu)}
+                      aria-label={showMobileMenu ? 'Close menu' : 'Open menu'}
+                    >
+                      {showMobileMenu ? <IconX size="1.2rem" /> : <IconMenu2 size="1.2rem" />}
+                    </ActionIcon>
+                  </Group>
+                ) : (
+                  /* Desktop: Full controls */
+                  <Group justify="center" align="center" gap="md" wrap="wrap">
+                    {/* Timer */}
+                    <Timer
+                      isRunning={isTimerRunning}
+                      setIsRunning={setIsTimerRunning}
+                      resetKey={resetKey}
+                      initialTime={currentCompletionTime}
+                      onTimeUpdate={setCurrentCompletionTime}
+                    />
+
+                    {/* Reset Button */}
+                    <Button
+                      onClick={handleReset}
+                      radius="xl"
+                      size="sm"
+                      variant="gradient"
+                      gradient={{ from: 'orange', to: 'red' }}
+                      leftSection={<IconRefresh size="1rem" />}
+                      style={{
+                        transition: 'all 200ms ease',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                        },
+                      }}
+                    >
+                      Reset
+                    </Button>
+
+                    {/* New Game Button */}
+                    <Button
+                      onClick={handleNewGame}
+                      radius="xl"
+                      size="sm"
+                      variant="gradient"
+                      gradient={{ from: 'teal', to: 'blue' }}
+                      leftSection={
+                        showNewGameControls ? <IconSettings size="1rem" /> : <IconPlus size="1rem" />
                       }
-                    }}
-                    style={{
-                      textTransform: 'capitalize',
-                      padding: `${rem(8)} ${rem(16)}`,
-                      fontSize: rem(14),
-                      fontWeight: 600,
-                      height: rem(36), // Match button height
-                      display: 'flex',
-                      alignItems: 'center',
-                      cursor: isMobile ? 'pointer' : 'help',
-                    }}
-                  >
-                    {puzzleSize}×{puzzleSize} • {difficulty}
-                  </Badge>
-                </Tooltip>
-              </Group>
+                      style={{
+                        transition: 'all 200ms ease',
+                        '&:hover': {
+                          transform: 'scale(1.05)',
+                        },
+                      }}
+                    >
+                      {showNewGameControls ? 'Settings' : 'New Game'}
+                    </Button>
+
+                    {/* Combined Size and Difficulty Pill */}
+                    <Tooltip
+                      label={
+                        puzzleDefinition?.difficulty_operations
+                          ? `Difficulty: ${puzzleDefinition.difficulty_operations.toLocaleString()} operations`
+                          : 'Difficulty information not available'
+                      }
+                      position="bottom"
+                    >
+                      <Badge
+                        size="lg"
+                        radius="xl"
+                        variant="gradient"
+                        gradient={{ from: 'indigo', to: 'pink' }}
+                        style={{
+                          textTransform: 'capitalize',
+                          padding: `${rem(8)} ${rem(16)}`,
+                          fontSize: rem(14),
+                          fontWeight: 600,
+                          height: rem(36),
+                          display: 'flex',
+                          alignItems: 'center',
+                          cursor: 'help',
+                        }}
+                      >
+                        {puzzleSize}×{puzzleSize} • {difficulty}
+                      </Badge>
+                    </Tooltip>
+                  </Group>
+                )}
+
+                {/* Mobile expanded menu */}
+                {isMobile && showMobileMenu && (
+                  <Group justify="center" gap="xs" mt="xs">
+                    <Button
+                      onClick={() => {
+                        handleReset();
+                        setShowMobileMenu(false);
+                      }}
+                      radius="xl"
+                      size="xs"
+                      variant="gradient"
+                      gradient={{ from: 'orange', to: 'red' }}
+                      leftSection={<IconRefresh size="0.9rem" />}
+                    >
+                      Reset
+                    </Button>
+                    <Button
+                      onClick={() => {
+                        setSelectedSize(puzzleSize);
+                        setSelectedDifficulty(difficulty);
+                        setShowMobileSettings(true);
+                        setShowMobileMenu(false);
+                      }}
+                      radius="xl"
+                      size="xs"
+                      variant="gradient"
+                      gradient={{ from: 'teal', to: 'blue' }}
+                      leftSection={<IconPlus size="0.9rem" />}
+                    >
+                      New Game
+                    </Button>
+                  </Group>
+                )}
+              </>
             )}
 
-            {/* Conditional Puzzle Settings - Only show when New Game is clicked */}
-            {showNewGameControls && (
+            {/* Conditional Puzzle Settings - Only show when New Game is clicked (desktop only) */}
+            {!isMobile && showNewGameControls && (
               <Group justify="center" gap="sm" wrap="wrap">
                 {/* Size Selector */}
                 <Stack align="center" gap={rem(4)}>
