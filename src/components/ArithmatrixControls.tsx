@@ -5,14 +5,13 @@
  * On mobile, includes timer and menu in one compact row.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import { Group, ActionIcon, Tooltip, rem, Box } from '@mantine/core';
 import {
   IconPencil,
   IconCheck,
   IconArrowBackUp,
   IconArrowForwardUp,
-  IconMenu2,
   IconRefresh,
   IconPlus,
 } from '@tabler/icons-react';
@@ -34,11 +33,10 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
 }) => {
   const layout = useResponsiveLayout();
   const isTouch = isTouchDevice();
-  const [showMenu, setShowMenu] = useState(false);
 
   // Responsive sizing - compact on mobile
-  const buttonSize = layout.isMobile ? rem(32) : rem(40);
-  const iconSize = layout.isMobile ? '0.95rem' : '1.2rem';
+  const buttonSize = layout.isMobile ? rem(28) : rem(40);
+  const iconSize = layout.isMobile ? '0.9rem' : '1.2rem';
 
   // Handle button press with haptic feedback
   const handleButtonPress = (
@@ -53,7 +51,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
     };
   };
 
-  // Mobile layout: single compact row with timer, controls, and menu
+  // Mobile layout: single compact row with all controls inline
   if (layout.isMobile) {
     return (
       <Box
@@ -62,16 +60,16 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
           borderRadius: 12,
-          padding: '8px 12px',
+          padding: '6px 8px',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
         }}
       >
-        <Group justify="space-between" gap={4} wrap="nowrap" w="100%">
+        <Group justify="space-between" gap={3} wrap="nowrap" w="100%">
           {/* Timer */}
           {timerElement}
 
-          {/* Core controls */}
-          <Group gap={4} wrap="nowrap">
+          {/* All controls inline */}
+          <Group gap={3} wrap="nowrap">
             {/* Pencil Mode */}
             <Box style={{ position: 'relative' }}>
               <ActionIcon
@@ -90,11 +88,11 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
                     position: 'absolute',
                     top: -2,
                     right: -2,
-                    width: 8,
-                    height: 8,
+                    width: 6,
+                    height: 6,
                     backgroundColor: '#10b981',
                     borderRadius: '50%',
-                    border: '2px solid white',
+                    border: '1px solid white',
                   }}
                 />
               )}
@@ -136,30 +134,10 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
             >
               <IconArrowForwardUp size={iconSize} />
             </ActionIcon>
-          </Group>
 
-          {/* Menu button */}
-          <ActionIcon
-            onClick={() => setShowMenu(!showMenu)}
-            size={buttonSize}
-            radius="xl"
-            variant="light"
-            color="gray"
-          >
-            <IconMenu2 size={iconSize} />
-          </ActionIcon>
-        </Group>
-
-        {/* Expanded menu */}
-        {showMenu && (
-          <Group justify="center" gap={8} mt={8}>
+            {/* Reset */}
             <ActionIcon
-              onClick={() => {
-                if (onReset) {
-                  handleButtonPress(onReset, 'medium')();
-                }
-                setShowMenu(false);
-              }}
+              onClick={handleButtonPress(onReset || (() => {}), 'medium')}
               size={buttonSize}
               radius="xl"
               variant="light"
@@ -167,13 +145,10 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
             >
               <IconRefresh size={iconSize} />
             </ActionIcon>
+
+            {/* New Game */}
             <ActionIcon
-              onClick={() => {
-                if (onNewGame) {
-                  handleButtonPress(onNewGame, 'medium')();
-                }
-                setShowMenu(false);
-              }}
+              onClick={handleButtonPress(onNewGame || (() => {}), 'medium')}
               size={buttonSize}
               radius="xl"
               variant="light"
@@ -182,7 +157,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
               <IconPlus size={iconSize} />
             </ActionIcon>
           </Group>
-        )}
+        </Group>
       </Box>
     );
   }

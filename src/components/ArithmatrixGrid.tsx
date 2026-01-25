@@ -365,11 +365,11 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // Minimal padding on mobile to maximize puzzle size (1px on mobile)
     const dynamicPadding = viewportWidth <= 768 ? 1 : 12;
 
-    // Scale fonts based on cell size - smaller on mobile for better fit
+    // Scale fonts based on cell size - slightly larger on mobile for readability
     const isMobileViewport = viewportWidth <= 768;
-    const cellFontMultiplier = isMobileViewport ? 0.02 : 0.025;
-    const cellFontMin = isMobileViewport ? 1.0 : 1.2;
-    const cellFontMax = isMobileViewport ? 1.6 : 2.1;
+    const cellFontMultiplier = isMobileViewport ? 0.024 : 0.025;
+    const cellFontMin = isMobileViewport ? 1.1 : 1.2;
+    const cellFontMax = isMobileViewport ? 1.8 : 2.1;
     const cellFontRem = Math.max(cellFontMin, Math.min(cellFontMax, +(cellSize * cellFontMultiplier).toFixed(2)));
     // Reduce pencil mark font size to fit better - use smaller multiplier and max size
     const pencilFontRem = Math.max(0.45, Math.min(0.75, +(cellSize * 0.0095).toFixed(2)));

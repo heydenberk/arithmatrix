@@ -1065,6 +1065,8 @@
   /* Mobile optimizations */
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  /* Offset 1px down and right for better visual centering */
+  transform: translate(1px, 1px);
 }
 
 .cell-input:focus {
