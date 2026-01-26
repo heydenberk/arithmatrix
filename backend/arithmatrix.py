@@ -20,8 +20,10 @@ except ImportError:
 
 try:
     from .latin_square import get_latin_square
+    from .solver import solve_puzzle, estimate_difficulty_fast as _estimate_fast, SolveStats
 except ImportError:
     from latin_square import get_latin_square
+    from solver import solve_puzzle, estimate_difficulty_fast as _estimate_fast, SolveStats
 
 
 def weighted_partition_sample(weights, target_sum, max_attempts=10000):
@@ -418,115 +420,98 @@ def generate_arithmatrix_puzzle(
     size,
     difficulty: Literal["easiest", "easy", "medium", "hard", "expert"] = "medium",
     max_attempts=500,
-    max_difficulty_attempts=20,
+    max_difficulty_attempts=50,
     use_heuristic=True,
 ):
     """
     Generate a complete Arithmatrix puzzle of the specified size and difficulty.
 
+    Uses a technique-based solver to measure difficulty:
+    - easiest: Solvable with naked singles only
+    - easy: Needs hidden singles
+    - medium: Needs basic cage arithmetic
+    - hard: Needs advanced cage reasoning
+    - expert: Requires trial and error (backtracking)
+
     Args:
         size: The size of the square (e.g., 7 for a 7x7 puzzle)
-        difficulty: Difficulty level based on percentiles - "easiest", "easy", "medium", "hard", "expert"
+        difficulty: Target difficulty level
         max_attempts: Maximum attempts for carving the square into cages
-        max_difficulty_attempts: Maximum attempts to find a puzzle in the target difficulty range
-        use_heuristic: If True, use fast heuristic for initial filtering (50-70% faster)
+        max_difficulty_attempts: Maximum attempts to find a puzzle at target difficulty
 
     Returns:
-        A dictionary containing the complete puzzle structure:
-        {
-            "cages": [
-                {
-                    "cells": [array of positional indexes],
-                    "operation": "one of +, -, *, /",
-                    "value": target_value
-                }
-            ],
-            "size": integer,
-            "solution": [[row arrays]],
-            "difficulty_operations": integer,  # Actual difficulty found
-            "target_difficulty_range": (min, max)  # Target range for this difficulty
-        }
+        A dictionary containing the complete puzzle structure with difficulty metadata
     """
-    # Get target difficulty range for this size and difficulty level
-    target_min, target_max = _get_difficulty_range(size, difficulty)
-
-    # Expand range slightly for heuristic filtering (heuristic is approximate)
-    heuristic_margin = (target_max - target_min) * 0.3
-    heuristic_min = target_min - heuristic_margin
-    heuristic_max = target_max + heuristic_margin
+    # Difficulty level ordering for "close match" logic
+    difficulty_order = ["easiest", "easy", "medium", "hard", "expert"]
+    target_idx = difficulty_order.index(difficulty)
 
     best_puzzle = None
-    best_difference = float("inf")
+    best_distance = float("inf")
     heuristic_filtered = 0
-    full_solves = 0
 
     for attempt in range(max_difficulty_attempts):
-        app.logger.info(f"Attempt {attempt} of {max_difficulty_attempts}")
+        app.logger.info(f"Attempt {attempt + 1} of {max_difficulty_attempts}")
         try:
             # Generate a basic puzzle
-            app.logger.info(f"Generating basic puzzle for size {size}")
             puzzle = _generate_basic_puzzle(size, max_attempts)
 
-            # Use heuristic for initial filtering (much faster)
+            # Use heuristic for initial filtering
             if use_heuristic:
-                estimated = estimate_difficulty_fast(puzzle)
-                app.logger.info(f"Heuristic estimate: {estimated:.1f}")
+                est_level, est_score = _estimate_fast(puzzle)
+                est_idx = difficulty_order.index(est_level)
 
-                # Skip puzzles clearly outside our range
-                if estimated < heuristic_min or estimated > heuristic_max:
+                # Skip if estimate is more than 1 level away from target
+                if abs(est_idx - target_idx) > 1:
                     heuristic_filtered += 1
-                    app.logger.info(f"Filtered by heuristic (outside {heuristic_min:.1f}-{heuristic_max:.1f})")
+                    app.logger.info(f"Filtered by heuristic: {est_level} (target: {difficulty})")
                     continue
 
-            # Full solve for accurate difficulty measurement
-            app.logger.info(f"Solving puzzle for size {size}")
-            actual_difficulty = solve_arithmatrix_puzzle(puzzle)
-            full_solves += 1
-            app.logger.info(f"Actual difficulty: {actual_difficulty}")
+            # Full solve to get actual difficulty
+            stats = solve_puzzle(puzzle)
 
-            # Check if it's in our target range
-            app.logger.info(
-                f"Checking if puzzle is in target range: {target_min} <= {actual_difficulty} <= {target_max}"
-            )
-            if target_min <= actual_difficulty <= target_max:
-                # Perfect match - add metadata and return
-                puzzle["difficulty_operations"] = actual_difficulty
-                puzzle["target_difficulty_range"] = (target_min, target_max)
-                app.logger.info(f"Stats: heuristic_filtered={heuristic_filtered}, full_solves={full_solves}")
+            if not stats.is_valid:
+                app.logger.info("Invalid puzzle (no unique solution)")
+                continue
+
+            actual_level = stats.difficulty_level
+            actual_score = stats.difficulty_score
+            actual_idx = difficulty_order.index(actual_level)
+
+            app.logger.info(f"Solved: {actual_level} (score: {actual_score:.1f})")
+
+            # Add difficulty metadata
+            puzzle["actual_difficulty"] = actual_level
+            puzzle["difficulty_score"] = actual_score
+            puzzle["techniques_used"] = {t.name: c for t, c in stats.techniques_used.items()}
+
+            # Check for exact match
+            if actual_level == difficulty:
+                app.logger.info(f"Found matching puzzle! (filtered {heuristic_filtered} by heuristic)")
                 return puzzle
 
-            # Track the best attempt so far
-            app.logger.info(f"Tracking best attempt so far: {best_difference}")
-            if target_min <= actual_difficulty:
-                difference = actual_difficulty - target_max
-            else:
-                difference = target_min - actual_difficulty
-
-            app.logger.info(f"Difference: {difference}")
-            if difference < best_difference:
-                best_difference = difference
+            # Track closest match
+            distance = abs(actual_idx - target_idx)
+            if distance < best_distance:
+                best_distance = distance
                 best_puzzle = puzzle
-                best_puzzle["difficulty_operations"] = actual_difficulty
-                best_puzzle["target_difficulty_range"] = (target_min, target_max)
-                app.logger.info(f"New best puzzle found")
 
         except Exception as e:
             app.logger.error(f"Error in attempt {attempt}: {e}")
-            # Skip failed generations (multiple solutions, carving failures, etc.)
             continue
 
-    app.logger.info(f"Final stats: heuristic_filtered={heuristic_filtered}, full_solves={full_solves}")
-
+    # Return best match or generate one more
     if best_puzzle is not None:
-        # Return the closest match we found
+        app.logger.info(f"Returning closest match: {best_puzzle.get('actual_difficulty')}")
         return best_puzzle
-    else:
-        # If we couldn't generate anything, fall back to basic generation
-        puzzle = _generate_basic_puzzle(size, max_attempts)
-        actual_difficulty = solve_arithmatrix_puzzle(puzzle)
-        puzzle["difficulty_operations"] = actual_difficulty
-        puzzle["target_difficulty_range"] = (target_min, target_max)
-        return puzzle
+
+    # Last resort: return any valid puzzle
+    app.logger.info("Falling back to basic generation")
+    puzzle = _generate_basic_puzzle(size, max_attempts)
+    stats = solve_puzzle(puzzle)
+    puzzle["actual_difficulty"] = stats.difficulty_level if stats.is_valid else "unknown"
+    puzzle["difficulty_score"] = stats.difficulty_score
+    return puzzle
 
 
 def _generate_basic_puzzle(size, max_attempts=500):
@@ -563,404 +548,38 @@ def estimate_difficulty_fast(puzzle):
     Estimate puzzle difficulty using cage structure heuristics.
     Much faster than full solve - use for initial filtering.
 
-    The heuristic considers:
-    1. Operation complexity (division/subtraction harder than add/multiply)
-    2. Cage size (larger cages = more possibilities)
-    3. Single-cell cages (gimmes that reduce difficulty)
-    4. Large cage penalty (4+ cells are harder to reason about)
-
     Returns:
-        float: Estimated difficulty score (higher = harder)
+        tuple: (difficulty_level, score) where level is one of
+               'easiest', 'easy', 'medium', 'hard', 'expert'
     """
-    size = puzzle["size"]
-    cages = puzzle["cages"]
-
-    # Operation weights (empirically tuned to correlate with solve time)
-    op_weights = {
-        "": 0.5,   # Single cell - easiest
-        "+": 1.5,  # Addition - straightforward
-        "-": 2.5,  # Subtraction - requires reasoning about pairs
-        "*": 2.0,  # Multiplication - medium
-        "/": 3.0,  # Division - hardest, limited valid pairs
-    }
-
-    score = 0.0
-    single_cell_count = 0
-    large_cage_count = 0
-
-    for cage in cages:
-        cage_size = len(cage["cells"])
-        op = cage["operation"]
-
-        # Base score: cage size * operation weight
-        op_weight = op_weights.get(op, 2.0)
-        score += cage_size * op_weight
-
-        # Track single-cell cages (gimmes)
-        if cage_size == 1:
-            single_cell_count += 1
-
-        # Large cage penalty (4+ cells)
-        if cage_size >= 4:
-            large_cage_count += 1
-            score += (cage_size - 3) * 3  # Extra penalty for each cell beyond 3
-
-    # Adjust for gimmes (more single cells = easier)
-    # Expected ~2-3 single cells per puzzle, penalize if fewer
-    expected_singles = size * 0.4
-    if single_cell_count < expected_singles:
-        score += (expected_singles - single_cell_count) * 2
-
-    # Normalize by grid size to make scores comparable across sizes
-    # Then scale to roughly match solver operation counts
-    normalized = score / (size ** 2)
-
-    # Scale to approximate operation count range
-    # Based on empirical data: 4x4 ~10-30, 5x5 ~16-40, 6x6 ~28-55, 7x7 ~38-65
-    scale_factor = {4: 15, 5: 20, 6: 30, 7: 40}.get(size, size * 5)
-
-    return normalized * scale_factor
-
-
-def _get_difficulty_range(size, difficulty_level):
-    """
-    Get the operation count range for a given difficulty level and puzzle size.
-
-    Args:
-        size: Puzzle size (4, 5, 6, 7, etc.)
-        difficulty_level: One of 'easiest', 'easy', 'medium', 'hard', 'expert'
-
-    Returns:
-        (min_operations, max_operations) tuple
-    """
-    # Updated empirical percentile data from human-aligned difficulty system
-    empirical_percentiles = {
-        4: {0: 10, 20: 16, 40: 18, 60: 20, 80: 22, 100: 29},
-        5: {0: 16, 20: 24, 40: 26, 60: 28, 80: 30, 100: 40},
-        6: {0: 28, 20: 35, 40: 37, 60: 39, 80: 42, 100: 55},
-        7: {0: 38, 20: 47, 40: 50, 60: 52, 80: 55, 100: 65},
-    }
-
-    # Difficulty level to percentile mapping
-    difficulty_ranges = {
-        "easiest": (0, 20),
-        "easy": (20, 40),
-        "medium": (40, 60),
-        "hard": (60, 80),
-        "expert": (80, 100),
-    }
-
-    if difficulty_level not in difficulty_ranges:
-        raise ValueError(
-            f"Invalid difficulty level: {difficulty_level}. Must be one of {list(difficulty_ranges.keys())}"
-        )
-
-    min_percentile, max_percentile = difficulty_ranges[difficulty_level]
-
-    if size in empirical_percentiles:
-        # Use empirical data
-        percentiles = empirical_percentiles[size]
-        min_ops = percentiles[min_percentile]
-        max_ops = percentiles[max_percentile]
-    else:
-        # Extrapolate for larger sizes using our exponential formula
-        percentiles = _estimate_percentiles_for_size(size)
-        min_ops = percentiles[min_percentile]
-        max_ops = percentiles[max_percentile]
-
-    return int(min_ops), int(max_ops)
-
-
-def _estimate_percentiles_for_size(size):
-    """Estimate percentile values for sizes not in our empirical data."""
-    # Use our updated exponential formula: Operations ≈ 0.007 × 10.73^n (median estimate)
-    median_estimate = 0.007 * (10.73**size)
-
-    # Estimate variance based on observed pattern: variance grows with size
-    # For 7x7, range was about 586K, median was 94K, so range/median ≈ 6.3
-    # Much lower variance than the old solver!
-    variance_ratio = 4 * (1.8 ** (size - 4))  # Growing variance
-
-    min_estimate = max(1, median_estimate / variance_ratio)
-    max_estimate = median_estimate * variance_ratio
-
-    # Estimate percentiles assuming log-normal-ish distribution
-    return {
-        0: min_estimate,
-        20: min_estimate + (median_estimate - min_estimate) * 0.3,
-        40: min_estimate + (median_estimate - min_estimate) * 0.7,
-        60: median_estimate + (max_estimate - median_estimate) * 0.2,
-        80: median_estimate + (max_estimate - median_estimate) * 0.6,
-        100: max_estimate,
-    }
-
-
-class ConstraintTracker:
-    """
-    Incrementally tracks row/column constraints for faster valid number lookups.
-    Instead of recalculating which numbers are used each time, we maintain
-    sets of available numbers per row and column.
-    """
-
-    def __init__(self, size):
-        self.size = size
-        # Initialize all numbers as available in each row and column
-        self.row_available = [set(range(1, size + 1)) for _ in range(size)]
-        self.col_available = [set(range(1, size + 1)) for _ in range(size)]
-
-    def place(self, row, col, num):
-        """Mark a number as used in the given row and column."""
-        self.row_available[row].discard(num)
-        self.col_available[col].discard(num)
-
-    def remove(self, row, col, num):
-        """Mark a number as available again in the given row and column."""
-        self.row_available[row].add(num)
-        self.col_available[col].add(num)
-
-    def get_valid(self, row, col):
-        """Get list of valid numbers for a cell (intersection of row and column available)."""
-        return list(self.row_available[row] & self.col_available[col])
+    return _estimate_fast(puzzle)
 
 
 def solve_arithmatrix_puzzle(puzzle):
     """
-    Solve a Arithmatrix puzzle and return the difficulty measured by number of operations.
+    Solve a puzzle and verify it has exactly one solution.
+
+    Uses the new technique-based solver which is much faster.
 
     Args:
-        puzzle: A dictionary containing the puzzle structure with cages, size, and solution
+        puzzle: A dictionary containing the puzzle structure
 
     Returns:
-        int: The difficulty score (number of operations required to solve)
+        SolveStats: Statistics about the solve including difficulty
 
     Raises:
         ValueError: If the puzzle has no solution or more than one solution
     """
-    size = puzzle["size"]
-    cages = puzzle["cages"]
+    stats = solve_puzzle(puzzle)
 
-    # Initialize empty grid
-    grid = [[0 for _ in range(size)] for _ in range(size)]
-
-    # Initialize incremental constraint tracker
-    constraints = ConstraintTracker(size)
-
-    # Parse cages into more useful format
-    cage_map = {}  # cell_index -> cage_info
-    cage_cells = {}  # cage_index -> list of cells
-    for i, cage in enumerate(cages):
-        cage_info = {
-            "cells": cage["cells"],
-            "operation": cage["operation"],
-            "value": cage["value"],
-            "index": i,
-        }
-        cage_cells[i] = cage["cells"]
-        for cell in cage["cells"]:
-            cage_map[cell] = cage_info
-
-    operation_count = 0
-    solutions_found = 0
-
-    def pos_to_coords(pos):
-        """Convert positional index to (row, col)"""
-        return pos // size, pos % size
-
-    def coords_to_pos(row, col):
-        """Convert (row, col) to positional index"""
-        return row * size + col
-
-    def evaluate_cage_operation(values, operation):
-        """Evaluate the result of the cage operation"""
-        if not values:
-            return None
-
-        if operation == "":
-            if len(values) == 1:
-                return values[0]
-            return None
-
-        if operation == "+":
-            return sum(values)
-        elif operation == "-":
-            if len(values) == 2:
-                return abs(values[0] - values[1])
-            return None
-        elif operation == "*":
-            result = 1
-            for v in values:
-                result *= v
-            return result
-        elif operation == "/":
-            if len(values) != 2:
-                return None
-            a, b = values[0], values[1]
-            if a != 0 and b % a == 0:
-                return b // a
-            elif b != 0 and a % b == 0:
-                return a // b
-            else:
-                return None
-        return None
-
-    def is_cage_valid(cage_info, grid):
-        """Check if current cage state is valid (complete or potentially valid)"""
-        # Get current values in cage
-        values = []
-        empty_cells = 0
-
-        for cell in cage_info["cells"]:
-            row, col = pos_to_coords(cell)
-            if grid[row][col] == 0:
-                empty_cells += 1
-            else:
-                values.append(grid[row][col])
-
-        # If cage is empty, it's potentially valid
-        if not values:
-            return True
-
-        # If cage is complete, check exact match
-        if empty_cells == 0:
-            expected = cage_info["value"]
-            actual = evaluate_cage_operation(values, cage_info["operation"])
-            return actual is not None and actual == expected
-
-        # If cage is partial, check if it could be valid
-        if cage_info["operation"] == "":
-            # For single-cell cages, the value must match exactly
-            if len(cage_info["cells"]) == 1 and len(values) == 1:
-                return values[0] == cage_info["value"]
-            return len(cage_info["cells"]) == 1
-        elif cage_info["operation"] == "+":
-            # Current sum shouldn't exceed target
-            return sum(values) <= cage_info["value"]
-        elif cage_info["operation"] == "*":
-            # Current product shouldn't exceed target
-            product = 1
-            for v in values:
-                product *= v
-            return product <= cage_info["value"]
-        elif cage_info["operation"] == "-":
-            # For subtraction, we need exactly 2 values
-            if len(cage_info["cells"]) != 2:
-                return False
-            if len(values) == 1:
-                # One value is set, check if the other can work
-                remaining = cage_info["value"]
-                set_value = values[0]
-                # Other value could be set_value + remaining or set_value - remaining
-                other1 = set_value + remaining
-                other2 = set_value - remaining
-                return (1 <= other1 <= size) or (1 <= other2 <= size)
-            return True
-        elif cage_info["operation"] == "/":
-            # For division, we need exactly 2 values
-            if len(cage_info["cells"]) != 2:
-                return False
-            if len(values) == 1:
-                # One value is set, check if the other can work
-                target = cage_info["value"]
-                set_value = values[0]
-                # Other value could be set_value * target or set_value / target
-                other1 = set_value * target
-                other2 = (
-                    set_value // target
-                    if target != 0 and set_value % target == 0
-                    else 0
-                )
-                return (1 <= other1 <= size) or (
-                    1 <= other2 <= size and other2 * target == set_value
-                )
-            return True
-
-        return True
-
-    def find_best_empty_cell(grid):
-        """Find the empty cell with the fewest valid options (Most Constrained Variable heuristic)"""
-        best_cell = None
-        min_options = size + 1
-
-        for row in range(size):
-            for col in range(size):
-                if grid[row][col] == 0:
-                    # Use incremental constraint tracker instead of recalculating
-                    valid_nums = constraints.get_valid(row, col)
-                    if len(valid_nums) < min_options:
-                        min_options = len(valid_nums)
-                        best_cell = (row, col, valid_nums)
-                        if min_options == 1:  # Can't get better than this
-                            return best_cell
-
-        return best_cell
-
-    def solve_recursive(grid, max_solutions=2):
-        """Recursive backtracking solver that can count solutions and solve simultaneously"""
-        nonlocal operation_count, solutions_found
-        operation_count += 1
-
-        # Find next empty cell with fewest options
-        cell_info = find_best_empty_cell(grid)
-        if cell_info is None:
-            # Grid is complete, verify all cages are valid
-            valid = True
-            checked_cages = set()
-            for cage_info in cage_map.values():
-                if cage_info["index"] not in checked_cages:
-                    if not is_cage_valid(cage_info, grid):
-                        valid = False
-                        break
-                    checked_cages.add(cage_info["index"])
-
-            if valid:
-                solutions_found += 1
-                return (
-                    solutions_found < max_solutions
-                )  # Continue searching if we need more solutions
-            return True  # Continue searching
-
-        row, col, valid_nums = cell_info
-
-        # If no valid numbers, this path is invalid
-        if not valid_nums:
-            return True  # Continue searching
-
-        # Try each valid number
-        for num in valid_nums:
-            # Place the number and update constraints
-            grid[row][col] = num
-            constraints.place(row, col, num)
-
-            # Check if this placement keeps the affected cage valid
-            pos = coords_to_pos(row, col)
-            cage_info = cage_map[pos]
-
-            if is_cage_valid(cage_info, grid):
-                # Recursively solve
-                should_continue = solve_recursive(grid, max_solutions)
-                if not should_continue:  # Found enough solutions
-                    # Backtrack
-                    grid[row][col] = 0
-                    constraints.remove(row, col, num)
-                    return False
-
-            # Backtrack
-            grid[row][col] = 0
-            constraints.remove(row, col, num)
-
-        return True  # Continue searching
-
-    # Solve once, counting solutions and measuring difficulty
-    solve_recursive(grid)
-
-    if solutions_found == 0:
+    if stats.solution_count == 0:
         raise ValueError("Puzzle has no valid solution")
-    elif solutions_found > 1:
+    elif stats.solution_count > 1:
         raise ValueError(
-            f"Puzzle has {solutions_found} solutions, but should have exactly one"
+            f"Puzzle has {stats.solution_count} solutions, but should have exactly one"
         )
 
-    return operation_count
+    return stats
 
 
 def verify_solution(puzzle):
