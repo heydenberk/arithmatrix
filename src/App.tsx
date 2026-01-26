@@ -31,6 +31,7 @@ import {
   IconRestore,
   IconMenu2,
   IconX,
+  IconDownload,
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
@@ -116,7 +117,60 @@ const updateURL = (size: number, difficulty: string) => {
   window.history.pushState({}, '', newURL);
 };
 
+// Store the deferred install prompt globally so it persists across renders
+let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
+
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 function App() {
+  // PWA install prompt state
+  const [canInstall, setCanInstall] = useState(false);
+
+  // Listen for the beforeinstallprompt event
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      console.log('📱 beforeinstallprompt event fired!');
+      e.preventDefault();
+      deferredInstallPrompt = e as BeforeInstallPromptEvent;
+      setCanInstall(true);
+    };
+
+    const handleAppInstalled = () => {
+      console.log('📱 App was installed!');
+      deferredInstallPrompt = null;
+      setCanInstall(false);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  // Handler to trigger the install prompt
+  const handleInstallClick = async () => {
+    if (!deferredInstallPrompt) {
+      console.log('📱 No deferred prompt available');
+      return;
+    }
+
+    console.log('📱 Showing install prompt...');
+    await deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    console.log('📱 User choice:', outcome);
+
+    if (outcome === 'accepted') {
+      deferredInstallPrompt = null;
+      setCanInstall(false);
+    }
+  };
+
   // Initialize puzzle stats system
   useEffect(() => {
     bindStatsToWindow();
@@ -988,6 +1042,25 @@ function App() {
           onStartGame={handleStartNewGame}
           onClose={() => setShowMobileSettings(false)}
         />
+      )}
+
+      {/* PWA Install Button - shows when app can be installed */}
+      {canInstall && (
+        <Button
+          onClick={handleInstallClick}
+          leftSection={<IconDownload size="1rem" />}
+          variant="gradient"
+          gradient={{ from: 'indigo', to: 'cyan' }}
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? 140 : 20,
+            right: 20,
+            zIndex: 200,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+          }}
+        >
+          Install App
+        </Button>
       )}
     </Box>
   );

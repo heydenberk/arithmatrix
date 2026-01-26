@@ -405,6 +405,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           className="arithmatrix-grid"
           style={{
             gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
+            gridTemplateRows: `repeat(${size}, ${isMobileViewport ? cellSize + 5 : cellSize}px)`,
             columnGap: `${dynamicColumnGap}px`,
             padding: `${dynamicPadding}px`,
             // Provide CSS variables so cells adopt the same size
