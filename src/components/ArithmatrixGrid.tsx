@@ -366,14 +366,17 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // Minimal padding on mobile to maximize puzzle size (1px on mobile)
     const dynamicPadding = viewportWidth <= 768 ? 1 : 12;
 
-    // Scale fonts based on cell size - slightly larger on mobile for readability
+    // Scale fonts based on cell size - larger on mobile for readability
     const isMobileViewport = viewportWidth <= 768;
-    const cellFontMultiplier = isMobileViewport ? 0.024 : 0.025;
-    const cellFontMin = isMobileViewport ? 1.1 : 1.2;
-    const cellFontMax = isMobileViewport ? 1.8 : 2.1;
+    const cellFontMultiplier = isMobileViewport ? 0.028 : 0.025;
+    const cellFontMin = isMobileViewport ? 1.3 : 1.2;
+    const cellFontMax = isMobileViewport ? 2.0 : 2.1;
     const cellFontRem = Math.max(cellFontMin, Math.min(cellFontMax, +(cellSize * cellFontMultiplier).toFixed(2)));
-    // Reduce pencil mark font size to fit better - use smaller multiplier and max size
-    const pencilFontRem = Math.max(0.45, Math.min(0.75, +(cellSize * 0.0095).toFixed(2)));
+    // Pencil mark font size - larger on mobile
+    const pencilFontMultiplier = isMobileViewport ? 0.012 : 0.0095;
+    const pencilFontMin = isMobileViewport ? 0.55 : 0.45;
+    const pencilFontMax = isMobileViewport ? 0.85 : 0.75;
+    const pencilFontRem = Math.max(pencilFontMin, Math.min(pencilFontMax, +(cellSize * pencilFontMultiplier).toFixed(2)));
 
     // Controls component (rendered at top on mobile, bottom on desktop)
     const controlsElement = (
@@ -405,15 +408,15 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           className="arithmatrix-grid"
           style={{
             gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-            gridTemplateRows: `repeat(${size}, ${isMobileViewport ? cellSize + 5 : cellSize}px)`,
+            gridTemplateRows: `repeat(${size}, ${isMobileViewport ? cellSize + 3 : cellSize}px)`,
             columnGap: `${dynamicColumnGap}px`,
             padding: `${dynamicPadding}px`,
             // Provide CSS variables so cells adopt the same size
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore - CSS custom properties
             ['--cell-size']: `${cellSize}px`,
-            // @ts-ignore - Cell height is 5px taller on mobile
-            ['--cell-height']: `${isMobileViewport ? cellSize + 5 : cellSize}px`,
+            // @ts-ignore - Cell height is 3px taller on mobile
+            ['--cell-height']: `${isMobileViewport ? cellSize + 3 : cellSize}px`,
             // @ts-ignore
             ['--cell-font-size']: `${cellFontRem}rem`,
             // @ts-ignore
