@@ -399,77 +399,92 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       />
     );
 
-    return (
-      <Stack
-        align="center"
-        justify={isMobile ? 'center' : 'flex-start'}
-        gap={isMobile ? 'xs' : 'xl'}
-        w="100%"
-        style={isMobile ? { minHeight: 'calc(100vh - 140px)', paddingBottom: 120 } : undefined}
+    // The grid element (shared between mobile and desktop)
+    const gridElement = (
+      <Box
+        className="arithmatrix-grid"
+        style={{
+          gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
+          gridTemplateRows: `repeat(${size}, ${isMobileViewport ? cellSize + 3 : cellSize}px)`,
+          columnGap: `${dynamicColumnGap}px`,
+          padding: `${dynamicPadding}px`,
+          // Provide CSS variables so cells adopt the same size
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - CSS custom properties
+          ['--cell-size']: `${cellSize}px`,
+          // @ts-ignore - Cell height is 3px taller on mobile
+          ['--cell-height']: `${isMobileViewport ? cellSize + 3 : cellSize}px`,
+          // @ts-ignore
+          ['--cell-font-size']: `${cellFontRem}rem`,
+          // @ts-ignore
+          ['--pencil-font-size']: `${pencilFontRem}rem`,
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+        }}
       >
-        {/* Controls at top on mobile */}
+        {gameState.gridValues.map((row, rowIndex) =>
+          row.map((cellValue, colIndex) => {
+            const cellIndex = rowIndex * size + colIndex;
+            const cellKey = `${rowIndex}-${colIndex}`;
+
+            // Find the cage this cell belongs to for color assignment
+            const cageIndex = puzzleDefinition.cages.findIndex(c => c.cells.includes(cellIndex));
+
+            return (
+              <ArithmatrixCell
+                key={cellKey}
+                rowIndex={rowIndex}
+                colIndex={colIndex}
+                cellValue={cellValue}
+                pencilMarks={gameState.pencilMarks[rowIndex]?.[colIndex] ?? new Set()}
+                gridSize={size}
+                isSelected={gameState.selectedCells.has(cellKey)}
+                isFlashing={gameState.flashingCells.has(cellKey)}
+                hasError={gameState.errorCells.has(cellIndex)}
+                cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
+                cageTextColorClass={getCageTextColorClass(cageIndex, cageColorMap)}
+                borderClasses={getBorderClasses(rowIndex, colIndex, puzzleDefinition)}
+                cageInfo={getCageInfo(rowIndex, colIndex, puzzleDefinition)}
+                isTimerRunning={isTimerRunning}
+                isGameWon={isGameWon}
+                inputRef={el => {
+                  if (!gameState.inputRefs.current[rowIndex]) {
+                    gameState.inputRefs.current[rowIndex] = [];
+                  }
+                  gameState.inputRefs.current[rowIndex][colIndex] = el;
+                }}
+                onValueChange={value => gameState.handleInputChange(rowIndex, colIndex, value)}
+                onFocus={handleCellFocus}
+                onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
+                onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
+              />
+            );
+          })
+        )}
+      </Box>
+    );
+
+    return (
+      <Stack align="center" gap={isMobile ? 0 : 'xl'} w="100%">
+        {/* Controls at top on mobile - stays pinned at top */}
         {isMobile && controlsElement}
 
-        <Box
-          className="arithmatrix-grid"
-          style={{
-            gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-            gridTemplateRows: `repeat(${size}, ${isMobileViewport ? cellSize + 3 : cellSize}px)`,
-            columnGap: `${dynamicColumnGap}px`,
-            padding: `${dynamicPadding}px`,
-            // Provide CSS variables so cells adopt the same size
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore - CSS custom properties
-            ['--cell-size']: `${cellSize}px`,
-            // @ts-ignore - Cell height is 3px taller on mobile
-            ['--cell-height']: `${isMobileViewport ? cellSize + 3 : cellSize}px`,
-            // @ts-ignore
-            ['--cell-font-size']: `${cellFontRem}rem`,
-            // @ts-ignore
-            ['--pencil-font-size']: `${pencilFontRem}rem`,
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-          }}
-        >
-          {gameState.gridValues.map((row, rowIndex) =>
-            row.map((cellValue, colIndex) => {
-              const cellIndex = rowIndex * size + colIndex;
-              const cellKey = `${rowIndex}-${colIndex}`;
-
-              // Find the cage this cell belongs to for color assignment
-              const cageIndex = puzzleDefinition.cages.findIndex(c => c.cells.includes(cellIndex));
-
-              return (
-                <ArithmatrixCell
-                  key={cellKey}
-                  rowIndex={rowIndex}
-                  colIndex={colIndex}
-                  cellValue={cellValue}
-                  pencilMarks={gameState.pencilMarks[rowIndex]?.[colIndex] ?? new Set()}
-                  gridSize={size}
-                  isSelected={gameState.selectedCells.has(cellKey)}
-                  isFlashing={gameState.flashingCells.has(cellKey)}
-                  hasError={gameState.errorCells.has(cellIndex)}
-                  cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
-                  cageTextColorClass={getCageTextColorClass(cageIndex, cageColorMap)}
-                  borderClasses={getBorderClasses(rowIndex, colIndex, puzzleDefinition)}
-                  cageInfo={getCageInfo(rowIndex, colIndex, puzzleDefinition)}
-                  isTimerRunning={isTimerRunning}
-                  isGameWon={isGameWon}
-                  inputRef={el => {
-                    if (!gameState.inputRefs.current[rowIndex]) {
-                      gameState.inputRefs.current[rowIndex] = [];
-                    }
-                    gameState.inputRefs.current[rowIndex][colIndex] = el;
-                  }}
-                  onValueChange={value => gameState.handleInputChange(rowIndex, colIndex, value)}
-                  onFocus={handleCellFocus}
-                  onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
-                  onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
-                />
-              );
-            })
-          )}
-        </Box>
+        {/* Grid with vertical centering on mobile */}
+        {isMobile ? (
+          <Box
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexGrow: 1,
+              minHeight: 'calc(100vh - 180px)',
+              paddingTop: 8,
+            }}
+          >
+            {gridElement}
+          </Box>
+        ) : (
+          gridElement
+        )}
 
         {/* Controls at bottom on desktop */}
         {!isMobile && controlsElement}
