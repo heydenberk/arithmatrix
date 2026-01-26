@@ -477,6 +477,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onAutofillSingles={gameState.handleAutofillSingles}
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}
+            hasCheckpoint={hasCheckpoint}
+            onCreateCheckpoint={onCreateCheckpoint}
+            onRevertToCheckpoint={onRevertToCheckpoint}
           />
         )}
       </Stack>

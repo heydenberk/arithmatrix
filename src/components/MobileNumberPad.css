@@ -20,12 +20,13 @@
   width: 100%;
 }
 
-/* Number buttons - compact touch targets */
+/* Number buttons - tall touch targets */
 .number-pad-button-compact {
   min-width: 40px !important;
-  min-height: 40px !important;
+  min-height: 52px !important;
+  height: 52px !important;
   padding: 0 !important;
-  font-size: 1.1rem !important;
+  font-size: 1.3rem !important;
   font-weight: 700 !important;
   border-radius: 10px !important;
   flex: 1;

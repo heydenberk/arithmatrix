@@ -14,6 +14,8 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconBoltFilled,
+  IconBookmark,
+  IconRestore,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import './MobileNumberPad.css';
@@ -29,6 +31,9 @@ interface MobileNumberPadProps {
   onAutofillSingles?: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  hasCheckpoint?: boolean;
+  onCreateCheckpoint?: () => void;
+  onRevertToCheckpoint?: () => void;
 }
 
 const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
@@ -42,6 +47,9 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   onAutofillSingles,
   canUndo,
   canRedo,
+  hasCheckpoint,
+  onCreateCheckpoint,
+  onRevertToCheckpoint,
 }) => {
   const handleNumberClick = (num: number) => {
     triggerHapticFeedback('light');
@@ -83,63 +91,82 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
         ))}
       </Group>
 
-      {/* Control buttons row */}
-      <Group gap={6} justify="center" wrap="nowrap" mt={8}>
-        {/* Undo */}
-        <ActionIcon
-          onClick={() => handleButtonPress(onUndo)}
-          disabled={!canUndo}
-          size={buttonSize}
-          radius="xl"
-          variant="light"
-          color="orange"
-          style={{ opacity: !canUndo ? 0.4 : 1 }}
-        >
-          <IconArrowBackUp size={iconSize} />
-        </ActionIcon>
-
-        {/* Redo */}
-        <ActionIcon
-          onClick={() => handleButtonPress(onRedo)}
-          disabled={!canRedo}
-          size={buttonSize}
-          radius="xl"
-          variant="light"
-          color="violet"
-          style={{ opacity: !canRedo ? 0.4 : 1 }}
-        >
-          <IconArrowForwardUp size={iconSize} />
-        </ActionIcon>
-
-        {/* Pencil Mode */}
-        <Box style={{ position: 'relative' }}>
+      {/* Control buttons row - spaced layout */}
+      <Group justify="space-between" wrap="nowrap" mt={8} w="100%">
+        {/* Left: Undo/Redo */}
+        <Group gap={4} wrap="nowrap">
           <ActionIcon
-            onClick={() => handleButtonPress(onTogglePencilMode)}
+            onClick={() => handleButtonPress(onUndo)}
+            disabled={!canUndo}
             size={buttonSize}
             radius="xl"
-            variant={isPencilMode ? 'gradient' : 'light'}
-            gradient={isPencilMode ? { from: 'blue', to: 'indigo' } : undefined}
-            color={isPencilMode ? undefined : 'gray'}
+            variant="light"
+            color="orange"
+            style={{ opacity: !canUndo ? 0.4 : 1 }}
           >
-            <IconPencil size={iconSize} />
+            <IconArrowBackUp size={iconSize} />
           </ActionIcon>
-          {isPencilMode && (
-            <Box
-              style={{
-                position: 'absolute',
-                top: -2,
-                right: -2,
-                width: 8,
-                height: 8,
-                backgroundColor: '#10b981',
-                borderRadius: '50%',
-                border: '2px solid white',
-              }}
-            />
-          )}
-        </Box>
+          <ActionIcon
+            onClick={() => handleButtonPress(onRedo)}
+            disabled={!canRedo}
+            size={buttonSize}
+            radius="xl"
+            variant="light"
+            color="violet"
+            style={{ opacity: !canRedo ? 0.4 : 1 }}
+          >
+            <IconArrowForwardUp size={iconSize} />
+          </ActionIcon>
+        </Group>
 
-        {/* Autofill Singles (Zap) */}
+        {/* Center-left: Pencil + Snapshot */}
+        <Group gap={4} wrap="nowrap">
+          <Box style={{ position: 'relative' }}>
+            <ActionIcon
+              onClick={() => handleButtonPress(onTogglePencilMode)}
+              size={buttonSize}
+              radius="xl"
+              variant={isPencilMode ? 'gradient' : 'light'}
+              gradient={isPencilMode ? { from: 'blue', to: 'indigo' } : undefined}
+              color={isPencilMode ? undefined : 'gray'}
+            >
+              <IconPencil size={iconSize} />
+            </ActionIcon>
+            {isPencilMode && (
+              <Box
+                style={{
+                  position: 'absolute',
+                  top: -2,
+                  right: -2,
+                  width: 8,
+                  height: 8,
+                  backgroundColor: '#10b981',
+                  borderRadius: '50%',
+                  border: '2px solid white',
+                }}
+              />
+            )}
+          </Box>
+          {/* Snapshot: Create or Restore */}
+          <ActionIcon
+            onClick={() => {
+              if (hasCheckpoint && onRevertToCheckpoint) {
+                handleButtonPress(onRevertToCheckpoint);
+              } else if (onCreateCheckpoint) {
+                handleButtonPress(onCreateCheckpoint);
+              }
+            }}
+            size={buttonSize}
+            radius="xl"
+            variant={hasCheckpoint ? 'gradient' : 'light'}
+            gradient={hasCheckpoint ? { from: 'teal', to: 'cyan' } : undefined}
+            color={hasCheckpoint ? undefined : 'gray'}
+          >
+            {hasCheckpoint ? <IconRestore size={iconSize} /> : <IconBookmark size={iconSize} />}
+          </ActionIcon>
+        </Group>
+
+        {/* Center-right: Zap */}
         {onAutofillSingles && (
           <ActionIcon
             onClick={() => handleButtonPress(onAutofillSingles)}
@@ -152,7 +179,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
           </ActionIcon>
         )}
 
-        {/* Erase */}
+        {/* Right: Erase */}
         <ActionIcon
           onClick={handleClear}
           size={buttonSize}
