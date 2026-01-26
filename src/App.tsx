@@ -452,20 +452,20 @@ function App() {
     setShowNewGameControls(!showNewGameControls);
   };
 
-  // Handler for creating/clearing checkpoint
+  // Handler for creating/updating checkpoint (always sets, even if one exists)
   const handleCreateCheckpoint = () => {
-    if (hasCheckpoint) {
-      // Clear existing checkpoint
-      setCheckpointGridValues(null);
-      setCheckpointPencilMarks(null);
-      setHasCheckpoint(false);
-      console.log('Checkpoint cleared');
-    } else {
-      // Create new checkpoint by calling the grid component's method
-      if (arithmatrixGridRef.current) {
-        arithmatrixGridRef.current.createCheckpoint();
-      }
+    // Create/update checkpoint by calling the grid component's method
+    if (arithmatrixGridRef.current) {
+      arithmatrixGridRef.current.createCheckpoint();
     }
+  };
+
+  // Handler for clearing the checkpoint
+  const handleClearCheckpoint = () => {
+    setCheckpointGridValues(null);
+    setCheckpointPencilMarks(null);
+    setHasCheckpoint(false);
+    console.log('Checkpoint cleared');
   };
 
   // Handler for reverting to checkpoint
@@ -662,6 +662,7 @@ function App() {
                   hasCheckpoint={hasCheckpoint}
                   onCreateCheckpoint={handleCreateCheckpoint}
                   onRevertToCheckpoint={handleRevertToCheckpoint}
+                  onClearCheckpoint={handleClearCheckpoint}
                   key={resetKey}
                   ref={arithmatrixGridRef}
                   timerElement={

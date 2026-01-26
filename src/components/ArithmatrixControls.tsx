@@ -53,7 +53,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
     };
   };
 
-  // Mobile layout: just timer, check, and new game
+  // Mobile layout: Check on left, timer in center, reset/new game on right
   if (layout.isMobile) {
     return (
       <Box
@@ -64,25 +64,26 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           borderRadius: 12,
           padding: '6px 12px',
           boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          width: '100%',
         }}
       >
         <Group justify="space-between" gap={8} wrap="nowrap" w="100%">
-          {/* Timer */}
+          {/* Left: Check */}
+          <ActionIcon
+            onClick={handleButtonPress(onCheckPuzzle, 'heavy')}
+            size={buttonSize}
+            radius="xl"
+            variant="light"
+            color="green"
+          >
+            <IconCheck size={iconSize} />
+          </ActionIcon>
+
+          {/* Center: Timer */}
           {timerElement}
 
-          {/* Check, Reset, New Game */}
+          {/* Right: Reset, New Game */}
           <Group gap={6} wrap="nowrap">
-            {/* Check */}
-            <ActionIcon
-              onClick={handleButtonPress(onCheckPuzzle, 'heavy')}
-              size={buttonSize}
-              radius="xl"
-              variant="light"
-              color="green"
-            >
-              <IconCheck size={iconSize} />
-            </ActionIcon>
-
             {/* Reset */}
             <ActionIcon
               onClick={handleButtonPress(onReset || (() => {}), 'medium')}

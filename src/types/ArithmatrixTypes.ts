@@ -56,10 +56,12 @@ export type ArithmatrixGridProps = {
   onCheckpointRequested?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
   /** Whether a checkpoint exists */
   hasCheckpoint?: boolean;
-  /** Handler for creating/clearing checkpoint */
+  /** Handler for creating/updating checkpoint */
   onCreateCheckpoint?: () => void;
   /** Handler for reverting to checkpoint */
   onRevertToCheckpoint?: () => void;
+  /** Handler for clearing the checkpoint */
+  onClearCheckpoint?: () => void;
   /** Timer element to render on mobile (passed from parent) */
   timerElement?: React.ReactNode;
   /** Handler for reset action on mobile */

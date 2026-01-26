@@ -71,6 +71,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       hasCheckpoint,
       onCreateCheckpoint,
       onRevertToCheckpoint,
+      onClearCheckpoint,
       timerElement,
       onReset,
       onNewGame,
@@ -406,10 +407,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
             columnGap: `${dynamicColumnGap}px`,
             padding: `${dynamicPadding}px`,
-            // Provide a CSS variable so cells adopt the same size
+            // Provide CSS variables so cells adopt the same size
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore - CSS custom properties
             ['--cell-size']: `${cellSize}px`,
+            // @ts-ignore - Cell height is 5px taller on mobile
+            ['--cell-height']: `${isMobileViewport ? cellSize + 5 : cellSize}px`,
             // @ts-ignore
             ['--cell-font-size']: `${cellFontRem}rem`,
             // @ts-ignore
@@ -479,7 +482,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}
             onCreateCheckpoint={onCreateCheckpoint}
-            onRevertToCheckpoint={onRevertToCheckpoint}
+            onClearCheckpoint={onClearCheckpoint}
           />
         )}
       </Stack>

@@ -6,16 +6,17 @@
  * Includes number buttons and control buttons (undo, redo, pencil, etc.)
  */
 
-import React from 'react';
-import { Box, Button, Group, ActionIcon } from '@mantine/core';
+import React, { useState } from 'react';
+import { Box, Button, Group, ActionIcon, Menu } from '@mantine/core';
 import {
   IconEraser,
   IconPencil,
   IconArrowBackUp,
   IconArrowForwardUp,
   IconBoltFilled,
+  IconDotsVertical,
   IconBookmark,
-  IconRestore,
+  IconTrash,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import './MobileNumberPad.css';
@@ -33,7 +34,7 @@ interface MobileNumberPadProps {
   canRedo: boolean;
   hasCheckpoint?: boolean;
   onCreateCheckpoint?: () => void;
-  onRevertToCheckpoint?: () => void;
+  onClearCheckpoint?: () => void;
 }
 
 const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
@@ -49,8 +50,9 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   canRedo,
   hasCheckpoint,
   onCreateCheckpoint,
-  onRevertToCheckpoint,
+  onClearCheckpoint,
 }) => {
+  const [menuOpened, setMenuOpened] = useState(false);
   const handleNumberClick = (num: number) => {
     triggerHapticFeedback('light');
     onNumberSelect(num);
@@ -100,71 +102,52 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
             disabled={!canUndo}
             size={buttonSize}
             radius="xl"
-            variant="light"
+            variant={canUndo ? 'light' : 'outline'}
             color="orange"
-            style={{ opacity: !canUndo ? 0.4 : 1 }}
+            style={{ opacity: !canUndo ? 0.5 : 1, borderColor: !canUndo ? '#d1d5db' : undefined }}
           >
-            <IconArrowBackUp size={iconSize} />
+            <IconArrowBackUp size={iconSize} style={{ color: !canUndo ? '#9ca3af' : undefined }} />
           </ActionIcon>
           <ActionIcon
             onClick={() => handleButtonPress(onRedo)}
             disabled={!canRedo}
             size={buttonSize}
             radius="xl"
-            variant="light"
+            variant={canRedo ? 'light' : 'outline'}
             color="violet"
-            style={{ opacity: !canRedo ? 0.4 : 1 }}
+            style={{ opacity: !canRedo ? 0.5 : 1, borderColor: !canRedo ? '#d1d5db' : undefined }}
           >
-            <IconArrowForwardUp size={iconSize} />
+            <IconArrowForwardUp size={iconSize} style={{ color: !canRedo ? '#9ca3af' : undefined }} />
           </ActionIcon>
         </Group>
 
-        {/* Center-left: Pencil + Snapshot */}
-        <Group gap={4} wrap="nowrap">
-          <Box style={{ position: 'relative' }}>
-            <ActionIcon
-              onClick={() => handleButtonPress(onTogglePencilMode)}
-              size={buttonSize}
-              radius="xl"
-              variant={isPencilMode ? 'gradient' : 'light'}
-              gradient={isPencilMode ? { from: 'blue', to: 'indigo' } : undefined}
-              color={isPencilMode ? undefined : 'gray'}
-            >
-              <IconPencil size={iconSize} />
-            </ActionIcon>
-            {isPencilMode && (
-              <Box
-                style={{
-                  position: 'absolute',
-                  top: -2,
-                  right: -2,
-                  width: 8,
-                  height: 8,
-                  backgroundColor: '#10b981',
-                  borderRadius: '50%',
-                  border: '2px solid white',
-                }}
-              />
-            )}
-          </Box>
-          {/* Snapshot: Create or Restore */}
+        {/* Center-left: Pencil */}
+        <Box style={{ position: 'relative' }}>
           <ActionIcon
-            onClick={() => {
-              if (hasCheckpoint && onRevertToCheckpoint) {
-                handleButtonPress(onRevertToCheckpoint);
-              } else if (onCreateCheckpoint) {
-                handleButtonPress(onCreateCheckpoint);
-              }
-            }}
+            onClick={() => handleButtonPress(onTogglePencilMode)}
             size={buttonSize}
             radius="xl"
-            variant={hasCheckpoint ? 'gradient' : 'light'}
-            gradient={hasCheckpoint ? { from: 'teal', to: 'cyan' } : undefined}
-            color={hasCheckpoint ? undefined : 'gray'}
+            variant={isPencilMode ? 'gradient' : 'light'}
+            gradient={isPencilMode ? { from: 'blue', to: 'indigo' } : undefined}
+            color={isPencilMode ? undefined : 'gray'}
           >
-            {hasCheckpoint ? <IconRestore size={iconSize} /> : <IconBookmark size={iconSize} />}
+            <IconPencil size={iconSize} />
           </ActionIcon>
-        </Group>
+          {isPencilMode && (
+            <Box
+              style={{
+                position: 'absolute',
+                top: -2,
+                right: -2,
+                width: 8,
+                height: 8,
+                backgroundColor: '#10b981',
+                borderRadius: '50%',
+                border: '2px solid white',
+              }}
+            />
+          )}
+        </Box>
 
         {/* Center-right: Zap */}
         {onAutofillSingles && (
@@ -179,16 +162,64 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
           </ActionIcon>
         )}
 
-        {/* Right: Erase */}
-        <ActionIcon
-          onClick={handleClear}
-          size={buttonSize}
-          radius="xl"
-          variant="light"
-          color="red"
-        >
-          <IconEraser size={iconSize} />
-        </ActionIcon>
+        {/* Right: Erase + More Menu */}
+        <Group gap={4} wrap="nowrap">
+          <ActionIcon
+            onClick={handleClear}
+            size={buttonSize}
+            radius="xl"
+            variant="light"
+            color="red"
+          >
+            <IconEraser size={iconSize} />
+          </ActionIcon>
+
+          {/* More Menu */}
+          <Menu
+            opened={menuOpened}
+            onChange={setMenuOpened}
+            position="top-end"
+            offset={8}
+            withinPortal
+          >
+            <Menu.Target>
+              <ActionIcon
+                onClick={() => setMenuOpened(o => !o)}
+                size={buttonSize}
+                radius="xl"
+                variant="light"
+                color="gray"
+              >
+                <IconDotsVertical size={iconSize} />
+              </ActionIcon>
+            </Menu.Target>
+            <Menu.Dropdown>
+              <Menu.Item
+                leftSection={<IconBookmark size="1rem" />}
+                onClick={() => {
+                  if (onCreateCheckpoint) {
+                    handleButtonPress(onCreateCheckpoint);
+                  }
+                  setMenuOpened(false);
+                }}
+              >
+                {hasCheckpoint ? 'Update Checkpoint' : 'Set Checkpoint'}
+              </Menu.Item>
+              {hasCheckpoint && onClearCheckpoint && (
+                <Menu.Item
+                  leftSection={<IconTrash size="1rem" />}
+                  color="red"
+                  onClick={() => {
+                    handleButtonPress(onClearCheckpoint);
+                    setMenuOpened(false);
+                  }}
+                >
+                  Clear Checkpoint
+                </Menu.Item>
+              )}
+            </Menu.Dropdown>
+          </Menu>
+        </Group>
       </Group>
     </Box>
   );
