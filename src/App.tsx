@@ -483,16 +483,23 @@ function App() {
     setPuzzleRefreshKey(prev => prev + 1); // Force new puzzle fetch even if settings are the same
   };
 
-  // Handler for reset button - resets current puzzle progress
+  // Handler for reset button - resets current puzzle progress, timer, and solved state
   const handleReset = () => {
-    setResetKey(prev => prev + 1); // Force ArithmatrixGrid to re-render and reset
-    setIsTimerRunning(true); // Resume timer
+    // Clear initial values so grid starts fresh
+    setInitialGridValues(undefined);
+    setInitialPencilMarks(undefined);
+    // Reset completion time BEFORE incrementing resetKey so Timer sees 0
+    setCurrentCompletionTime(0);
+    // Force ArithmatrixGrid to re-render and reset
+    setResetKey(prev => prev + 1);
+    setIsTimerRunning(true); // Start timer fresh
     setIsGameWon(false); // Reset win state
-    setCurrentCompletionTime(0); // Reset completion time
     // Clear checkpoint when resetting
     setCheckpointGridValues(null);
     setCheckpointPencilMarks(null);
     setHasCheckpoint(false);
+    // Clear persisted game state
+    clearGameState();
     console.log('Puzzle reset');
   };
 

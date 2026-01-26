@@ -400,7 +400,13 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     );
 
     return (
-      <Stack align="center" gap={isMobile ? 'xs' : 'xl'} w="100%">
+      <Stack
+        align="center"
+        justify={isMobile ? 'center' : 'flex-start'}
+        gap={isMobile ? 'xs' : 'xl'}
+        w="100%"
+        style={isMobile ? { minHeight: 'calc(100vh - 140px)', paddingBottom: 120 } : undefined}
+      >
         {/* Controls at top on mobile */}
         {isMobile && controlsElement}
 
@@ -467,9 +473,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
 
         {/* Controls at bottom on desktop */}
         {!isMobile && controlsElement}
-
-        {/* Spacer for fixed bottom bar on mobile */}
-        {isMobile && !isGameWon && <Box style={{ height: 120 }} />}
 
         {/* Mobile Number Pad - fixed at bottom of viewport */}
         {isMobile && !isGameWon && (
