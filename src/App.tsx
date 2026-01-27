@@ -131,6 +131,39 @@ function App() {
 
   // Listen for the beforeinstallprompt event
   useEffect(() => {
+    // Log PWA diagnostic info on load
+    const checkPWAStatus = async () => {
+      console.log('📱 PWA Diagnostics:');
+      console.log('  - URL:', window.location.href);
+      console.log('  - Protocol:', window.location.protocol);
+      console.log('  - User Agent:', navigator.userAgent);
+
+      // Check manifest
+      const manifestLink = document.querySelector('link[rel="manifest"]');
+      console.log('  - Manifest link:', manifestLink?.getAttribute('href') || 'NOT FOUND');
+
+      // Check service worker
+      if ('serviceWorker' in navigator) {
+        const reg = await navigator.serviceWorker.getRegistration();
+        console.log('  - Service Worker:', reg ? `registered (scope: ${reg.scope})` : 'NOT registered');
+        console.log('  - SW Controller:', navigator.serviceWorker.controller ? 'active' : 'none');
+      } else {
+        console.log('  - Service Worker: NOT SUPPORTED');
+      }
+
+      // Check if standalone mode (already installed)
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      console.log('  - Display mode standalone:', isStandalone);
+
+      // Check if Android
+      const isAndroid = /android/i.test(navigator.userAgent);
+      const isChrome = /chrome/i.test(navigator.userAgent) && !/edg/i.test(navigator.userAgent);
+      console.log('  - Is Android:', isAndroid);
+      console.log('  - Is Chrome:', isChrome);
+    };
+
+    checkPWAStatus();
+
     const handleBeforeInstallPrompt = (e: Event) => {
       console.log('📱 beforeinstallprompt event fired!');
       e.preventDefault();
