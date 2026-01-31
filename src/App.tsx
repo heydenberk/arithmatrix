@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // App version - bump on subsequent releases
-const APP_VERSION = '0.1.0';
+const APP_VERSION = '0.1.1';
 import {
   Box,
   Container,
@@ -302,9 +302,9 @@ function App() {
   // Secret version display state
   const [showVersion, setShowVersion] = useState<boolean>(false);
 
-  // Secret keyboard shortcut: Shift+Esc to show version
+  // Secret keyboard shortcut: Esc to show version
   const handleSecretVersionShortcut = useCallback((event: KeyboardEvent) => {
-    if (event.shiftKey && event.key === 'Escape') {
+    if (event.key === 'Escape') {
       event.preventDefault();
       setShowVersion(true);
       setTimeout(() => setShowVersion(false), 2000);
@@ -1113,7 +1113,7 @@ function App() {
         </Button>
       )}
 
-      {/* Secret version overlay - triggered by Shift+Esc */}
+      {/* Secret version overlay - triggered by Esc */}
       {showVersion && (
         <Box
           style={{
