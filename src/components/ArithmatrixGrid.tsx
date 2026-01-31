@@ -81,8 +81,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const { size } = puzzleDefinition;
     const layout = useResponsiveLayout();
 
-    // Show mobile UI for touch devices OR small screens (for DevTools testing)
-    const isMobile = isTouchDevice() || layout.width <= 768;
+    // Show mobile UI only for small screens (not based on touch capability)
+    // This ensures touchscreen laptops get the full desktop UI
+    const isMobile = layout.width <= 768;
 
     // Use our custom hook for all game logic
     const gameState = useArithmatrixGame({
@@ -139,10 +140,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       gameState.setIsPencilMode(!gameState.isPencilMode);
     };
 
-    const handleMobileClose = () => {
-      gameState.clearSelection();
-    };
-
     // Custom cell click handler for mobile that accumulates selection in pencil mode
     const handleMobileCellClick = (
       e: React.MouseEvent<HTMLDivElement> | undefined,
@@ -174,14 +171,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         // Default behavior for non-mobile or non-pencil mode
         gameState.handleCellClick(e, rowIndex, colIndex);
       }
-    };
-
-    // Get the value of the first selected cell (for display in number pad)
-    const getSelectedCellValue = (): string => {
-      if (gameState.selectedCells.size === 0) return '';
-      const firstCell = Array.from(gameState.selectedCells)[0];
-      const [row, col] = firstCell.split('-').map(Number);
-      return gameState.gridValues[row]?.[col] ?? '';
     };
 
     // Global keyboard event listeners for undo/redo and secret shortcut
@@ -409,14 +398,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           columnGap: `${dynamicColumnGap}px`,
           padding: `${dynamicPadding}px`,
           // Provide CSS variables so cells adopt the same size
-          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-          // @ts-ignore - CSS custom properties
           ['--cell-size']: `${cellSize}px`,
-          // @ts-ignore - Cell height is 3px taller on mobile
           ['--cell-height']: `${isMobileViewport ? cellSize + 3 : cellSize}px`,
-          // @ts-ignore
           ['--cell-font-size']: `${cellFontRem}rem`,
-          // @ts-ignore
           ['--pencil-font-size']: `${pencilFontRem}rem`,
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
         }}

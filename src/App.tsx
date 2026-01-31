@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+
+// App version - bump on subsequent releases
+const APP_VERSION = '0.1.0';
 import {
   Box,
   Container,
@@ -10,7 +13,6 @@ import {
   Alert,
   Stack,
   Group,
-  ActionIcon,
   Card,
   Badge,
   ThemeIcon,
@@ -26,11 +28,6 @@ import {
   IconRefresh,
   IconPlus,
   IconSettings,
-  IconBookmark,
-  IconBookmarkOff,
-  IconRestore,
-  IconMenu2,
-  IconX,
   IconDownload,
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
@@ -46,7 +43,6 @@ import {
   hasSavedGameState,
   hasUserProgress,
   deserializePencilMarks,
-  PersistedGameState,
 } from './utils/gameStatePersistence';
 
 // Define the structure of a cage and the puzzle definition
@@ -244,10 +240,9 @@ function App() {
             setGameStartTime(savedState.metadata.startedAt);
             setCurrentCompletionTime(savedState.metadata.elapsedTime);
 
-            setHasLoadedSavedState(true);
             hasLoadedSavedStateRef.current = true;
             setLoading(false);
-            console.log('✅ Saved state loaded successfully, hasLoadedSavedState set to true');
+            console.log('✅ Saved state loaded successfully');
             return true; // Indicate that saved state was loaded
           }
         } catch (error) {
@@ -288,7 +283,6 @@ function App() {
     undefined
   );
   const [gameStartTime, setGameStartTime] = useState<Date>(new Date());
-  const [hasLoadedSavedState, setHasLoadedSavedState] = useState<boolean>(false);
   const hasLoadedSavedStateRef = useRef<boolean>(false);
 
   // Checkpoint state
@@ -301,15 +295,32 @@ function App() {
 
   // Mobile settings panel state
   const [showMobileSettings, setShowMobileSettings] = useState<boolean>(false);
-  const [showMobileMenu, setShowMobileMenu] = useState<boolean>(false);
-  const isMobile = isTouchDevice() || (typeof window !== 'undefined' && window.innerWidth <= 768);
+  // Use screen width to determine mobile layout, not touch capability
+  // This ensures touchscreen laptops get the full desktop UI with checkpoint buttons
+  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+
+  // Secret version display state
+  const [showVersion, setShowVersion] = useState<boolean>(false);
+
+  // Secret keyboard shortcut: Shift+Esc to show version
+  const handleSecretVersionShortcut = useCallback((event: KeyboardEvent) => {
+    if (event.shiftKey && event.key === 'Escape') {
+      event.preventDefault();
+      setShowVersion(true);
+      setTimeout(() => setShowVersion(false), 2000);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleSecretVersionShortcut);
+    return () => window.removeEventListener('keydown', handleSecretVersionShortcut);
+  }, [handleSecretVersionShortcut]);
 
   useEffect(() => {
     console.log('🧩 Puzzle loading effect triggered with:', {
       puzzleSize,
       difficulty,
       puzzleRefreshKey,
-      hasLoadedSavedState,
       hasLoadedSavedStateRef: hasLoadedSavedStateRef.current,
     });
 
@@ -500,7 +511,6 @@ function App() {
   // Handler for starting a new game with selected settings
   const handleStartNewGame = () => {
     clearGameState(); // Clear any saved game state
-    setHasLoadedSavedState(false); // Reset the loaded state flag
     hasLoadedSavedStateRef.current = false; // Reset the ref flag
     setPuzzleSize(selectedSize);
     setDifficulty(selectedDifficulty);
@@ -1101,6 +1111,27 @@ function App() {
         >
           Install App
         </Button>
+      )}
+
+      {/* Secret version overlay - triggered by Shift+Esc */}
+      {showVersion && (
+        <Box
+          style={{
+            position: 'fixed',
+            bottom: 20,
+            left: 20,
+            padding: '8px 16px',
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            color: 'white',
+            borderRadius: 8,
+            fontSize: 12,
+            fontFamily: 'monospace',
+            zIndex: 9999,
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          v{APP_VERSION}
+        </Box>
       )}
     </Box>
   );
