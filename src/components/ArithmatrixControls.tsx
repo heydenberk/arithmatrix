@@ -181,10 +181,10 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
             size={rem(40)}
             radius="xl"
             variant="gradient"
-            gradient={{ from: 'yellow', to: 'amber' }}
+            gradient={{ from: 'orange', to: 'yellow' }}
             style={{
               transition: 'all 300ms ease',
-              boxShadow: '0 15px 30px -8px rgba(251, 191, 36, 0.3)',
+              boxShadow: '0 15px 30px -8px rgba(251, 146, 60, 0.4)',
             }}
           >
             <IconBoltFilled size="1.2rem" />
