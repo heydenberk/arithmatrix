@@ -15,6 +15,9 @@ import {
   IconRefresh,
   IconPlus,
   IconBoltFilled,
+  IconFlag,
+  IconFlagFilled,
+  IconRestore,
 } from '@tabler/icons-react';
 import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
@@ -29,6 +32,9 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   onRedo,
   onCheckPuzzle,
   onAutofillSingles,
+  hasCheckpoint,
+  onCreateCheckpoint,
+  onRevertToCheckpoint,
   timerElement,
   onReset,
   onNewGame,
@@ -227,6 +233,50 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           <IconArrowForwardUp size="1.2rem" />
         </ActionIcon>
       </Tooltip>
+
+      {/* Save/Update Checkpoint */}
+      {onCreateCheckpoint && (
+        <Tooltip label={hasCheckpoint ? 'Update checkpoint' : 'Save checkpoint'} position="bottom">
+          <ActionIcon
+            onClick={onCreateCheckpoint}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={hasCheckpoint ? { from: 'pink', to: 'red' } : { from: 'gray', to: 'dark' }}
+            style={{
+              transition: 'all 300ms ease',
+              boxShadow: hasCheckpoint
+                ? '0 15px 30px -8px rgba(236, 72, 153, 0.3)'
+                : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
+            }}
+          >
+            {hasCheckpoint ? <IconFlagFilled size="1.2rem" /> : <IconFlag size="1.2rem" />}
+          </ActionIcon>
+        </Tooltip>
+      )}
+
+      {/* Revert to Checkpoint */}
+      {onRevertToCheckpoint && (
+        <Tooltip label="Revert to checkpoint" position="bottom">
+          <ActionIcon
+            onClick={onRevertToCheckpoint}
+            disabled={!hasCheckpoint}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'red', to: 'orange' }}
+            style={{
+              transition: 'all 300ms ease',
+              boxShadow: hasCheckpoint
+                ? '0 15px 30px -8px rgba(239, 68, 68, 0.3)'
+                : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
+              opacity: !hasCheckpoint ? 0.5 : 1,
+            }}
+          >
+            <IconRestore size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      )}
     </Group>
   );
 };

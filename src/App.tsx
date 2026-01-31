@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // App version - bump on subsequent releases
-const APP_VERSION = '0.1.1';
+const APP_VERSION = '0.1.2';
 import {
   Box,
   Container,
