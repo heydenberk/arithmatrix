@@ -54,6 +54,7 @@ import {
 // Define the methods that will be exposed via ref
 interface ArithmatrixGridHandle {
   createCheckpoint: () => void;
+  revertToCheckpoint: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
 }
 
 const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
@@ -106,8 +107,11 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onCheckpointRequested(gameState.gridValues, gameState.pencilMarks);
           }
         },
+        revertToCheckpoint: (gridValues: string[][], pencilMarks: Set<string>[][]) => {
+          gameState.revertToState(gridValues, pencilMarks);
+        },
       }),
-      [gameState.gridValues, gameState.pencilMarks, onCheckpointRequested]
+      [gameState.gridValues, gameState.pencilMarks, onCheckpointRequested, gameState.revertToState]
     );
 
     // Memoized cage color assignment

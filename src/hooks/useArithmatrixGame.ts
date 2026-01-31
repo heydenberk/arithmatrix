@@ -46,13 +46,13 @@ export const useArithmatrixGame = ({
   puzzleDefinition,
   solution,
   onWin,
-  isTimerRunning,
-  isGameWon,
+  isTimerRunning: _isTimerRunning,
+  isGameWon: _isGameWon,
   initialGridValues,
   initialPencilMarks,
   onStateChange,
 }: UseArithmatrixGameProps) => {
-  const { size, cages } = puzzleDefinition;
+  const { size } = puzzleDefinition;
 
   // Core game state
   const [gridValues, setGridValues] = useState<string[][]>([]);
@@ -123,8 +123,8 @@ export const useArithmatrixGame = ({
       }
     } else {
       const emptyCells = gridValues.reduce(
-        (count, row, r) =>
-          count + row.reduce((rowCount, cell, c) => rowCount + (cell === '' ? 1 : 0), 0),
+        (count, row, _r) =>
+          count + row.reduce((rowCount, cell, _c) => rowCount + (cell === '' ? 1 : 0), 0),
         0
       );
       console.log(`Grid not complete yet, ${emptyCells} empty cells remaining`);
@@ -247,7 +247,7 @@ export const useArithmatrixGame = ({
     const numStr = String(numberPressed);
     let updatedSomething = false;
 
-    let nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
+    const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
     const cellsToFlash = new Set<string>();
 
     selectedCells.forEach(cellKey => {
@@ -381,7 +381,6 @@ export const useArithmatrixGame = ({
     // to potentially produce new single-candidate cells
     // Safeguard: with finite grid and monotonic fills, this will terminate quickly
     // even if users have many pencil marks
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       let updatedInPass = false;
 
@@ -653,6 +652,22 @@ export const useArithmatrixGame = ({
     }
   };
 
+  // Revert to a checkpoint state while preserving redo capability
+  const revertToState = (
+    checkpointGridValues: string[][],
+    checkpointPencilMarks: Set<string>[][]
+  ) => {
+    // Push current state to redoStack so user can redo back to where they were
+    setRedoStack(prevRedo => [...prevRedo, [gridValues, pencilMarks]]);
+
+    // Restore checkpoint state
+    setGridValues(checkpointGridValues.map(row => [...row]));
+    setPencilMarks(checkpointPencilMarks.map(row => row.map(cell => new Set(cell))));
+
+    clearErrors();
+    console.log('Reverted to checkpoint (redo available to return)');
+  };
+
   // Secret shortcut: Solve all but one square
   const handleSecretShortcut = () => {
     if (!solution || solution.length === 0) {
@@ -788,6 +803,7 @@ export const useArithmatrixGame = ({
     handleCheckPuzzle,
     handleAutofillSingles,
     handleSecretShortcut,
+    revertToState,
     clearErrors,
     clearSelection,
   };

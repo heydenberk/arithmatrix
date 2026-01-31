@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 // App version - bump on subsequent releases
-const APP_VERSION = '0.1.2';
+const APP_VERSION = '0.1.3';
 import {
   Box,
   Container,
@@ -574,12 +574,10 @@ function App() {
 
   // Handler for reverting to checkpoint
   const handleRevertToCheckpoint = () => {
-    if (hasCheckpoint && checkpointGridValues && checkpointPencilMarks) {
-      // Set the checkpoint data as initial values and force grid re-render
-      setInitialGridValues(checkpointGridValues);
-      setInitialPencilMarks(checkpointPencilMarks);
-      setResetKey(prev => prev + 1); // Force ArithmatrixGrid to re-render with checkpoint data
-      console.log('Reverted to checkpoint');
+    if (hasCheckpoint && checkpointGridValues && checkpointPencilMarks && arithmatrixGridRef.current) {
+      // Use the undo stack so user can redo back to where they were
+      arithmatrixGridRef.current.revertToCheckpoint(checkpointGridValues, checkpointPencilMarks);
+      console.log('Reverted to checkpoint (redo available)');
     }
   };
 
