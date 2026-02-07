@@ -20,6 +20,7 @@ import {
   IconDownload,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
+import { APP_VERSION } from '../version';
 import './MobileNumberPad.css';
 
 interface MobileNumberPadProps {
@@ -236,6 +237,10 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
                   </Menu.Item>
                 </>
               )}
+              <Menu.Divider />
+              <Menu.Label style={{ textAlign: 'center', fontSize: 11, opacity: 0.6 }}>
+                v{APP_VERSION}
+              </Menu.Label>
             </Menu.Dropdown>
           </Menu>
         </Group>
