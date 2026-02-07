@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg', 'pwa-64x64.png', 'pwa-192x192.png', 'pwa-512x512.png', 'maskable-icon-512x512.png'],
+      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg', 'pwa-64x64.png', 'pwa-192x192.png', 'pwa-512x512.png', 'maskable-icon-512x512.png', 'screenshot-narrow.png', 'screenshot-wide.png'],
       manifest: {
         id: '/arithmatrix/',
         name: 'Arithmatrix',
@@ -46,6 +46,22 @@ export default defineConfig({
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
+          },
+        ],
+        screenshots: [
+          {
+            src: '/arithmatrix/screenshot-narrow.png',
+            sizes: '540x960',
+            type: 'image/png',
+            form_factor: 'narrow',
+            label: 'Arithmatrix puzzle game on mobile',
+          },
+          {
+            src: '/arithmatrix/screenshot-wide.png',
+            sizes: '1024x576',
+            type: 'image/png',
+            form_factor: 'wide',
+            label: 'Arithmatrix puzzle game on desktop',
           },
         ],
       },
