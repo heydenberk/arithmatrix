@@ -28,7 +28,6 @@ import {
   IconRefresh,
   IconPlus,
   IconSettings,
-  IconDownload,
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
@@ -239,6 +238,7 @@ function App() {
             // Restore game timing
             setGameStartTime(savedState.metadata.startedAt);
             setCurrentCompletionTime(savedState.metadata.elapsedTime);
+            completionTimeRef.current = savedState.metadata.elapsedTime;
 
             hasLoadedSavedStateRef.current = true;
             setLoading(false);
@@ -277,7 +277,8 @@ function App() {
   const [showNewGameControls, setShowNewGameControls] = useState<boolean>(false); // State for showing new game controls
   const [resetKey, setResetKey] = useState<number>(0); // Key to force ArithmatrixGrid re-render for reset
   const [puzzleRefreshKey, setPuzzleRefreshKey] = useState<number>(0); // Key to force new puzzle fetch
-  const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time
+  const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time (used for initial restore)
+  const completionTimeRef = useRef<number>(0); // Ref to avoid re-rendering App every second
   const [initialGridValues, setInitialGridValues] = useState<string[][] | undefined>(undefined);
   const [initialPencilMarks, setInitialPencilMarks] = useState<Set<string>[][] | undefined>(
     undefined
@@ -421,7 +422,8 @@ function App() {
     if (!hasLoadedSavedStateRef.current || puzzleRefreshKey > 0) {
       setIsGameWon(false); // Reset win state when puzzle settings change
       setShowNewGameControls(false); // Hide new game controls when loading new puzzle
-      setCurrentCompletionTime(0); // Reset completion time when loading new puzzle
+      setCurrentCompletionTime(0);
+      completionTimeRef.current = 0;
       console.log('🔄 Resetting game state for new puzzle');
     } else {
       console.log('⏭️ Skipping game state reset - loading from saved state');
@@ -469,17 +471,13 @@ function App() {
     };
   }, []); // Empty dependency array ensures this runs only once on mount/unmount
 
+  // Stable callback for timer updates - writes to ref instead of state to avoid re-renders
+  const handleTimeUpdate = useCallback((seconds: number) => {
+    completionTimeRef.current = seconds;
+  }, []);
+
   // Handler for game state changes - save to localStorage
   const handleGameStateChange = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
-    console.log('🎮 handleGameStateChange called:', {
-      hasPuzzleDefinition: !!puzzleDefinition,
-      hasSolutionGrid: !!solutionGrid,
-      hasUserProgress: hasUserProgress(gridValues),
-      currentCompletionTime,
-      puzzleSize,
-      difficulty,
-    });
-
     if (puzzleDefinition && solutionGrid && hasUserProgress(gridValues)) {
       saveGameState(
         puzzleDefinition,
@@ -487,7 +485,7 @@ function App() {
         gridValues,
         pencilMarks,
         { size: puzzleSize, difficulty },
-        currentCompletionTime,
+        completionTimeRef.current,
         gameStartTime
       );
     }
@@ -517,7 +515,8 @@ function App() {
     updateURL(selectedSize, selectedDifficulty);
     setIsTimerRunning(true);
     setShowNewGameControls(false);
-    setCurrentCompletionTime(0); // Reset completion time
+    setCurrentCompletionTime(0);
+    completionTimeRef.current = 0;
     // Clear checkpoint when starting new game
     setCheckpointGridValues(null);
     setCheckpointPencilMarks(null);
@@ -533,6 +532,7 @@ function App() {
     setInitialPencilMarks(undefined);
     // Reset completion time BEFORE incrementing resetKey so Timer sees 0
     setCurrentCompletionTime(0);
+    completionTimeRef.current = 0;
     // Force ArithmatrixGrid to re-render and reset
     setResetKey(prev => prev + 1);
     setIsTimerRunning(true); // Start timer fresh
@@ -597,7 +597,7 @@ function App() {
 
     // Save puzzle stats to localStorage
     if (puzzleDefinition) {
-      saveCompletedPuzzle(puzzleDefinition, difficulty, currentCompletionTime);
+      saveCompletedPuzzle(puzzleDefinition, difficulty, completionTimeRef.current);
     }
 
     // Clear saved game state since puzzle is completed
@@ -635,7 +635,6 @@ function App() {
             borderRadius: '50%',
             filter: 'blur(60px)',
           }}
-          className="animate-pulse"
         />
         <Box
           style={{
@@ -648,9 +647,7 @@ function App() {
               'radial-gradient(circle, rgba(147, 197, 253, 0.4) 0%, rgba(165, 180, 252, 0.2) 100%)',
             borderRadius: '50%',
             filter: 'blur(60px)',
-            animationDelay: '1s',
           }}
-          className="animate-pulse"
         />
         <Box
           style={{
@@ -664,9 +661,7 @@ function App() {
               'radial-gradient(circle, rgba(168, 85, 247, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%)',
             borderRadius: '50%',
             filter: 'blur(40px)',
-            animationDelay: '2s',
           }}
-          className="animate-pulse"
         />
       </Box>
 
@@ -773,7 +768,7 @@ function App() {
                       setIsRunning={setIsTimerRunning}
                       resetKey={resetKey}
                       initialTime={currentCompletionTime}
-                      onTimeUpdate={setCurrentCompletionTime}
+                      onTimeUpdate={handleTimeUpdate}
                     />
                   }
                   onReset={handleReset}
@@ -782,6 +777,8 @@ function App() {
                     setSelectedDifficulty(difficulty);
                     setShowMobileSettings(true);
                   }}
+                  canInstall={canInstall}
+                  onInstall={handleInstallClick}
                 />
               </Paper>
             </Center>
@@ -909,7 +906,7 @@ function App() {
                   setIsRunning={setIsTimerRunning}
                   resetKey={resetKey}
                   initialTime={currentCompletionTime}
-                  onTimeUpdate={setCurrentCompletionTime}
+                  onTimeUpdate={handleTimeUpdate}
                 />
 
                 {/* Reset Button */}
@@ -1090,25 +1087,6 @@ function App() {
           onStartGame={handleStartNewGame}
           onClose={() => setShowMobileSettings(false)}
         />
-      )}
-
-      {/* PWA Install Button - shows when app can be installed */}
-      {canInstall && (
-        <Button
-          onClick={handleInstallClick}
-          leftSection={<IconDownload size="1rem" />}
-          variant="gradient"
-          gradient={{ from: 'indigo', to: 'cyan' }}
-          style={{
-            position: 'fixed',
-            bottom: isMobile ? 140 : 20,
-            right: 20,
-            zIndex: 200,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          Install App
-        </Button>
       )}
 
       {/* Secret version overlay - triggered by Esc */}

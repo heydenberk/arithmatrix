@@ -17,6 +17,7 @@ import {
   IconDotsVertical,
   IconBookmark,
   IconTrash,
+  IconDownload,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import './MobileNumberPad.css';
@@ -35,6 +36,8 @@ interface MobileNumberPadProps {
   hasCheckpoint?: boolean;
   onCreateCheckpoint?: () => void;
   onClearCheckpoint?: () => void;
+  canInstall?: boolean;
+  onInstall?: () => void;
 }
 
 const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
@@ -51,6 +54,8 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   hasCheckpoint,
   onCreateCheckpoint,
   onClearCheckpoint,
+  canInstall,
+  onInstall,
 }) => {
   const [menuOpened, setMenuOpened] = useState(false);
   const handleNumberClick = (num: number) => {
@@ -216,6 +221,20 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
                 >
                   Clear Checkpoint
                 </Menu.Item>
+              )}
+              {canInstall && onInstall && (
+                <>
+                  <Menu.Divider />
+                  <Menu.Item
+                    leftSection={<IconDownload size="1rem" />}
+                    onClick={() => {
+                      onInstall();
+                      setMenuOpened(false);
+                    }}
+                  >
+                    Install App
+                  </Menu.Item>
+                </>
               )}
             </Menu.Dropdown>
           </Menu>
