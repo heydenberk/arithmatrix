@@ -25,6 +25,7 @@ export type PersistedGameState = {
   puzzleSettings: {
     size: number;
     difficulty: string;
+    operationsTier?: string;
   };
   /** Game state metadata */
   metadata: {
@@ -44,7 +45,7 @@ export const saveGameState = (
   solutionGrid: number[][],
   gridValues: string[][],
   pencilMarks: Set<string>[][],
-  puzzleSettings: { size: number; difficulty: string },
+  puzzleSettings: { size: number; difficulty: string; operationsTier?: string },
   elapsedTime: number,
   startedAt?: Date
 ): void => {

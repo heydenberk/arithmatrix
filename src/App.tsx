@@ -31,7 +31,12 @@ import {
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
 import MobileSettingsPanel from './components/MobileSettingsPanel';
-import { PUZZLE_DATA_FILE } from './constants/gameConstants';
+import {
+  PUZZLE_DATA_FILE,
+  OPERATION_TIERS,
+  DEFAULT_OPERATION_TIER,
+  OPERATION_TIER_LABELS,
+} from './constants/gameConstants';
 import { isTouchDevice } from './utils/touchUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import {
@@ -67,6 +72,7 @@ type RawPuzzleData = {
   metadata: {
     size: number;
     actual_difficulty: string;
+    operations_tier?: string;
     operation_count: number;
     generation_time: number;
     generated_at: string;
@@ -79,6 +85,7 @@ type PuzzleData = PuzzleDefinition & {
   solution: number[][];
   difficulty: string;
   difficulty_operations?: number;
+  operations_tier?: string;
 };
 
 // Removed placeholder functions generatePlaceholderPuzzle and fetchPuzzleDefinition
@@ -91,6 +98,7 @@ const getURLParams = () => {
   const params = new URLSearchParams(window.location.search);
   const size = parseInt(params.get('size') || '7', 10);
   const difficulty = params.get('difficulty') || 'medium';
+  const ops = params.get('ops') || DEFAULT_OPERATION_TIER;
 
   // Validate size (between 4 and 7)
   const validSize = size >= 4 && size <= 7 ? size : 7;
@@ -99,13 +107,19 @@ const getURLParams = () => {
   const validDifficulties = ['easiest', 'easy', 'medium', 'hard', 'expert'];
   const validDifficulty = validDifficulties.includes(difficulty) ? difficulty : 'medium';
 
-  return { size: validSize, difficulty: validDifficulty };
+  // Validate operations tier
+  const validOps = (OPERATION_TIERS as readonly string[]).includes(ops) ? ops : DEFAULT_OPERATION_TIER;
+
+  return { size: validSize, difficulty: validDifficulty, operationsTier: validOps };
 };
 
-const updateURL = (size: number, difficulty: string) => {
+const updateURL = (size: number, difficulty: string, operationsTier: string) => {
   const params = new URLSearchParams();
   params.set('size', size.toString());
   params.set('difficulty', difficulty);
+  if (operationsTier !== DEFAULT_OPERATION_TIER) {
+    params.set('ops', operationsTier);
+  }
 
   const newURL = `${window.location.pathname}?${params.toString()}`;
   window.history.pushState({}, '', newURL);
@@ -224,11 +238,13 @@ function App() {
             // Restore puzzle settings
             setPuzzleSize(savedState.puzzleSettings.size);
             setDifficulty(savedState.puzzleSettings.difficulty);
+            setOperationsTier(savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
             setSelectedSize(savedState.puzzleSettings.size);
             setSelectedDifficulty(savedState.puzzleSettings.difficulty);
+            setSelectedOperationsTier(savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
 
             // Update URL to match restored settings
-            updateURL(savedState.puzzleSettings.size, savedState.puzzleSettings.difficulty);
+            updateURL(savedState.puzzleSettings.size, savedState.puzzleSettings.difficulty, savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
 
             // Prepare initial state for ArithmatrixGrid
             setInitialGridValues(savedState.gridValues);
@@ -261,10 +277,12 @@ function App() {
   const initialParams = getURLParams();
   const [puzzleSize, setPuzzleSize] = useState<number>(initialParams.size);
   const [difficulty, setDifficulty] = useState<string>(initialParams.difficulty);
+  const [operationsTier, setOperationsTier] = useState<string>(initialParams.operationsTier);
 
   // Separate state for UI selections (what user has selected but not yet applied)
   const [selectedSize, setSelectedSize] = useState<number>(initialParams.size);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>(initialParams.difficulty);
+  const [selectedOperationsTier, setSelectedOperationsTier] = useState<string>(initialParams.operationsTier);
 
   const [puzzleDefinition, setPuzzleDefinition] = useState<PuzzleDefinition | null>(null);
 
@@ -365,6 +383,7 @@ function App() {
                 solution: rawPuzzle.puzzle.solution,
                 difficulty: rawPuzzle.metadata.actual_difficulty,
                 difficulty_operations: rawPuzzle.puzzle.difficulty_operations,
+                operations_tier: rawPuzzle.metadata.operations_tier || 'all',
               };
               puzzles.push(puzzle);
             } catch (parseError) {
@@ -376,17 +395,20 @@ function App() {
         console.log(`Loaded ${puzzles.length} total puzzles`);
         console.log('puzzles', puzzles);
 
-        // Filter puzzles by size and actual difficulty (new human-centered system)
+        // Filter puzzles by size, difficulty, and operations tier
         const filteredPuzzles = puzzles.filter(
-          puzzle => puzzle.size === puzzleSize && puzzle.difficulty === difficulty
+          puzzle =>
+            puzzle.size === puzzleSize &&
+            puzzle.difficulty === difficulty &&
+            puzzle.operations_tier === operationsTier
         );
 
         console.log(
-          `Found ${filteredPuzzles.length} puzzles matching size ${puzzleSize} and difficulty ${difficulty}`
+          `Found ${filteredPuzzles.length} puzzles matching size ${puzzleSize}, difficulty ${difficulty}, ops ${operationsTier}`
         );
 
         if (filteredPuzzles.length === 0) {
-          throw new Error(`No puzzles found for size ${puzzleSize} and difficulty ${difficulty}`);
+          throw new Error(`No puzzles found for size ${puzzleSize}, difficulty ${difficulty}, ops ${operationsTier}`);
         }
 
         // Select a random puzzle from the filtered results
@@ -427,7 +449,7 @@ function App() {
     } else {
       console.log('⏭️ Skipping game state reset - loading from saved state');
     }
-  }, [puzzleSize, difficulty, puzzleRefreshKey]); // Refetch when puzzleSize, difficulty, or puzzleRefreshKey changes
+  }, [puzzleSize, difficulty, operationsTier, puzzleRefreshKey]);
 
   // Effect to handle browser back/forward navigation only
   useEffect(() => {
@@ -436,9 +458,11 @@ function App() {
       const urlParams = getURLParams();
       setPuzzleSize(urlParams.size);
       setDifficulty(urlParams.difficulty);
+      setOperationsTier(urlParams.operationsTier);
       // Also update the selected values to match URL
       setSelectedSize(urlParams.size);
       setSelectedDifficulty(urlParams.difficulty);
+      setSelectedOperationsTier(urlParams.operationsTier);
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -483,7 +507,7 @@ function App() {
         solutionGrid,
         gridValues,
         pencilMarks,
-        { size: puzzleSize, difficulty },
+        { size: puzzleSize, difficulty, operationsTier },
         completionTimeRef.current,
         gameStartTime
       );
@@ -505,13 +529,21 @@ function App() {
     }
   };
 
+  // Handler for operations tier change - Only update UI state
+  const handleOperationsTierChange = (value: string | null) => {
+    if (value) {
+      setSelectedOperationsTier(value);
+    }
+  };
+
   // Handler for starting a new game with selected settings
   const handleStartNewGame = () => {
     clearGameState(); // Clear any saved game state
     hasLoadedSavedStateRef.current = false; // Reset the ref flag
     setPuzzleSize(selectedSize);
     setDifficulty(selectedDifficulty);
-    updateURL(selectedSize, selectedDifficulty);
+    setOperationsTier(selectedOperationsTier);
+    updateURL(selectedSize, selectedDifficulty, selectedOperationsTier);
     setIsTimerRunning(true);
     setShowNewGameControls(false);
     setCurrentCompletionTime(0);
@@ -971,7 +1003,7 @@ function App() {
                       cursor: 'help',
                     }}
                   >
-                    {puzzleSize}×{puzzleSize} • {difficulty}
+                    {puzzleSize}×{puzzleSize} • {difficulty}{operationsTier !== 'all' ? ` • ${OPERATION_TIER_LABELS[operationsTier]}` : ''}
                   </Badge>
                 </Tooltip>
               </Group>
@@ -1044,6 +1076,35 @@ function App() {
                   />
                 </Stack>
 
+                {/* Operations Tier Selector */}
+                <Stack align="center" gap={rem(4)}>
+                  <Text size="xs" fw={600} c="gray.6">
+                    Operations
+                  </Text>
+                  <Select
+                    value={selectedOperationsTier}
+                    onChange={handleOperationsTierChange}
+                    size="xs"
+                    data={OPERATION_TIERS.map(tier => ({
+                      value: tier,
+                      label: OPERATION_TIER_LABELS[tier],
+                    }))}
+                    styles={{
+                      input: {
+                        background: 'linear-gradient(135deg, #ec4899 0%, #f97316 100%)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: rem(50),
+                        fontWeight: 600,
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                        '&:focus': {
+                          boxShadow: '0 0 0 4px rgba(249, 115, 22, 0.3)',
+                        },
+                      },
+                    }}
+                  />
+                </Stack>
+
                 {/* Start New Game Button */}
                 <Stack align="center" gap={rem(4)}>
                   <Text size="xs" fw={600} c="gray.6">
@@ -1079,10 +1140,13 @@ function App() {
         <MobileSettingsPanel
           currentSize={puzzleSize}
           currentDifficulty={difficulty}
+          currentOperationsTier={operationsTier}
           selectedSize={selectedSize}
           selectedDifficulty={selectedDifficulty}
+          selectedOperationsTier={selectedOperationsTier}
           onSizeChange={setSelectedSize}
           onDifficultyChange={setSelectedDifficulty}
+          onOperationsTierChange={setSelectedOperationsTier}
           onStartGame={handleStartNewGame}
           onClose={() => setShowMobileSettings(false)}
         />

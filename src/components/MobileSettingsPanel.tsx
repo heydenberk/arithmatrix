@@ -7,6 +7,7 @@
  * Features:
  * - Segmented controls for grid size selection
  * - Pill buttons for difficulty selection
+ * - Segmented control for operations tier selection
  * - Start New Game button
  * - Haptic feedback on interactions
  */
@@ -20,24 +21,36 @@ import './MobileSettingsPanel.css';
 interface MobileSettingsPanelProps {
   currentSize: number;
   currentDifficulty: string;
+  currentOperationsTier: string;
   selectedSize: number;
   selectedDifficulty: string;
+  selectedOperationsTier: string;
   onSizeChange: (size: number) => void;
   onDifficultyChange: (difficulty: string) => void;
+  onOperationsTierChange: (tier: string) => void;
   onStartGame: () => void;
   onClose: () => void;
 }
 
 const SIZES = [4, 5, 6, 7];
 const DIFFICULTIES = ['easiest', 'easy', 'medium', 'hard', 'expert'];
+const OPS_TIERS = [
+  { value: 'add', label: '+' },
+  { value: 'add-sub', label: '+ \u2212' },
+  { value: 'no-div', label: '+ \u2212 \u00d7' },
+  { value: 'all', label: '+ \u2212 \u00d7 \u00f7' },
+];
 
 const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
   currentSize,
   currentDifficulty,
+  currentOperationsTier,
   selectedSize,
   selectedDifficulty,
+  selectedOperationsTier,
   onSizeChange,
   onDifficultyChange,
+  onOperationsTierChange,
   onStartGame,
   onClose,
 }) => {
@@ -51,6 +64,11 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
     onDifficultyChange(diff);
   };
 
+  const handleOperationsTierChange = (value: string) => {
+    triggerHapticFeedback('light');
+    onOperationsTierChange(value);
+  };
+
   const handleStartGame = () => {
     triggerHapticFeedback('medium');
     onStartGame();
@@ -62,7 +80,10 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
     onClose();
   };
 
-  const hasChanges = selectedSize !== currentSize || selectedDifficulty !== currentDifficulty;
+  const hasChanges =
+    selectedSize !== currentSize ||
+    selectedDifficulty !== currentDifficulty ||
+    selectedOperationsTier !== currentOperationsTier;
 
   return (
     <Box className="mobile-settings-overlay">
@@ -107,7 +128,7 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
         </Stack>
 
         {/* Difficulty Selection */}
-        <Stack gap="xs" mb="lg">
+        <Stack gap="xs" mb="md">
           <Text size="sm" fw={600} c="gray.6">
             Difficulty
           </Text>
@@ -127,6 +148,25 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
               </Button>
             ))}
           </Group>
+        </Stack>
+
+        {/* Operations Tier Selection */}
+        <Stack gap="xs" mb="lg">
+          <Text size="sm" fw={600} c="gray.6">
+            Operations
+          </Text>
+          <SegmentedControl
+            value={selectedOperationsTier}
+            onChange={handleOperationsTierChange}
+            data={OPS_TIERS}
+            fullWidth
+            size="md"
+            classNames={{
+              root: 'settings-segmented-root',
+              indicator: 'settings-segmented-indicator',
+              label: 'settings-segmented-label',
+            }}
+          />
         </Stack>
 
         {/* Current vs Selected indicator */}

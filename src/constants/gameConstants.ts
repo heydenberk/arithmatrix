@@ -17,6 +17,19 @@ export const DIFFICULTY_LEVELS = ['easiest', 'easy', 'medium', 'hard', 'expert']
 
 export const DEFAULT_DIFFICULTY = 'medium';
 
+// Operation tiers
+export const OPERATION_TIERS = ['add', 'add-sub', 'no-div', 'all'] as const;
+
+export const DEFAULT_OPERATION_TIER = 'all';
+
+// Human-readable labels for operation tiers
+export const OPERATION_TIER_LABELS: Record<string, string> = {
+  add: 'Addition Only',
+  'add-sub': 'Add & Subtract',
+  'no-div': 'No Division',
+  all: 'All Operations',
+};
+
 // UI Constants
 export const ANIMATION_DURATION = {
   FLASH: 300,
