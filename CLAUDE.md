@@ -128,10 +128,10 @@ npm run preview          # Preview production build
 - **Utils:** camelCase (`arithmatrixUtils.ts`)
 - Single quotes, semicolons, 2-space indentation
 
-## Versioning
+## Versioning (MANDATORY)
 
 - App version lives in `src/version.ts` (`APP_VERSION` constant)
-- Always bump the version when pushing to remote
+- **IMPORTANT: You MUST bump the version in `src/version.ts` before EVERY push to remote. No exceptions. This is a hard requirement — never run `git push` without first bumping `APP_VERSION`.**
 
 ## Important Files
 
