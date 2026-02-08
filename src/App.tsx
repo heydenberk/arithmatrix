@@ -18,6 +18,7 @@ import {
   Center,
   Button,
   Tooltip,
+  ActionIcon,
   rem,
 } from '@mantine/core';
 import {
@@ -39,6 +40,9 @@ import {
 } from './constants/gameConstants';
 import { isTouchDevice } from './utils/touchUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
+import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
+import AchievementNotification from './components/AchievementNotification';
+import AchievementGallery from './components/AchievementGallery';
 import {
   saveGameState,
   loadGameState,
@@ -317,6 +321,10 @@ function App() {
   // This ensures touchscreen laptops get the full desktop UI with checkpoint buttons
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
+  // Achievement state
+  const [lastAchievement, setLastAchievement] = useState<AchievementResult | null>(null);
+  const [showAchievementGallery, setShowAchievementGallery] = useState<boolean>(false);
+
   // Secret version display state
   const [showVersion, setShowVersion] = useState<boolean>(false);
 
@@ -552,6 +560,7 @@ function App() {
     setCheckpointGridValues(null);
     setCheckpointPencilMarks(null);
     setHasCheckpoint(false);
+    setLastAchievement(null);
     setResetKey(prev => prev + 1); // Reset the grid key as well
     setPuzzleRefreshKey(prev => prev + 1); // Force new puzzle fetch even if settings are the same
   };
@@ -568,6 +577,7 @@ function App() {
     setResetKey(prev => prev + 1);
     setIsTimerRunning(true); // Start timer fresh
     setIsGameWon(false); // Reset win state
+    setLastAchievement(null);
     // Clear checkpoint when resetting
     setCheckpointGridValues(null);
     setCheckpointPencilMarks(null);
@@ -628,7 +638,16 @@ function App() {
 
     // Save puzzle stats to localStorage
     if (puzzleDefinition) {
-      saveCompletedPuzzle(puzzleDefinition, difficulty, completionTimeRef.current);
+      saveCompletedPuzzle(puzzleDefinition, difficulty, completionTimeRef.current, operationsTier);
+    }
+
+    // Evaluate and save achievement
+    const result = evaluateAchievement(puzzleSize, difficulty, operationsTier, completionTimeRef.current);
+    if (result.isNew || result.isUpgrade) {
+      saveAchievement(puzzleSize, difficulty, operationsTier, result.tier, completionTimeRef.current);
+      setLastAchievement(result);
+    } else {
+      setLastAchievement(null);
     }
 
     // Clear saved game state since puzzle is completed
@@ -810,6 +829,7 @@ function App() {
                   }}
                   canInstall={canInstall}
                   onInstall={handleInstallClick}
+                  onShowAchievements={() => setShowAchievementGallery(true)}
                 />
               </Paper>
             </Center>
@@ -907,6 +927,13 @@ function App() {
                   <Text size="xl" style={{ opacity: 0.9 }}>
                     You solved the puzzle!
                   </Text>
+                  {lastAchievement && (
+                    <AchievementNotification
+                      result={lastAchievement}
+                      size={puzzleSize}
+                      difficulty={difficulty}
+                    />
+                  )}
                 </Stack>
               </Center>
             </Card>
@@ -1005,6 +1032,19 @@ function App() {
                   >
                     {puzzleSize}×{puzzleSize} • {difficulty}{operationsTier !== 'all' ? ` • ${OPERATION_TIER_LABELS[operationsTier]}` : ''}
                   </Badge>
+                </Tooltip>
+
+                {/* Achievements Trophy */}
+                <Tooltip label="Achievements" position="bottom">
+                  <ActionIcon
+                    onClick={() => setShowAchievementGallery(true)}
+                    size="lg"
+                    radius="xl"
+                    variant="gradient"
+                    gradient={{ from: 'yellow', to: 'orange' }}
+                  >
+                    <IconTrophy size="1.2rem" />
+                  </ActionIcon>
                 </Tooltip>
               </Group>
             )}
@@ -1151,6 +1191,12 @@ function App() {
           onClose={() => setShowMobileSettings(false)}
         />
       )}
+
+      {/* Achievement Gallery Modal */}
+      <AchievementGallery
+        opened={showAchievementGallery}
+        onClose={() => setShowAchievementGallery(false)}
+      />
 
       {/* Secret version overlay - triggered by Esc */}
       {showVersion && (

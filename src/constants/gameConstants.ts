@@ -24,10 +24,10 @@ export const DEFAULT_OPERATION_TIER = 'all';
 
 // Human-readable labels for operation tiers
 export const OPERATION_TIER_LABELS: Record<string, string> = {
-  add: 'Addition Only',
-  'add-sub': 'Add & Subtract',
-  'no-div': 'No Division',
-  all: 'All Operations',
+  add: '+',
+  'add-sub': '+ \u2212',
+  'no-div': '+ \u2212 \u00d7',
+  all: '+ \u2212 \u00d7 \u00f7',
 };
 
 // UI Constants

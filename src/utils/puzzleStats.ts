@@ -27,6 +27,8 @@ export type CompletedPuzzleStats = {
   size: number;
   /** Number of difficulty operations (measure of complexity) */
   difficultyOperations?: number;
+  /** The operation tier used for this puzzle */
+  operationTier?: string;
 };
 
 /** Serialized version of CompletedPuzzleStats (as stored in localStorage) */
@@ -76,7 +78,8 @@ const STORAGE_KEY = 'arithmatrix_puzzle_stats';
 export const saveCompletedPuzzle = (
   puzzle: PuzzleDefinition,
   difficultyLevel: string,
-  completionTimeSeconds: number
+  completionTimeSeconds: number,
+  operationTier?: string
 ): void => {
   try {
     const stats: CompletedPuzzleStats = {
@@ -87,6 +90,7 @@ export const saveCompletedPuzzle = (
       difficultyLevel,
       size: puzzle.size,
       difficultyOperations: puzzle.difficulty_operations,
+      operationTier,
     };
 
     const existingStats = getStoredStats();

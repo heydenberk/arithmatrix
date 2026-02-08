@@ -72,6 +72,8 @@ export type ArithmatrixGridProps = {
   canInstall?: boolean;
   /** Handler for triggering PWA install */
   onInstall?: () => void;
+  /** Handler for showing achievements gallery */
+  onShowAchievements?: () => void;
 };
 
 /**
