@@ -128,6 +128,11 @@ npm run preview          # Preview production build
 - **Utils:** camelCase (`arithmatrixUtils.ts`)
 - Single quotes, semicolons, 2-space indentation
 
+## Versioning
+
+- App version lives in `src/version.ts` (`APP_VERSION` constant)
+- Always bump the version when pushing to remote
+
 ## Important Files
 
 | File | Purpose |
