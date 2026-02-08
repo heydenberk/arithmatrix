@@ -38,7 +38,7 @@ export const triggerHapticFeedback = (type: 'light' | 'medium' | 'heavy' = 'ligh
 
   // iOS specific haptic feedback
   if (isIOS() && 'hapticFeedback' in navigator) {
-    // @ts-ignore - iOS haptic feedback API
+    // @ts-expect-error - iOS haptic feedback API
     navigator.hapticFeedback?.impact?.(type);
   }
 };

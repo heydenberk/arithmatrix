@@ -29,6 +29,11 @@ export type CompletedPuzzleStats = {
   difficultyOperations?: number;
 };
 
+/** Serialized version of CompletedPuzzleStats (as stored in localStorage) */
+type SerializedPuzzleStats = Omit<CompletedPuzzleStats, 'completedAt'> & {
+  completedAt: string;
+};
+
 /**
  * Statistics summary for analysis.
  */
@@ -110,7 +115,7 @@ export const getStoredStats = (): CompletedPuzzleStats[] => {
 
     const parsed = JSON.parse(stored);
     // Convert date strings back to Date objects
-    return parsed.map((stat: any) => ({
+    return (parsed as SerializedPuzzleStats[]).map(stat => ({
       ...stat,
       completedAt: new Date(stat.completedAt),
     }));
@@ -302,13 +307,28 @@ export const formatCompletionTime = (seconds: number): string => {
   return `${minutes}m ${remainingSeconds}s`;
 };
 
+// Extend Window interface for puzzleStats
+declare global {
+  interface Window {
+    puzzleStats?: {
+      getAll: typeof getStoredStats;
+      getSummary: typeof generateStatsSummary;
+      query: typeof queryPuzzles;
+      clear: typeof clearAllStats;
+      export: typeof exportStats;
+      import: typeof importStats;
+      formatTime: typeof formatCompletionTime;
+    };
+  }
+}
+
 /**
  * Binds query functions to the window object for easy access in dev tools.
  * Call this function once during app initialization.
  */
 export const bindStatsToWindow = (): void => {
   if (typeof window !== 'undefined') {
-    (window as any).puzzleStats = {
+    window.puzzleStats = {
       getAll: getStoredStats,
       getSummary: generateStatsSummary,
       query: queryPuzzles,

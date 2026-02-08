@@ -35,6 +35,7 @@ const Timer: React.FC<TimerProps> = ({
       console.log('⏰ Timer: Setting initial time to', initialTime);
       setSeconds(initialTime);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Only sync when initialTime changes, not seconds
   }, [initialTime]);
 
   useEffect(() => {

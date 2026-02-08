@@ -335,13 +335,14 @@ export const validateCageConstraint = (cage: Cage, cageValues: number[]): boolea
       if (cageValues.length !== 2) return false;
       result = Math.abs(cageValues[0] - cageValues[1]);
       break;
-    case '/': // Assumes exactly two cells
+    case '/': { // Assumes exactly two cells
       if (cageValues.length !== 2) return false;
       const maxVal = Math.max(cageValues[0], cageValues[1]);
       const minVal = Math.min(cageValues[0], cageValues[1]);
       if (minVal === 0 || maxVal % minVal !== 0) return false;
       result = maxVal / minVal;
       break;
+    }
     case '=': // Single cell cage with explicit equals
     case '': // Single cell cage with empty operation
       if (cageValues.length !== 1) return false;

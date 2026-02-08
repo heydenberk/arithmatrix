@@ -28,18 +28,7 @@
   max-width: 100%;
 }
 
-.arithmatrix-grid::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
-  transform: translateX(-100%);
-  transition: transform 0.6s ease;
-}
-
-.arithmatrix-grid:hover::before {
-  transform: translateX(100%);
-}
+/* Removed shimmer pseudo-element to reduce paint overhead */
 
 .arithmatrix-cell {
   position: relative;
@@ -52,7 +41,7 @@
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 4px 8px rgba(0, 0, 0, 0.1);
   overflow: visible;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
   /* Ensure consistent sizing regardless of border width */
   box-sizing: border-box;
@@ -357,8 +346,7 @@
   font-size: 0.65rem;
   font-weight: 700;
   z-index: 15;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(248, 250, 252, 0.9));
-  backdrop-filter: blur(8px);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.97), rgba(248, 250, 252, 0.95));
   padding: 3px 8px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.6);
@@ -545,19 +533,19 @@
   }
 }
 
-/* Pulsate animations for each cage color */
-.cage-color-0.selected-cell { animation: pulsate-focus-0 2s infinite; }
-.cage-color-1.selected-cell { animation: pulsate-focus-1 2s infinite; }
-.cage-color-2.selected-cell { animation: pulsate-focus-2 2s infinite; }
-.cage-color-3.selected-cell { animation: pulsate-focus-3 2s infinite; }
-.cage-color-4.selected-cell { animation: pulsate-focus-4 2s infinite; }
-.cage-color-5.selected-cell { animation: pulsate-focus-5 2s infinite; }
-.cage-color-6.selected-cell { animation: pulsate-focus-6 2s infinite; }
-.cage-color-7.selected-cell { animation: pulsate-focus-7 2s infinite; }
-.cage-color-8.selected-cell { animation: pulsate-focus-8 2s infinite; }
-.cage-color-9.selected-cell { animation: pulsate-focus-9 2s infinite; }
-.cage-color-10.selected-cell { animation: pulsate-focus-10 2s infinite; }
-.cage-color-11.selected-cell { animation: pulsate-focus-11 2s infinite; }
+/* Pulsate animations for each cage color - runs once instead of infinitely to save CPU */
+.cage-color-0.selected-cell { animation: pulsate-focus-0 0.6s ease-out 1; }
+.cage-color-1.selected-cell { animation: pulsate-focus-1 0.6s ease-out 1; }
+.cage-color-2.selected-cell { animation: pulsate-focus-2 0.6s ease-out 1; }
+.cage-color-3.selected-cell { animation: pulsate-focus-3 0.6s ease-out 1; }
+.cage-color-4.selected-cell { animation: pulsate-focus-4 0.6s ease-out 1; }
+.cage-color-5.selected-cell { animation: pulsate-focus-5 0.6s ease-out 1; }
+.cage-color-6.selected-cell { animation: pulsate-focus-6 0.6s ease-out 1; }
+.cage-color-7.selected-cell { animation: pulsate-focus-7 0.6s ease-out 1; }
+.cage-color-8.selected-cell { animation: pulsate-focus-8 0.6s ease-out 1; }
+.cage-color-9.selected-cell { animation: pulsate-focus-9 0.6s ease-out 1; }
+.cage-color-10.selected-cell { animation: pulsate-focus-10 0.6s ease-out 1; }
+.cage-color-11.selected-cell { animation: pulsate-focus-11 0.6s ease-out 1; }
 
 @keyframes pulsate-focus-0 {
   0% {

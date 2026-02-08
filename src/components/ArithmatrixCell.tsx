@@ -102,9 +102,6 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   // Calculate pencil mark grid size class based on puzzle size
   const pencilGridSizeClass = gridSize <= 4 ? 'size-2x2' : 'size-3x3';
 
-  // Generate cell index for error tracking
-  const cellIndex = rowIndex * gridSize + colIndex;
-
   // Determine if content should be visible (timer running or game won)
   const shouldShowContent = isTimerRunning || isGameWon;
 
