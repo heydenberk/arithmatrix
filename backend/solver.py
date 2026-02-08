@@ -12,6 +12,7 @@ Solving techniques (in order of difficulty):
 Difficulty is scored based on which techniques are required to solve.
 """
 
+import math
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import List, Set, Dict, Tuple, Optional
@@ -34,6 +35,7 @@ class SolveStats:
     techniques_used: Dict[Technique, int] = field(default_factory=dict)
     solution_count: int = 0
     is_valid: bool = False
+    size: int = 0
 
     def record(self, technique: Technique):
         self.techniques_used[technique] = self.techniques_used.get(technique, 0) + 1
@@ -47,33 +49,50 @@ class SolveStats:
     @property
     def difficulty_score(self) -> float:
         """
-        Calculate human-correlated difficulty score.
+        Calculate human-correlated difficulty score (0-100).
 
-        Returns a score from 0-100 based on:
-        - Which techniques were required (weighted heavily)
-        - How often harder techniques were needed
+        Uses a weighted sum of all technique applications (not just the
+        hardest technique) to produce a continuous score. Harder techniques
+        get higher weights, and more applications of any technique increase
+        the score. Log-scaling compresses the huge variance in raw counts,
+        and size-specific anchors normalize across grid sizes so that each
+        size can produce the full range from easiest to expert.
         """
         if not self.techniques_used:
             return 0.0
 
-        # Base score from hardest technique needed
-        max_tech = self.max_technique
-        base_scores = {
-            Technique.NAKED_SINGLE: 10,
-            Technique.HIDDEN_SINGLE: 25,
-            Technique.CAGE_SINGLE: 40,
-            Technique.CAGE_COMBINATIONS: 55,
-            Technique.INTERSECTION: 70,
-            Technique.TRIAL_AND_ERROR: 85,
+        # Weight each technique application by its difficulty
+        technique_weights = {
+            Technique.NAKED_SINGLE: 1,
+            Technique.HIDDEN_SINGLE: 2,
+            Technique.CAGE_SINGLE: 3,
+            Technique.CAGE_COMBINATIONS: 5,
+            Technique.INTERSECTION: 8,
+            Technique.TRIAL_AND_ERROR: 15,
         }
-        score = base_scores.get(max_tech, 50)
+        raw = sum(technique_weights.get(t, 0) * c
+                  for t, c in self.techniques_used.items())
 
-        # Add points for frequency of harder techniques
-        for tech, count in self.techniques_used.items():
-            if tech >= Technique.CAGE_COMBINATIONS:
-                score += min(count * 2, 10)  # Cap at +10 per technique
+        if raw <= 0:
+            return 0.0
 
-        return min(100, score)
+        log_raw = math.log2(max(1, raw))
+
+        # Size-specific anchors in log2 space: (low, high)
+        # Calibrated from empirical data so that the median puzzle
+        # scores ~40-50 (medium) and the full range spans all levels.
+        anchors = {
+            4: (5.5, 7.8),
+            5: (6.5, 8.3),
+            6: (7.15, 11.0),
+            7: (8.0, 16.0),
+        }
+        low, high = anchors.get(self.size, (6.0, 12.0))
+
+        # Linear map: low → 10, high → 90
+        score = 10 + (log_raw - low) / (high - low) * 80
+
+        return min(100, max(0, score))
 
     @property
     def difficulty_level(self) -> str:
@@ -120,7 +139,7 @@ class ArithmatrixSolver:
         # Precompute valid combinations for each cage
         self._precompute_cage_combinations()
 
-        self.stats = SolveStats()
+        self.stats = SolveStats(size=self.size)
 
     def _precompute_cage_combinations(self):
         """Compute all valid value combinations for each cage."""
@@ -443,7 +462,7 @@ class ArithmatrixSolver:
         Returns:
             SolveStats with technique usage and difficulty score
         """
-        self.stats = SolveStats()
+        self.stats = SolveStats(size=self.size)
 
         # Reset grid
         self.grid = [[0] * self.size for _ in range(self.size)]
@@ -572,10 +591,10 @@ def estimate_difficulty_fast(puzzle: dict) -> Tuple[str, float]:
     # Clamp
     score = max(0, min(100, score))
 
-    # Map to level
-    if score <= 20:
+    # Map to level (same thresholds as SolveStats.difficulty_level)
+    if score <= 15:
         level = "easiest"
-    elif score <= 35:
+    elif score <= 30:
         level = "easy"
     elif score <= 50:
         level = "medium"

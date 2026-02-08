@@ -1,3 +1,4 @@
+import logging
 import random
 import string
 from collections import deque
@@ -6,17 +7,7 @@ from typing import Literal
 import numpy as np
 import json
 
-# Handle both package and standalone imports
-try:
-    from flask import current_app as app
-except ImportError:
-    # Mock for standalone testing
-    class MockLogger:
-        def info(self, msg): pass
-        def error(self, msg): print(f"ERROR: {msg}")
-    class MockApp:
-        logger = MockLogger()
-    app = MockApp()
+logger = logging.getLogger(__name__)
 
 try:
     from .latin_square import get_latin_square
@@ -215,17 +206,29 @@ def get_cage_values(original_square, caged_square):
     return cage_values
 
 
-def assign_operations(cage_values):
+def assign_operations(cage_values, allowed_operations=None):
     """
     Assign mathematical operations to cages based on their values.
 
     Args:
         cage_values: Dictionary mapping cage letters to lists of numbers
+        allowed_operations: Optional list of allowed operations (e.g. ['+', '-']).
+            If None, all operations are allowed. '+' is always implicitly allowed
+            as the final fallback.
 
     Returns:
         Dictionary mapping cage letters to tuples of (operation, target_value)
         where operation is one of '+', '-', '*', '÷'
     """
+    # Normalize allowed operations
+    if allowed_operations is not None:
+        allowed = set(allowed_operations)
+        # Map frontend symbols to internal symbols
+        if '/' in allowed:
+            allowed.add('÷')
+    else:
+        allowed = {'+', '-', '*', '÷', '/'}
+
     cage_operations = {}
 
     def get_division_candidates(values):
@@ -282,15 +285,14 @@ def assign_operations(cage_values):
             assigned = True
 
         # 2. Try division first (only for 2-cell cages)
-        if len(values) == 2 and not assigned:
+        if len(values) == 2 and not assigned and ('÷' in allowed or '/' in allowed):
             division_candidates = get_division_candidates(values)
             if division_candidates:
-                # Pick the first valid division (they're all good)
                 cage_operations[letter] = division_candidates[0]
                 assigned = True
 
         # 3. Try subtraction (only for 2-cell cages)
-        if len(values) == 2 and not assigned:
+        if len(values) == 2 and not assigned and '-' in allowed:
             subtraction_candidates = get_subtraction_candidates(values)
             if subtraction_candidates:
                 cage_operations[letter] = subtraction_candidates[0]
@@ -301,20 +303,19 @@ def assign_operations(cage_values):
             mult_result = get_multiplication_result(values)
             add_result = get_addition_result(values)
 
-            # Prefer multiplication for smaller results (more interesting puzzles)
-            # But avoid very large multiplication results
-            if len(values) >= 3:
-                # For 3+ cells, strongly prefer addition unless multiplication is reasonable
-                if mult_result <= 50:  # Reasonable multiplication threshold
-                    cage_operations[letter] = ("*", mult_result)
+            if '*' in allowed:
+                if len(values) >= 3:
+                    if mult_result <= 50:
+                        cage_operations[letter] = ("*", mult_result)
+                    else:
+                        cage_operations[letter] = ("+", add_result)
                 else:
-                    cage_operations[letter] = ("+", add_result)
+                    if mult_result <= 20:
+                        cage_operations[letter] = ("*", mult_result)
+                    else:
+                        cage_operations[letter] = ("+", add_result)
             else:
-                # For 2-cell cages, choose between multiplication and addition
-                if mult_result <= 20:  # Smaller threshold for 2-cell cages
-                    cage_operations[letter] = ("*", mult_result)
-                else:
-                    cage_operations[letter] = ("+", add_result)
+                cage_operations[letter] = ("+", add_result)
 
     return cage_operations
 
@@ -422,6 +423,7 @@ def generate_arithmatrix_puzzle(
     max_attempts=500,
     max_difficulty_attempts=50,
     use_heuristic=True,
+    allowed_operations=None,
 ):
     """
     Generate a complete Arithmatrix puzzle of the specified size and difficulty.
@@ -451,10 +453,10 @@ def generate_arithmatrix_puzzle(
     heuristic_filtered = 0
 
     for attempt in range(max_difficulty_attempts):
-        app.logger.info(f"Attempt {attempt + 1} of {max_difficulty_attempts}")
+        logger.info(f"Attempt {attempt + 1} of {max_difficulty_attempts}")
         try:
             # Generate a basic puzzle
-            puzzle = _generate_basic_puzzle(size, max_attempts)
+            puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations)
 
             # Use heuristic for initial filtering
             if use_heuristic:
@@ -464,21 +466,21 @@ def generate_arithmatrix_puzzle(
                 # Skip if estimate is more than 1 level away from target
                 if abs(est_idx - target_idx) > 1:
                     heuristic_filtered += 1
-                    app.logger.info(f"Filtered by heuristic: {est_level} (target: {difficulty})")
+                    logger.info(f"Filtered by heuristic: {est_level} (target: {difficulty})")
                     continue
 
             # Full solve to get actual difficulty
             stats = solve_puzzle(puzzle)
 
             if not stats.is_valid:
-                app.logger.info("Invalid puzzle (no unique solution)")
+                logger.info("Invalid puzzle (no unique solution)")
                 continue
 
             actual_level = stats.difficulty_level
             actual_score = stats.difficulty_score
             actual_idx = difficulty_order.index(actual_level)
 
-            app.logger.info(f"Solved: {actual_level} (score: {actual_score:.1f})")
+            logger.info(f"Solved: {actual_level} (score: {actual_score:.1f})")
 
             # Add difficulty metadata
             puzzle["actual_difficulty"] = actual_level
@@ -487,7 +489,7 @@ def generate_arithmatrix_puzzle(
 
             # Check for exact match
             if actual_level == difficulty:
-                app.logger.info(f"Found matching puzzle! (filtered {heuristic_filtered} by heuristic)")
+                logger.info(f"Found matching puzzle! (filtered {heuristic_filtered} by heuristic)")
                 return puzzle
 
             # Track closest match
@@ -497,24 +499,24 @@ def generate_arithmatrix_puzzle(
                 best_puzzle = puzzle
 
         except Exception as e:
-            app.logger.error(f"Error in attempt {attempt}: {e}")
+            logger.error(f"Error in attempt {attempt}: {e}")
             continue
 
     # Return best match or generate one more
     if best_puzzle is not None:
-        app.logger.info(f"Returning closest match: {best_puzzle.get('actual_difficulty')}")
+        logger.info(f"Returning closest match: {best_puzzle.get('actual_difficulty')}")
         return best_puzzle
 
     # Last resort: return any valid puzzle
-    app.logger.info("Falling back to basic generation")
-    puzzle = _generate_basic_puzzle(size, max_attempts)
+    logger.info("Falling back to basic generation")
+    puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations)
     stats = solve_puzzle(puzzle)
     puzzle["actual_difficulty"] = stats.difficulty_level if stats.is_valid else "unknown"
     puzzle["difficulty_score"] = stats.difficulty_score
     return puzzle
 
 
-def _generate_basic_puzzle(size, max_attempts=500):
+def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None):
     """Generate a basic Arithmatrix puzzle without difficulty filtering."""
     # Generate Latin square (uses pooled squares with adaptive isotopy for speed)
     square = get_latin_square(size)
@@ -535,7 +537,7 @@ def _generate_basic_puzzle(size, max_attempts=500):
     cage_values = get_cage_values(square, caged_square)
 
     # Assign operations to each cage
-    cage_operations = assign_operations(cage_values)
+    cage_operations = assign_operations(cage_values, allowed_operations)
 
     # Create the final puzzle structure
     puzzle = create_arithmatrix_puzzle(square, caged_square, cage_operations)

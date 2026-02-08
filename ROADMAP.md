@@ -1,149 +1,121 @@
-# Arithmatrix Development Roadmap
+# Roadmap
 
-This document outlines the prioritized next steps for the Arithmatrix puzzle game, based on codebase analysis performed on 2026-01-25.
+## 1. Puzzle generation and difficulty overhaul
 
-## Related Documentation
+The current generation pipeline is slow (~2-4 hours for 4000 puzzles) and difficulty estimation is based on solver operation count, which correlates poorly with human-perceived difficulty. This overhaul addresses both problems and is a prerequisite for operation-restricted puzzles (section 2).
 
-- **[CLAUDE.md](./CLAUDE.md)** - Project overview, architecture, and development guide
-- **[PUZZLE_GENERATION_IMPROVEMENT_PLAN.md](./PUZZLE_GENERATION_IMPROVEMENT_PLAN.md)** - Detailed plan for faster puzzle generation and better difficulty accuracy
-- **[MOBILE_IMPROVEMENT_PLAN.md](./MOBILE_IMPROVEMENT_PLAN.md)** - Detailed plan for mobile UX improvements
+See [PUZZLE_GENERATION_IMPROVEMENT_PLAN.md](./PUZZLE_GENERATION_IMPROVEMENT_PLAN.md) for detailed implementation notes. Some items there are already complete (Latin square pooling, fast difficulty heuristic, constraint tracker, adaptive isotopy).
 
----
+### Generation performance
 
-## Completed Work
+- **Parallel generation**: wrap existing pipeline in `ProcessPoolExecutor` for 4-8x speedup (the main remaining unchecked item)
+- **CLI batch script**: create a standalone script for generating puzzle datasets by size, difficulty, and operation tier
+- Target: full regeneration in under 30 minutes
 
-### Codebase Cleanup (2026-01-25)
-- Removed 68 vestigial files (~4.5MB)
-  - 7 unused TypeScript components/hooks/utils
-  - 22 obsolete Python analysis scripts
-  - 14 redundant data files
-  - 25+ old documentation and config files
-- Removed unused `DIFFICULTY_BOUNDS` constant
-- Build passes after cleanup (`npm run type-check`)
+### Human-centered difficulty
 
-**Status:** Changes staged, ready to commit
+The existing `human_analysis.estimated_solve_time_seconds` field in puzzle metadata is a step in the right direction. Remaining work:
 
----
+- Calibrate difficulty weights against real user solve times (collected via `puzzleStats`)
+- Ensure stratified distribution: roughly equal puzzle counts per difficulty bucket per size
+- Validate that difficulty labels (easiest through expert) align with actual human experience
 
-## Priority 1: Immediate Actions
+### Regenerate puzzle database
 
-### 1.1 Commit Cleanup Changes
-**Effort:** 5 minutes
+Once generation supports operation tiers (section 2) and difficulty is recalibrated:
 
-```bash
-git add -A
-git commit -m "chore: remove vestigial code and add documentation
+- Regenerate `all_puzzles.jsonl` with all tier/size/difficulty combinations
+- Target: ~50 puzzles per combination (4 tiers x 4 sizes x 5 difficulties = 80 buckets, ~4000 puzzles total)
 
-- Remove 7 unused TypeScript files (components, hooks, utils)
-- Remove 22 obsolete Python analysis scripts
-- Remove 14 redundant data files
-- Remove 25+ old docs, configs, and scripts
-- Remove unused DIFFICULTY_BOUNDS constant
-- Add CLAUDE.md, ROADMAP.md, and improvement plans"
+## 2. Operation-restricted puzzles
+
+Currently all puzzles use all four arithmetic operations. We want users to be able to choose which operations are available, using these progressive tiers:
+
+| Tier | Operations | Label |
+|------|-----------|-------|
+| 1 | `+` | Addition only |
+| 2 | `+` `-` | Add & Subtract |
+| 3 | `+` `-` `*` | No Division |
+| 4 | `+` `-` `*` `/` | All Operations |
+
+### Puzzle generation
+
+The backend `KenkenGenerator` already accepts an `operations` parameter but it's currently unused during cage assignment. Changes needed:
+
+- Modify `assign_operations()` in `backend/arithmatrix.py` to respect allowed operation lists (skip disallowed operations and fall back to simpler ones)
+- Generate puzzle batches for each tier/size/difficulty combination
+- Add an `operations_tier` field to each puzzle's metadata in `all_puzzles.jsonl`
+
+### Frontend filtering
+
+Puzzle selection in `App.tsx` currently filters on `size` and `difficulty`. Add a third dimension:
+
+- New URL param (e.g. `?ops=add-sub`) for the selected tier
+- Filter `all_puzzles.jsonl` entries by their `operations_tier` metadata
+- UI selector for operation tier alongside the existing size/difficulty controls
+
+### UI
+
+- Desktop: add operation tier selector to the new-game controls panel
+- Mobile: add operation tier selector to `MobileSettingsPanel`
+- Badge display should reflect the current tier (e.g. "7x7 - medium - no division")
+
+## 3. Achievements
+
+An achievements system that rewards completing puzzles at various speeds across all difficulty levels and operation tiers.
+
+### Achievement dimensions
+
+Achievements are defined across three axes:
+
+- **Difficulty level**: easiest, easy, medium, hard, expert
+- **Operation tier**: addition only, add & subtract, no division, all operations
+- **Grid size**: 4x4, 5x5, 6x6, 7x7
+
+### Time-based tiers
+
+Each combination of difficulty, operation tier, and grid size has multiple time thresholds. Completing a puzzle within a threshold earns that achievement tier:
+
+| Achievement tier | Description |
+|-----------------|-------------|
+| Bronze | Complete the puzzle |
+| Silver | Complete under a generous time target |
+| Gold | Complete under a moderate time target |
+| Platinum | Complete under a fast time target |
+
+Specific time thresholds should scale with grid size, difficulty, and operation tier. A reasonable starting approach: use `estimated_solve_time_seconds` from puzzle metadata as a baseline, then set Bronze at no limit, Silver at 1.5x estimated, Gold at 1.0x, and Platinum at 0.6x.
+
+Total achievement count: 5 difficulties x 4 operation tiers x 4 grid sizes x 4 time tiers = 320 achievements.
+
+### Data model
+
+```typescript
+type Achievement = {
+  id: string;                    // e.g. "7x7-expert-all-ops-gold"
+  gridSize: number;
+  difficulty: string;
+  operationTier: string;
+  timeTier: 'bronze' | 'silver' | 'gold' | 'platinum';
+  unlockedAt: Date;
+  completionTimeSeconds: number; // the time that earned it
+};
 ```
 
----
+Achievements stored in localStorage alongside the existing puzzle stats. The existing `CompletedPuzzleStats` type needs an `operationTier` field so achievement checks can reference it.
 
-## Priority 2: Mobile UX (High Impact)
+### Achievement evaluation
 
-These issues were discovered during live mobile testing with Chrome DevTools.
+After each puzzle completion (in the `handleWin` flow):
 
-### 2.1 Mobile Number Pad
-**Effort:** 2-3 hours | **Impact:** Critical for mobile usability
+1. Determine which time tier thresholds the completion time meets
+2. Check if a higher tier than previously earned for this combination
+3. If new or upgraded, store the achievement and show a notification
 
-**Problem:** Users cannot easily enter numbers on mobile - no on-screen keyboard appears for the game grid.
+### UI
 
-**Solution:** Create `MobileNumberPad` component that appears when a cell is selected.
-
-**Details:** See [MOBILE_IMPROVEMENT_PLAN.md](./MOBILE_IMPROVEMENT_PLAN.md#11-mobile-number-pad-overlay)
-
-### 2.2 Settings Panel Redesign
-**Effort:** 2-3 hours | **Impact:** High
-
-**Problem:** The "7x7 • Medium" button only shows a tooltip on tap. Users cannot change size or difficulty on mobile.
-
-**Solution:** Replace with touch-friendly segmented controls or bottom sheet panel.
-
-**Details:** See [MOBILE_IMPROVEMENT_PLAN.md](./MOBILE_IMPROVEMENT_PLAN.md#12-navigation-settings-redesign)
-
----
-
-## Priority 3: Puzzle Generation Performance
-
-For when puzzle regeneration is needed.
-
-### 3.1 Parallel Generation
-**Effort:** 1-2 hours | **Impact:** 4-8x speedup
-
-**Problem:** Generating 4000 puzzles takes 2-4 hours (single-threaded).
-
-**Solution:** Wrap existing generation in `ProcessPoolExecutor`.
-
-**Details:** See [PUZZLE_GENERATION_IMPROVEMENT_PLAN.md](./PUZZLE_GENERATION_IMPROVEMENT_PLAN.md#11-parallel-generation)
-
-### 3.2 Difficulty Heuristic
-**Effort:** 3-4 hours | **Impact:** 50-70% additional speedup
-
-**Problem:** Full solver runs on every puzzle just to measure difficulty.
-
-**Solution:** Use cage structure heuristics for initial filtering, only full-solve borderline cases.
-
-**Details:** See [PUZZLE_GENERATION_IMPROVEMENT_PLAN.md](./PUZZLE_GENERATION_IMPROVEMENT_PLAN.md#23-difficulty-heuristic-avoid-full-solve)
-
----
-
-## Priority 4: Quality of Life
-
-### 4.1 Swipe Gestures for Undo/Redo
-**Effort:** 1-2 hours | **Impact:** Medium
-
-Add intuitive swipe left/right for undo/redo actions.
-
-### 4.2 Service Worker for Offline Play
-**Effort:** 3-4 hours | **Impact:** Medium
-
-Cache puzzles and app shell for offline gameplay.
-
-### 4.3 Human-Centered Difficulty Calibration
-**Effort:** 1-2 weeks | **Impact:** High (long-term)
-
-Collect solve time data and calibrate difficulty weights to match human perception.
-
-**Details:** See [PUZZLE_GENERATION_IMPROVEMENT_PLAN.md](./PUZZLE_GENERATION_IMPROVEMENT_PLAN.md#phase-3-difficulty-accuracy-5-7-days)
-
----
-
-## Summary Table
-
-| Priority | Task | Effort | Impact |
-|----------|------|--------|--------|
-| **1** | Commit cleanup | 5 min | Housekeeping |
-| **2** | Mobile number pad | 2-3 hrs | Critical |
-| **2** | Settings redesign | 2-3 hrs | High |
-| **3** | Parallel generation | 1-2 hrs | 4-8x speedup |
-| **3** | Difficulty heuristic | 3-4 hrs | 50-70% speedup |
-| **4** | Swipe gestures | 1-2 hrs | Medium |
-| **4** | Offline play | 3-4 hrs | Medium |
-| **4** | Difficulty calibration | 1-2 wks | High (long-term) |
-
----
-
-## Quick Start
-
-To begin development:
-
-```bash
-# Install dependencies
-npm install
-
-# Start dev server
-npm run dev
-
-# Run both frontend and backend
-npm run start:dev
-
-# Check code quality
-npm run lint && npm run type-check
-```
-
-See [CLAUDE.md](./CLAUDE.md) for full development guide.
+- Achievement notification toast on unlock (integrate with the existing win celebration)
+- Achievement gallery accessible from the main UI showing:
+  - Grid of all possible achievements organized by dimension
+  - Locked/unlocked state with tier indicators (bronze/silver/gold/platinum)
+  - Progress summary (e.g. "47/320 achievements unlocked")
+- Compact achievement icon in the top bar linking to the gallery
