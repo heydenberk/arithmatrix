@@ -45,7 +45,7 @@ export const TIER_COLORS: Record<TimeTier, string> = {
   bronze: '#CD7F32',
   silver: '#C0C0C0',
   gold: '#FFD700',
-  platinum: '#E5E4E2',
+  platinum: '#B9F2FF',
 };
 
 export const TIER_LABELS: Record<TimeTier, string> = {
