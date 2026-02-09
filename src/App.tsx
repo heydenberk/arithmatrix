@@ -19,6 +19,8 @@ import {
   Button,
   Tooltip,
   ActionIcon,
+  Modal,
+  List,
   rem,
 } from '@mantine/core';
 import {
@@ -158,6 +160,9 @@ function App() {
     };
   }, []);
 
+  // Install instructions modal state
+  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
+
   // Handler to trigger the install prompt
   const handleInstallClick = async () => {
     if (deferredInstallPrompt) {
@@ -167,13 +172,7 @@ function App() {
         deferredInstallPrompt = null;
       }
     } else {
-      // No native prompt available — show manual instructions
-      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-      if (isIOS) {
-        window.alert('To install: tap the Share button, then "Add to Home Screen"');
-      } else {
-        window.alert('To install: tap the browser menu (\u22ee), then "Add to Home Screen" or "Install app"');
-      }
+      setShowInstallInstructions(true);
     }
   };
 
@@ -1151,6 +1150,38 @@ function App() {
           onClose={() => setShowMobileSettings(false)}
         />
       )}
+
+      {/* Install Instructions Modal */}
+      <Modal
+        opened={showInstallInstructions}
+        onClose={() => setShowInstallInstructions(false)}
+        title={<Text fw={700}>Install Arithmatrix</Text>}
+        centered
+        size="sm"
+      >
+        <Stack gap="md">
+          {/iphone|ipad|ipod/i.test(navigator.userAgent) ? (
+            <>
+              <Text size="sm">To add Arithmatrix to your home screen:</Text>
+              <List size="sm" spacing="xs">
+                <List.Item>Tap the <b>Share</b> button (square with arrow) at the bottom of Safari</List.Item>
+                <List.Item>Scroll down and tap <b>"Add to Home Screen"</b></List.Item>
+                <List.Item>Tap <b>"Add"</b> to confirm</List.Item>
+              </List>
+            </>
+          ) : (
+            <>
+              <Text size="sm">To install Arithmatrix as an app:</Text>
+              <List size="sm" spacing="xs">
+                <List.Item>Tap the <b>browser menu</b> (three dots) in the top-right of Chrome</List.Item>
+                <List.Item>Look for <b>"Install app"</b> or <b>"Add to Home Screen"</b></List.Item>
+                <List.Item>If you don't see it, try visiting a few more times — Chrome requires repeat visits before offering install</List.Item>
+              </List>
+            </>
+          )}
+          <Text size="xs" c="dimmed">The app will launch in its own window with no browser bar, just like a native app.</Text>
+        </Stack>
+      </Modal>
 
       {/* Achievement Gallery Modal */}
       <AchievementGallery
