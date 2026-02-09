@@ -38,7 +38,6 @@ interface MobileNumberPadProps {
   hasCheckpoint?: boolean;
   onCreateCheckpoint?: () => void;
   onClearCheckpoint?: () => void;
-  canInstall?: boolean;
   onInstall?: () => void;
   onShowAchievements?: () => void;
 }
@@ -57,7 +56,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   hasCheckpoint,
   onCreateCheckpoint,
   onClearCheckpoint,
-  canInstall,
   onInstall,
   onShowAchievements,
 }) => {
@@ -237,7 +235,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
                   Achievements
                 </Menu.Item>
               )}
-              {canInstall && onInstall && (
+              {onInstall && (
                 <>
                   <Menu.Divider />
                   <Menu.Item

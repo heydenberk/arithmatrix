@@ -68,8 +68,6 @@ export type ArithmatrixGridProps = {
   onReset?: () => void;
   /** Handler for new game action on mobile */
   onNewGame?: () => void;
-  /** Whether the PWA can be installed */
-  canInstall?: boolean;
   /** Handler for triggering PWA install */
   onInstall?: () => void;
   /** Handler for showing achievements gallery */

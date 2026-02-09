@@ -137,32 +137,16 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-// Detect if the app can be installed (mobile browser, not already standalone)
-function detectInstallable(): boolean {
-  if (typeof window === 'undefined') return false;
-  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-    || ('standalone' in window.navigator && (window.navigator as { standalone?: boolean }).standalone === true);
-  if (isStandalone) return false;
-  // Show on mobile browsers (Android Chrome, Safari iOS, etc.)
-  const isMobileUA = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
-  return isMobileUA;
-}
-
 function App() {
-  // PWA install prompt state
-  const [canInstall, setCanInstall] = useState(detectInstallable);
-
-  // Listen for the beforeinstallprompt event (Chrome/Edge)
+  // Listen for the beforeinstallprompt event (Chrome/Edge) to capture native prompt
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       deferredInstallPrompt = e as BeforeInstallPromptEvent;
-      setCanInstall(true);
     };
 
     const handleAppInstalled = () => {
       deferredInstallPrompt = null;
-      setCanInstall(false);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -181,7 +165,6 @@ function App() {
       const { outcome } = await deferredInstallPrompt.userChoice;
       if (outcome === 'accepted') {
         deferredInstallPrompt = null;
-        setCanInstall(false);
       }
     } else {
       // No native prompt available — show manual instructions
@@ -805,7 +788,6 @@ function App() {
                     setSelectedDifficulty(difficulty);
                     setShowMobileSettings(true);
                   }}
-                  canInstall={canInstall}
                   onInstall={handleInstallClick}
                   onShowAchievements={() => setShowAchievementGallery(true)}
                 />

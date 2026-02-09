@@ -76,7 +76,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       timerElement,
       onReset,
       onNewGame,
-      canInstall,
       onInstall,
       onShowAchievements,
     },
@@ -496,7 +495,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             hasCheckpoint={hasCheckpoint}
             onCreateCheckpoint={onCreateCheckpoint}
             onClearCheckpoint={onClearCheckpoint}
-            canInstall={canInstall}
             onInstall={onInstall}
             onShowAchievements={onShowAchievements}
           />
