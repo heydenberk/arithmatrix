@@ -137,54 +137,30 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+// Detect if the app can be installed (mobile browser, not already standalone)
+function detectInstallable(): boolean {
+  if (typeof window === 'undefined') return false;
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || ('standalone' in window.navigator && (window.navigator as { standalone?: boolean }).standalone === true);
+  if (isStandalone) return false;
+  // Show on mobile browsers (Android Chrome, Safari iOS, etc.)
+  const isMobileUA = /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+  return isMobileUA;
+}
+
 function App() {
   // PWA install prompt state
-  const [canInstall, setCanInstall] = useState(false);
+  const [canInstall, setCanInstall] = useState(detectInstallable);
 
-  // Listen for the beforeinstallprompt event
+  // Listen for the beforeinstallprompt event (Chrome/Edge)
   useEffect(() => {
-    // Log PWA diagnostic info on load
-    const checkPWAStatus = async () => {
-      console.log('📱 PWA Diagnostics:');
-      console.log('  - URL:', window.location.href);
-      console.log('  - Protocol:', window.location.protocol);
-      console.log('  - User Agent:', navigator.userAgent);
-
-      // Check manifest
-      const manifestLink = document.querySelector('link[rel="manifest"]');
-      console.log('  - Manifest link:', manifestLink?.getAttribute('href') || 'NOT FOUND');
-
-      // Check service worker
-      if ('serviceWorker' in navigator) {
-        const reg = await navigator.serviceWorker.getRegistration();
-        console.log('  - Service Worker:', reg ? `registered (scope: ${reg.scope})` : 'NOT registered');
-        console.log('  - SW Controller:', navigator.serviceWorker.controller ? 'active' : 'none');
-      } else {
-        console.log('  - Service Worker: NOT SUPPORTED');
-      }
-
-      // Check if standalone mode (already installed)
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-      console.log('  - Display mode standalone:', isStandalone);
-
-      // Check if Android
-      const isAndroid = /android/i.test(navigator.userAgent);
-      const isChrome = /chrome/i.test(navigator.userAgent) && !/edg/i.test(navigator.userAgent);
-      console.log('  - Is Android:', isAndroid);
-      console.log('  - Is Chrome:', isChrome);
-    };
-
-    checkPWAStatus();
-
     const handleBeforeInstallPrompt = (e: Event) => {
-      console.log('📱 beforeinstallprompt event fired!');
       e.preventDefault();
       deferredInstallPrompt = e as BeforeInstallPromptEvent;
       setCanInstall(true);
     };
 
     const handleAppInstalled = () => {
-      console.log('📱 App was installed!');
       deferredInstallPrompt = null;
       setCanInstall(false);
     };
@@ -200,19 +176,21 @@ function App() {
 
   // Handler to trigger the install prompt
   const handleInstallClick = async () => {
-    if (!deferredInstallPrompt) {
-      console.log('📱 No deferred prompt available');
-      return;
-    }
-
-    console.log('📱 Showing install prompt...');
-    await deferredInstallPrompt.prompt();
-    const { outcome } = await deferredInstallPrompt.userChoice;
-    console.log('📱 User choice:', outcome);
-
-    if (outcome === 'accepted') {
-      deferredInstallPrompt = null;
-      setCanInstall(false);
+    if (deferredInstallPrompt) {
+      await deferredInstallPrompt.prompt();
+      const { outcome } = await deferredInstallPrompt.userChoice;
+      if (outcome === 'accepted') {
+        deferredInstallPrompt = null;
+        setCanInstall(false);
+      }
+    } else {
+      // No native prompt available — show manual instructions
+      const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      if (isIOS) {
+        window.alert('To install: tap the Share button, then "Add to Home Screen"');
+      } else {
+        window.alert('To install: tap the browser menu (\u22ee), then "Add to Home Screen" or "Install app"');
+      }
     }
   };
 
