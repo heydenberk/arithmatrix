@@ -45,6 +45,7 @@ import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
 import AchievementNotification from './components/AchievementNotification';
 import AchievementGallery from './components/AchievementGallery';
+import SolverPlayback from './components/SolverPlayback';
 import {
   saveGameState,
   loadGameState,
@@ -285,6 +286,10 @@ function App() {
   const [lastAchievement, setLastAchievement] = useState<AchievementResult | null>(null);
   const [showAchievementGallery, setShowAchievementGallery] = useState<boolean>(false);
 
+  // Solver playback state
+  const [solverActive, setSolverActive] = useState<boolean>(false);
+  const latestGridValuesRef = useRef<string[][] | null>(null);
+
   // Secret version display state
   const [showVersion, setShowVersion] = useState<boolean>(false);
 
@@ -462,6 +467,20 @@ function App() {
     };
   }, []); // Empty dependency array ensures this runs only once on mount/unmount
 
+  // Backtick (without shift) toggles the solver playback overlay.
+  // Shift+backtick is already used elsewhere as the "solve all but one" cheat.
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === '`' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        if (!puzzleDefinition) return;
+        e.preventDefault();
+        setSolverActive(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [puzzleDefinition]);
+
   // Stable callback for timer updates - writes to ref instead of state to avoid re-renders
   const handleTimeUpdate = useCallback((seconds: number) => {
     completionTimeRef.current = seconds;
@@ -469,6 +488,7 @@ function App() {
 
   // Handler for game state changes - save to localStorage
   const handleGameStateChange = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
+    latestGridValuesRef.current = gridValues;
     if (puzzleDefinition && solutionGrid && hasUserProgress(gridValues)) {
       saveGameState(
         puzzleDefinition,
@@ -1188,6 +1208,15 @@ function App() {
         opened={showAchievementGallery}
         onClose={() => setShowAchievementGallery(false)}
       />
+
+      {/* Solver playback overlay - triggered by backtick */}
+      {solverActive && puzzleDefinition && (
+        <SolverPlayback
+          puzzleDefinition={puzzleDefinition}
+          initialGridValues={latestGridValuesRef.current ?? initialGridValues}
+          onExit={() => setSolverActive(false)}
+        />
+      )}
 
       {/* Secret version overlay - triggered by Esc */}
       {showVersion && (
