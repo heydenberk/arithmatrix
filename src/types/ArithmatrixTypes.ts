@@ -138,6 +138,8 @@ export type ArithmatrixCellProps = {
   onClick: (e?: React.MouseEvent<HTMLDivElement>) => void;
   /** Handler for toggling pencil mode via long press */
   onPencilModeToggle?: () => void;
+  /** Handler for clicks on the cage info pill (shift+click selects the whole cage) */
+  onCageInfoClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
 };
 
 /**

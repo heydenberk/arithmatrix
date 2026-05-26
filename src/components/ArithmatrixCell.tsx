@@ -39,6 +39,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   onKeyDown,
   onClick,
   onPencilModeToggle,
+  onCageInfoClick,
 }) => {
   const cellRef = useRef<HTMLDivElement>(null);
   const gestureRecognizerRef = useRef<TouchGestureRecognizer | null>(null);
@@ -133,7 +134,12 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
     >
       {/* Cage Information Display */}
       {cageInfo && (
-        <div className="cage-info" role="note" aria-label={`Cage target: ${cageInfo.text}`}>
+        <div
+          className="cage-info"
+          role="note"
+          aria-label={`Cage target: ${cageInfo.text}`}
+          onClick={onCageInfoClick}
+        >
           {/* Only show cage info when timer is running or game is won */}
           {shouldShowContent ? cageInfo.text : ''}
         </div>

@@ -146,6 +146,23 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       gameState.setIsPencilMode(!gameState.isPencilMode);
     };
 
+    // Shift+click on a cage's answer pill adds every cell in that cage to the current
+    // selection (existing selection is preserved). A plain click is left to bubble to
+    // the underlying cell's normal handler.
+    const handleCageInfoClick = (e: React.MouseEvent<HTMLDivElement>, cellIndex: number) => {
+      if (!e.shiftKey) return;
+      const cage = puzzleDefinition.cages.find(c => c.cells.includes(cellIndex));
+      if (!cage) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const cageCellKeys = cage.cells.map(idx => `${Math.floor(idx / size)}-${idx % size}`);
+      gameState.setSelectedCells(prev => {
+        const next = new Set(prev);
+        cageCellKeys.forEach(k => next.add(k));
+        return next;
+      });
+    };
+
     // Custom cell click handler for mobile that accumulates selection in pencil mode
     const handleMobileCellClick = (
       e: React.MouseEvent<HTMLDivElement> | undefined,
@@ -446,6 +463,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
                 onFocus={handleCellFocus}
                 onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
                 onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
+                onCageInfoClick={e => handleCageInfoClick(e, cellIndex)}
               />
             );
           })
