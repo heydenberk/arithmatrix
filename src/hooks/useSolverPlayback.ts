@@ -48,9 +48,12 @@ export type SolverPlaybackControls = {
 };
 
 const EMPTY_COUNTS: Record<TechniqueId, number> = {
+  stipulated: 0,
   naked_single: 0,
+  cage_impossible: 0,
   hidden_single: 0,
   cage_single: 0,
+  cage_locked: 0,
   cage_intersection: 0,
   cage_combinations: 0,
   multi_cage_line_lock: 0,
@@ -180,9 +183,12 @@ export function useSolverPlayback(
 }
 
 export const TECHNIQUE_ORDER: TechniqueId[] = [
+  'stipulated',
   'naked_single',
+  'cage_impossible',
   'hidden_single',
   'cage_single',
+  'cage_locked',
   'cage_intersection',
   'cage_combinations',
   'multi_cage_line_lock',

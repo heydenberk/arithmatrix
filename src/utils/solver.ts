@@ -11,9 +11,12 @@
 import type { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 export type TechniqueId =
+  | 'stipulated'
   | 'naked_single'
+  | 'cage_impossible'
   | 'hidden_single'
   | 'cage_single'
+  | 'cage_locked'
   | 'cage_intersection'
   | 'cage_combinations'
   | 'multi_cage_line_lock'
@@ -21,9 +24,12 @@ export type TechniqueId =
   | 'trial_and_error';
 
 export const TECHNIQUE_WEIGHTS: Record<TechniqueId, number> = {
+  stipulated: 0,
   naked_single: 1,
+  cage_impossible: 2,
   hidden_single: 2,
   cage_single: 3,
+  cage_locked: 3,
   cage_intersection: 4,
   cage_combinations: 5,
   multi_cage_line_lock: 8,
@@ -32,9 +38,12 @@ export const TECHNIQUE_WEIGHTS: Record<TechniqueId, number> = {
 };
 
 export const TECHNIQUE_LABELS: Record<TechniqueId, string> = {
+  stipulated: 'Stipulated',
   naked_single: 'Naked single',
+  cage_impossible: 'Math impossible',
   hidden_single: 'Hidden single',
   cage_single: 'Cage single',
+  cage_locked: 'Cage locked',
   cage_intersection: 'Cage intersection',
   cage_combinations: 'Cage combinations',
   multi_cage_line_lock: 'Multi-cage lock',
@@ -47,8 +56,12 @@ export type CellRef = { row: number; col: number };
 export type SolverStep = {
   technique: TechniqueId;
   description: string;
-  // Cells to visually emphasize on this step
+  // Primary cells: the ones being placed or having candidates removed
   highlight: CellRef[];
+  // Supporting cells: the cells whose state drives the deduction (e.g. the
+  // cage cells that lock a value into a line). Rendered with a softer highlight
+  // so the user can see *why* the change is happening.
+  supportCells?: CellRef[];
   // Full snapshot AFTER applying this step
   grid: number[][];
   candidates: Set<number>[][];
@@ -106,6 +119,11 @@ type CageInfo = {
   operation: string;
   value: number;
   combinations: number[][]; // each combo aligns positionally with `cells`
+  // For each cell position, the set of values that could appear there in
+  // *any* combination — independent of row/column state. Used to spot
+  // mathematically impossible candidates cheaply (e.g. a 3÷ cell can never
+  // be 4, 5, or 7).
+  everPossiblePerPos: Set<number>[];
 };
 
 class Solver {
@@ -122,9 +140,12 @@ class Solver {
     this.size = puzzle.size;
     this.steps = [];
     this.counts = {
+      stipulated: 0,
       naked_single: 0,
+      cage_impossible: 0,
       hidden_single: 0,
       cage_single: 0,
+      cage_locked: 0,
       cage_intersection: 0,
       cage_combinations: 0,
       multi_cage_line_lock: 0,
@@ -134,16 +155,25 @@ class Solver {
     this.rawScore = 0;
 
     // Build cages with cell coords and precomputed combinations
-    this.cages = puzzle.cages.map((cage, index) => ({
-      index,
-      cells: cage.cells.map(idx => ({
-        row: Math.floor(idx / this.size),
-        col: idx % this.size,
-      })),
-      operation: cage.operation,
-      value: cage.value,
-      combinations: precomputeCageCombinations(cage, this.size),
-    }));
+    this.cages = puzzle.cages.map((cage, index) => {
+      const combos = precomputeCageCombinations(cage, this.size);
+      const everPossiblePerPos = cage.cells.map((_, pos) => {
+        const s = new Set<number>();
+        for (const combo of combos) s.add(combo[pos]);
+        return s;
+      });
+      return {
+        index,
+        cells: cage.cells.map(idx => ({
+          row: Math.floor(idx / this.size),
+          col: idx % this.size,
+        })),
+        operation: cage.operation,
+        value: cage.value,
+        combinations: combos,
+        everPossiblePerPos,
+      };
+    });
 
     this.cellToCage = new Map();
     for (const cage of this.cages) {
@@ -210,7 +240,8 @@ class Solver {
   private recordStep(
     technique: TechniqueId,
     description: string,
-    highlight: CellRef[]
+    highlight: CellRef[],
+    supportCells?: CellRef[]
   ) {
     const delta = TECHNIQUE_WEIGHTS[technique];
     this.rawScore += delta;
@@ -219,6 +250,7 @@ class Solver {
       technique,
       description,
       highlight,
+      supportCells,
       grid: this.snapshotGrid(),
       candidates: this.snapshotCandidates(),
       scoreDelta: delta,
@@ -226,23 +258,30 @@ class Solver {
       cumulativeCounts: { ...this.counts },
     });
 
-    // Whenever a deduction narrows a cell down to a single candidate, the
-    // naked single should fire immediately as the next step (rather than
-    // waiting for the next iteration of the logic loop). We skip the cascade
-    // for naked_single itself to avoid recursion — applyNakedSingles already
-    // sweeps all cells in one pass and will be re-driven by cascadeNakedSingles
-    // on the next caller's recordStep.
-    if (technique !== 'naked_single') {
-      this.cascadeNakedSingles();
+    // Whenever a complex deduction narrows things, the cheapest follow-up
+    // techniques (naked + hidden singles) should fire immediately as the next
+    // steps. We skip the cascade for naked_single and hidden_single themselves
+    // to avoid recursion — those are exhaustively driven by the cascade itself.
+    if (technique !== 'naked_single' && technique !== 'hidden_single') {
+      this.cascadeEasyTechniques();
     }
   }
 
-  private cascadeNakedSingles() {
-    // Loop until stable — each placement can cascade row/col eliminations that
-    // create more naked singles elsewhere.
-    while (this.applyNakedSingles()) {
-      /* keep going */
+  /**
+   * Run naked + hidden singles until neither can find another deduction. This
+   * is the "go back to the easiest thing" cascade that runs after every more
+   * advanced deduction. Returns true if anything was placed.
+   */
+  private cascadeEasyTechniques(): boolean {
+    let any = false;
+    while (true) {
+      let did = false;
+      if (this.applyNakedSingles()) did = true;
+      if (this.applyHiddenSingles()) did = true;
+      if (!did) break;
+      any = true;
     }
+    return any;
   }
 
   // ---------- Techniques ----------
@@ -468,7 +507,6 @@ class Solver {
    * candidate count of each cage is small enough to enumerate cheaply.
    */
   private applyMultiCageLineLock(): boolean {
-    let progress = false;
     const MAX_JOINT_COMBOS = 2000; // hard cap on cartesian-product size per pair
 
     for (const orientation of ['row', 'col'] as const) {
@@ -549,16 +587,17 @@ class Solver {
                 this.recordStep(
                   'multi_cage_line_lock',
                   `Multi-cage lock in ${where}: the ${cageHeader(A.cage)} and ${cageHeader(B.cage)} cages together must contain ${v}, eliminating ${v} from ${cellList}.`,
-                  eliminations
+                  eliminations,
+                  jointCells // support: the cage cells that lock v into this line
                 );
-                progress = true;
+                return true; // restart from easiest
               }
             }
           }
         }
       }
     }
-    return progress;
+    return false;
   }
 
   /**
@@ -577,7 +616,6 @@ class Solver {
    * would leave 3÷ with nothing).
    */
   private applyCrossCageFeasibility(): boolean {
-    let progress = false;
     const MAX_COMBOS_TO_CHECK = 200; // skip cages with too many combos
 
     for (const cageA of this.cages) {
@@ -648,9 +686,14 @@ class Solver {
 
       if (feasible.length === 0 || feasible.length === survivorsA.length) continue;
 
+      // The cells of the intersecting cages drove the deduction — collect them
+      // for support highlighting.
+      const supportCells: CellRef[] = intersectingCages.flatMap(c => c.cells);
+
       // Translate the narrowed combo set into candidate eliminations on cageA's cells
-      cageA.cells.forEach((cell, pos) => {
-        if (this.grid[cell.row][cell.col] !== 0) return;
+      for (let pos = 0; pos < cageA.cells.length; pos++) {
+        const cell = cageA.cells[pos];
+        if (this.grid[cell.row][cell.col] !== 0) continue;
         const stillPossible = new Set(feasible.map(c => c[pos]));
         const toRemove: number[] = [];
         for (const v of this.candidates[cell.row][cell.col]) {
@@ -661,81 +704,172 @@ class Solver {
           this.recordStep(
             'cross_cage_feasibility',
             `Cross-cage feasibility: ${toRemove.sort((a, b) => a - b).join(', ')} at ${cellLabel(cell.row, cell.col)} would leave another cage with no valid combinations.`,
-            [cell]
+            [cell],
+            supportCells
           );
-          progress = true;
+          return true; // restart from easiest
         }
-      });
+      }
     }
 
+    return false;
+  }
+
+  /** Narrow + place from this single cage's surviving combinations. */
+  private narrowCage(cage: CageInfo): boolean {
+    if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) return false;
+
+    const filtered = this.survivingCombos(cage);
+    if (filtered.length === 0) return false;
+
+    // Other cells of the cage drive the deduction — highlight them as support.
+    for (const cell of cage.cells) {
+      if (this.grid[cell.row][cell.col] !== 0) continue;
+      const possibleValues = new Set<number>();
+      for (const combo of filtered) {
+        const pos = cage.cells.indexOf(cell);
+        possibleValues.add(combo[pos]);
+      }
+
+      const supportCells = cage.cells.filter(c => c.row !== cell.row || c.col !== cell.col);
+
+      if (possibleValues.size === 1) {
+        const value = [...possibleValues][0];
+        if (this.candidates[cell.row][cell.col].has(value)) {
+          this.place(cell.row, cell.col, value);
+          this.recordStep(
+            'cage_single',
+            `Cage single at ${cellLabel(cell.row, cell.col)}: the ${cageHeader(cage)} cage forces ${value}.`,
+            [{ row: cell.row, col: cell.col }],
+            supportCells
+          );
+          return true; // restart from easiest
+        }
+      } else {
+        const toRemove: number[] = [];
+        for (const v of this.candidates[cell.row][cell.col]) {
+          if (!possibleValues.has(v)) toRemove.push(v);
+        }
+        if (toRemove.length > 0) {
+          toRemove.forEach(v => this.candidates[cell.row][cell.col].delete(v));
+          this.recordStep(
+            'cage_combinations',
+            `Cage combinations: the ${cageHeader(cage)} cage rules out ${toRemove.sort((a, b) => a - b).join(', ')} at ${cellLabel(cell.row, cell.col)}.`,
+            [{ row: cell.row, col: cell.col }],
+            supportCells
+          );
+          return true; // restart from easiest
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /** Run cage_intersection for a single cage. Returns on first progress. */
+  private intersectCage(cage: CageInfo): boolean {
+    if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) return false;
+
+    const survivors = this.survivingCombos(cage);
+    if (survivors.length === 0) return false;
+
+    const rowsTouched = new Set(cage.cells.map(c => c.row));
+    const colsTouched = new Set(cage.cells.map(c => c.col));
+
+    for (let v = 1; v <= this.size; v++) {
+      for (const r of rowsTouched) {
+        let min = Infinity;
+        for (const combo of survivors) {
+          let count = 0;
+          cage.cells.forEach((cell, pos) => {
+            if (cell.row === r && combo[pos] === v) count++;
+          });
+          if (count < min) min = count;
+        }
+        if (min < 1) continue;
+        const eliminations: CellRef[] = [];
+        for (let c = 0; c < this.size; c++) {
+          const inCage = cage.cells.some(cell => cell.row === r && cell.col === c);
+          if (inCage) continue;
+          if (this.grid[r][c] === 0 && this.candidates[r][c].has(v)) {
+            this.candidates[r][c].delete(v);
+            eliminations.push({ row: r, col: c });
+          }
+        }
+        if (eliminations.length > 0) {
+          const cellList = eliminations.map(e => cellLabel(e.row, e.col)).join(', ');
+          // Support = the cage's cells in this row (the cells that lock v into the line)
+          const supportCells = cage.cells.filter(c => c.row === r);
+          this.recordStep(
+            'cage_intersection',
+            `Cage intersection: the ${cageHeader(cage)} cage must contain ${v} in row ${r + 1}, eliminating ${v} from ${cellList}.`,
+            eliminations,
+            supportCells
+          );
+          return true;
+        }
+      }
+      for (const c of colsTouched) {
+        let min = Infinity;
+        for (const combo of survivors) {
+          let count = 0;
+          cage.cells.forEach((cell, pos) => {
+            if (cell.col === c && combo[pos] === v) count++;
+          });
+          if (count < min) min = count;
+        }
+        if (min < 1) continue;
+        const eliminations: CellRef[] = [];
+        for (let r = 0; r < this.size; r++) {
+          const inCage = cage.cells.some(cell => cell.row === r && cell.col === c);
+          if (inCage) continue;
+          if (this.grid[r][c] === 0 && this.candidates[r][c].has(v)) {
+            this.candidates[r][c].delete(v);
+            eliminations.push({ row: r, col: c });
+          }
+        }
+        if (eliminations.length > 0) {
+          const cellList = eliminations.map(e => cellLabel(e.row, e.col)).join(', ');
+          const supportCells = cage.cells.filter(cc => cc.col === c);
+          this.recordStep(
+            'cage_intersection',
+            `Cage intersection: the ${cageHeader(cage)} cage must contain ${v} in column ${colLetter(c)}, eliminating ${v} from ${cellList}.`,
+            eliminations,
+            supportCells
+          );
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Process cages in order of constraint strength (fewest surviving combos first).
+   * For each cage, do the full narrow + intersect deduction before moving on to
+   * the next cage. This means tightly-constrained cages like a 2-cell 6- (only
+   * 2 combos: (1,7), (7,1)) get fully resolved before any work is done on
+   * weakly-constrained cages like a 2-cell 4- (6 combos).
+   */
+  private processCagesByStrength(): boolean {
+    const ordered = [...this.cages].sort(
+      (a, b) => this.survivingCombos(a).length - this.survivingCombos(b).length
+    );
+    let progress = false;
+    for (const cage of ordered) {
+      if (this.narrowCage(cage)) progress = true;
+      if (this.intersectCage(cage)) progress = true;
+    }
     return progress;
   }
 
+  /** Legacy wrappers (unused but kept for clarity in case external callers exist). */
   private applyCageConstraints(): boolean {
     let progress = false;
-
     for (const cage of this.cages) {
-      const emptyCells = cage.cells.filter(({ row, col }) => this.grid[row][col] === 0);
-      if (emptyCells.length === 0) continue;
-
-      // Filter combos by placed values and current candidates
-      const placed: Array<{ pos: number; value: number }> = [];
-      cage.cells.forEach((cell, pos) => {
-        if (this.grid[cell.row][cell.col] !== 0) {
-          placed.push({ pos, value: this.grid[cell.row][cell.col] });
-        }
-      });
-
-      const placedPositions = new Set(placed.map(p => p.pos));
-      const filtered = cage.combinations.filter(combo => {
-        for (const { pos, value } of placed) {
-          if (combo[pos] !== value) return false;
-        }
-        for (let pos = 0; pos < cage.cells.length; pos++) {
-          if (placedPositions.has(pos)) continue;
-          const { row, col } = cage.cells[pos];
-          if (!this.candidates[row][col].has(combo[pos])) return false;
-        }
-        return true;
-      });
-
-      if (filtered.length === 0) continue; // dead branch; backtracker handles
-
-      // For each empty cell, see what values are still possible across surviving combos
-      cage.cells.forEach((cell, pos) => {
-        if (this.grid[cell.row][cell.col] !== 0) return;
-        const possibleValues = new Set<number>();
-        for (const combo of filtered) possibleValues.add(combo[pos]);
-
-        if (possibleValues.size === 1) {
-          const value = [...possibleValues][0];
-          if (this.candidates[cell.row][cell.col].has(value)) {
-            this.place(cell.row, cell.col, value);
-            this.recordStep(
-              'cage_single',
-              `Cage single at ${cellLabel(cell.row, cell.col)}: the ${cageHeader(cage)} cage forces ${value}.`,
-              [{ row: cell.row, col: cell.col }]
-            );
-            progress = true;
-          }
-        } else {
-          const toRemove: number[] = [];
-          for (const v of this.candidates[cell.row][cell.col]) {
-            if (!possibleValues.has(v)) toRemove.push(v);
-          }
-          if (toRemove.length > 0) {
-            toRemove.forEach(v => this.candidates[cell.row][cell.col].delete(v));
-            this.recordStep(
-              'cage_combinations',
-              `Cage combinations: the ${cageHeader(cage)} cage rules out ${toRemove.sort((a, b) => a - b).join(', ')} at ${cellLabel(cell.row, cell.col)}.`,
-              [{ row: cell.row, col: cell.col }]
-            );
-            progress = true;
-          }
-        }
-      });
+      if (this.narrowCage(cage)) progress = true;
     }
-
     return progress;
   }
 
@@ -789,15 +923,6 @@ class Solver {
     // deductive reasoning starts.
     this.placeStipulatedCages();
 
-    // Intersection runs before general cage filtering — line cages like a
-    // vertical 6- expose immediate column-wide eliminations that should be
-    // visible up front, before we start eliminating non-viable values from
-    // within the cage cells themselves.
-    this.applyCageIntersection();
-
-    // Initial cage-constraint pass to prune candidates
-    this.applyCageConstraints();
-
     // Run logic loop, then fall through to backtracking if stuck
     this.runLogicLoop();
 
@@ -825,31 +950,136 @@ class Solver {
       if (this.grid[row][col] !== 0) continue;
       this.place(row, col, cage.value);
       this.recordStep(
-        'cage_single',
+        'stipulated',
         `Stipulated: ${cellLabel(row, col)} must be ${cage.value} (single-cell cage).`,
         [{ row, col }]
       );
     }
   }
 
-  private runLogicLoop() {
-    while (true) {
-      let progress = false;
-      if (this.applyNakedSingles()) progress = true;
-      if (this.applyHiddenSingles()) progress = true;
-      // Intersection runs before general cage filtering — it produces stronger
-      // deductions and tightens candidates that the next applyCageConstraints
-      // pass can then use.
-      if (this.applyCageIntersection()) progress = true;
-      if (this.applyMultiCageLineLock()) progress = true;
-      if (this.applyCageConstraints()) progress = true;
-      // Cross-cage feasibility is the most expensive — only attempted when
-      // simpler techniques have stalled.
-      if (!progress) {
-        if (this.applyCrossCageFeasibility()) progress = true;
+  /**
+   * Cage locked: when every surviving combination is a permutation of the
+   * SAME multiset, the cage's value-set is determined even if the per-cell
+   * placement isn't. Narrow each cage cell to those values in one deduction.
+   *
+   * Examples: a 2-cell 6- has combos (1,7) and (7,1) — same multiset {1,7},
+   * cells narrow to {1,7}. An 18+ cage with 3 stacked cells at size 7 has
+   * combos that are permutations of {5,6,7} — cells narrow to {5,6,7}.
+   *
+   * Distinct from cage_combinations (weight 5), which handles per-cell
+   * positional analysis when there are multiple multisets.
+   */
+  private applyCageLockedAcrossCages(): boolean {
+    const ordered = [...this.cages].sort(
+      (a, b) => a.combinations.length - b.combinations.length
+    );
+    for (const cage of ordered) {
+      if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) continue;
+      const filtered = this.survivingCombos(cage);
+      if (filtered.length === 0) continue;
+
+      // Check if every surviving combo is a permutation of the same multiset.
+      const firstKey = [...filtered[0]].sort((a, b) => a - b).join(',');
+      let oneMultiset = true;
+      for (let i = 1; i < filtered.length; i++) {
+        const key = [...filtered[i]].sort((a, b) => a - b).join(',');
+        if (key !== firstKey) {
+          oneMultiset = false;
+          break;
+        }
       }
-      if (!progress) break;
-      if (!this.isValid()) return;
+      if (!oneMultiset) continue;
+
+      const multiset = new Set(filtered[0]);
+      const eliminations: CellRef[] = [];
+      for (const cell of cage.cells) {
+        if (this.grid[cell.row][cell.col] !== 0) continue;
+        const cands = this.candidates[cell.row][cell.col];
+        const toRemove: number[] = [];
+        for (const v of cands) {
+          if (!multiset.has(v)) toRemove.push(v);
+        }
+        if (toRemove.length > 0) {
+          toRemove.forEach(v => cands.delete(v));
+          eliminations.push(cell);
+        }
+      }
+      if (eliminations.length === 0) continue;
+
+      const multisetStr = [...multiset].sort((a, b) => a - b).join(', ');
+      const cellList = eliminations.map(c => cellLabel(c.row, c.col)).join(', ');
+      this.recordStep(
+        'cage_locked',
+        `Cage locked: the ${cageHeader(cage)} cage must contain exactly {${multisetStr}}, narrowing ${cellList}.`,
+        eliminations,
+        cage.cells
+      );
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Eliminate candidates that are mathematically impossible — values that
+   * never appear in any of the cage's combinations regardless of row/column
+   * state. A 3÷ cage's cells can never be 4, 5, or 7; a 9× cage's cells can
+   * never be 5 or 7. Very cheap and should fire before any state-aware
+   * deductions.
+   *
+   * Stops on first progress so the cheaper cascades can re-run between every
+   * elimination. Cages with fewer combinations (= tighter constraints) are
+   * processed first.
+   */
+  private applyCageImpossibleAcrossCages(): boolean {
+    const ordered = [...this.cages].sort(
+      (a, b) => a.combinations.length - b.combinations.length
+    );
+    for (const cage of ordered) {
+      if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) continue;
+      for (let pos = 0; pos < cage.cells.length; pos++) {
+        const cell = cage.cells[pos];
+        if (this.grid[cell.row][cell.col] !== 0) continue;
+        const everPossible = cage.everPossiblePerPos[pos];
+        const cellCandidates = this.candidates[cell.row][cell.col];
+        const toRemove: number[] = [];
+        for (const v of cellCandidates) {
+          if (!everPossible.has(v)) toRemove.push(v);
+        }
+        if (toRemove.length > 0) {
+          toRemove.forEach(v => cellCandidates.delete(v));
+          this.recordStep(
+            'cage_impossible',
+            `Math impossible: ${toRemove.sort((a, b) => a - b).join(', ')} can never appear in the ${cageHeader(cage)} cage at ${cellLabel(cell.row, cell.col)}.`,
+            [cell],
+            cage.cells.filter(c => c.row !== cell.row || c.col !== cell.col)
+          );
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private runLogicLoop() {
+    // "Always do the easiest thing that makes progress, then restart from the
+    // top." After every step in a more expensive technique, we go back to the
+    // cheapest techniques — a single deduction in one technique can unlock new
+    // work in cheaper techniques that should be done first.
+    outer: while (true) {
+      // Easy techniques are exhaustive cascades; complex techniques stop on
+      // first progress so we re-check the cheap ones between every deduction.
+      if (this.cascadeEasyTechniques()) continue outer;
+      // Math-impossible eliminations are cheap (depend only on the cage's
+      // arithmetic, not on row/col state) — fire them before processing
+      // cages in depth.
+      if (this.applyCageImpossibleAcrossCages()) continue outer;
+      // Cage locked: every surviving combo is the same multiset. One
+      // deduction narrows all cage cells. Cheaper than per-cell combinations.
+      if (this.applyCageLockedAcrossCages()) continue outer;
+      if (this.processCagesByStrength()) continue outer;
+      if (this.applyMultiCageLineLock()) continue outer;
+      if (this.applyCrossCageFeasibility()) continue outer;
+      break;
     }
   }
 

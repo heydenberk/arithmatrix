@@ -115,6 +115,12 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, onExit }: Props) 
     return s;
   }, [currentStep]);
 
+  const supportSet = useMemo(() => {
+    const s = new Set<string>();
+    (currentStep?.supportCells ?? []).forEach(h => s.add(`${h.row}-${h.col}`));
+    return s;
+  }, [currentStep]);
+
   const cageColorMap = useMemo(() => generateCageColorMap(puzzleDefinition), [puzzleDefinition]);
 
   // Score readout
@@ -166,6 +172,7 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, onExit }: Props) 
         candidates={displayCandidates}
         cageColorMap={cageColorMap}
         highlight={highlightSet}
+        support={supportSet}
       />
 
       {/* Commentary */}
@@ -281,9 +288,10 @@ type SolverGridProps = {
   candidates: Set<number>[][];
   cageColorMap: Map<number, number>;
   highlight: Set<string>;
+  support: Set<string>;
 };
 
-const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highlight }: SolverGridProps) => {
+const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highlight, support }: SolverGridProps) => {
   const size = puzzleDefinition.size;
   // Pick a cell size that fits — keep it simple, no responsive math here
   const cellSize = Math.max(36, Math.min(72, Math.floor((Math.min(window.innerWidth - 32, 720)) / size) - 4));
@@ -312,7 +320,9 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
           const textColorClass = getCageTextColorClass(cageIndex, cageColorMap);
           const borderClasses = getBorderClasses(r, c, puzzleDefinition);
           const cageInfo = getCageInfo(r, c, puzzleDefinition);
-          const isHighlight = highlight.has(`${r}-${c}`);
+          const cellKey = `${r}-${c}`;
+          const isHighlight = highlight.has(cellKey);
+          const isSupport = !isHighlight && support.has(cellKey);
           const cellClasses = [
             'arithmatrix-cell',
             'relative',
@@ -321,9 +331,12 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
             borderClasses,
             isHighlight ? 'selected-cell' : '',
           ].filter(Boolean).join(' ');
+          const supportStyle: React.CSSProperties = isSupport
+            ? { boxShadow: 'inset 0 0 0 3px rgba(250, 176, 5, 0.85)', zIndex: 1 }
+            : {};
           const cellCandidates = candidates[r]?.[c] ?? new Set<number>();
           return (
-            <div key={`${r}-${c}`} className={cellClasses}>
+            <div key={`${r}-${c}`} className={cellClasses} style={supportStyle}>
               {cageInfo && (
                 <div className="cage-info" role="note">{cageInfo.text}</div>
               )}
@@ -357,9 +370,12 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
 
 function techniqueColor(t: TechniqueId): string {
   switch (t) {
+    case 'stipulated': return 'gray';
     case 'naked_single': return 'teal';
+    case 'cage_impossible': return 'lime';
     case 'hidden_single': return 'blue';
     case 'cage_single': return 'grape';
+    case 'cage_locked': return 'cyan';
     case 'cage_intersection': return 'indigo';
     case 'cage_combinations': return 'violet';
     case 'multi_cage_line_lock': return 'pink';

@@ -46,6 +46,7 @@ import { evaluateAchievement, saveAchievement, type AchievementResult } from './
 import AchievementNotification from './components/AchievementNotification';
 import AchievementGallery from './components/AchievementGallery';
 import SolverPlayback from './components/SolverPlayback';
+import DevPanel from './components/DevPanel';
 import {
   saveGameState,
   loadGameState,
@@ -290,6 +291,9 @@ function App() {
   const [solverActive, setSolverActive] = useState<boolean>(false);
   const latestGridValuesRef = useRef<string[][] | null>(null);
 
+  // Dev panel state (Cmd/Ctrl+G to toggle)
+  const [devPanelOpen, setDevPanelOpen] = useState<boolean>(false);
+
   // Secret version display state
   const [showVersion, setShowVersion] = useState<boolean>(false);
 
@@ -475,6 +479,11 @@ function App() {
         if (!puzzleDefinition) return;
         e.preventDefault();
         setSolverActive(prev => !prev);
+      }
+      // Cmd/Ctrl+G toggles the dev panel
+      if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey && !e.altKey) {
+        e.preventDefault();
+        setDevPanelOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handler);
@@ -1215,6 +1224,27 @@ function App() {
           puzzleDefinition={puzzleDefinition}
           initialGridValues={latestGridValuesRef.current ?? initialGridValues}
           onExit={() => setSolverActive(false)}
+        />
+      )}
+
+      {/* Dev panel - triggered by Cmd/Ctrl+G */}
+      {devPanelOpen && (
+        <DevPanel
+          onClose={() => setDevPanelOpen(false)}
+          onLoadPuzzleByIndex={record => {
+            // Clear saved state so the puzzle loads fresh
+            latestGridValuesRef.current = null;
+            setPuzzleDefinition({
+              size: record.puzzle.size,
+              cages: record.puzzle.cages,
+              difficulty_operations: record.puzzle.difficulty_operations,
+            });
+            setSolutionGrid(record.puzzle.solution);
+            setInitialGridValues(undefined);
+            setInitialPencilMarks(undefined);
+            setGameStartTime(new Date());
+            setIsTimerRunning(true);
+          }}
         />
       )}
 
