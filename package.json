@@ -40,8 +40,8 @@
     "vite-plugin-pwa": "^1.2.0"
   },
   "dependencies": {
-    "@mantine/core": "^8.0.2",
-    "@mantine/hooks": "^8.0.2",
+    "@mantine/core": "^8.3.18",
+    "@mantine/hooks": "^8.3.18",
     "@tabler/icons-react": "^3.33.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
