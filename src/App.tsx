@@ -133,6 +133,18 @@ const updateURL = (size: number, difficulty: string, operationsTier: string) => 
   window.history.pushState({}, '', newURL);
 };
 
+/**
+ * A canonical string for a puzzle's cages so we can match a puzzle in
+ * `all_puzzles.jsonl` regardless of cage ordering. Each cage is rendered as
+ * `value/op/sortedCells`, and the resulting list is sorted.
+ */
+function canonicalCagesSig(cages: { value: number; operation: string; cells: number[] }[]): string {
+  return cages
+    .map(c => `${c.value}/${c.operation}/${[...c.cells].sort((a, b) => a - b).join(',')}`)
+    .sort()
+    .join('|');
+}
+
 // Store the deferred install prompt globally so it persists across renders
 let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
 
@@ -290,9 +302,18 @@ function App() {
   // Solver playback state
   const [solverActive, setSolverActive] = useState<boolean>(false);
   const latestGridValuesRef = useRef<string[][] | null>(null);
+  const latestPencilMarksRef = useRef<Set<string>[][] | null>(null);
+
+  // Current puzzle's index in public/all_puzzles.jsonl (so we can show it in
+  // the Esc version overlay). null when unknown (we look it up on demand
+  // below when the puzzle changes).
+  const [currentPuzzleIndex, setCurrentPuzzleIndex] = useState<number | null>(null);
 
   // Dev panel state (Cmd/Ctrl+G to toggle)
   const [devPanelOpen, setDevPanelOpen] = useState<boolean>(false);
+  // When the dev panel forces a specific puzzle, suppress the auto-reload
+  // that would otherwise fire from puzzleSize/difficulty/ops state changes.
+  const suppressNextPuzzleLoadRef = useRef<boolean>(false);
 
   // Secret version display state
   const [showVersion, setShowVersion] = useState<boolean>(false);
@@ -311,6 +332,39 @@ function App() {
     return () => window.removeEventListener('keydown', handleSecretVersionShortcut);
   }, [handleSecretVersionShortcut]);
 
+  // Whenever the puzzle changes but we don't know its index in the JSONL
+  // (e.g. after restoring saved state), fetch the file once and look it up
+  // by matching the cage signature. Cached on `window` so we don't refetch.
+  useEffect(() => {
+    if (!puzzleDefinition || currentPuzzleIndex !== null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        type CachedRecord = { cagesSig: string };
+        const w = window as unknown as { __puzzleIndexCache?: CachedRecord[] };
+        let cache = w.__puzzleIndexCache;
+        if (!cache) {
+          const resp = await fetch(PUZZLE_DATA_FILE);
+          const lines = (await resp.text()).trim().split('\n');
+          cache = lines.map(line => {
+            const r = JSON.parse(line);
+            return { cagesSig: canonicalCagesSig(r.puzzle.cages) };
+          });
+          w.__puzzleIndexCache = cache;
+        }
+        if (cancelled) return;
+        const target = canonicalCagesSig(puzzleDefinition.cages);
+        const found = cache.findIndex(r => r.cagesSig === target);
+        if (found >= 0) setCurrentPuzzleIndex(found);
+      } catch (e) {
+        console.warn('puzzle index lookup failed', e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [puzzleDefinition, currentPuzzleIndex]);
+
   useEffect(() => {
     console.log('🧩 Puzzle loading effect triggered with:', {
       puzzleSize,
@@ -326,6 +380,12 @@ function App() {
         console.log('⏭️ Skipping puzzle load - saved state already loaded');
         return;
       }
+      // Skip if the dev panel just forced a specific puzzle.
+      if (suppressNextPuzzleLoadRef.current) {
+        suppressNextPuzzleLoadRef.current = false;
+        console.log('⏭️ Skipping puzzle load - direct puzzle pin from dev panel');
+        return;
+      }
 
       console.log('🔄 Loading new puzzle...');
 
@@ -334,6 +394,7 @@ function App() {
 
       setPuzzleDefinition(null); // Clear old puzzle while loading
       setSolutionGrid(null); // Clear old solution while loading
+      setCurrentPuzzleIndex(null); // Clear stale index until the new one resolves
       setInitialGridValues(undefined); // Clear initial state
       setInitialPencilMarks(undefined);
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`); // Updated log
@@ -346,21 +407,23 @@ function App() {
 
         const text = await response.text();
         const lines = text.trim().split('\n');
-        const puzzles: PuzzleData[] = [];
+        const puzzles: (PuzzleData & { originalIndex: number })[] = [];
 
         // Parse each line as JSON
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
           if (line.trim()) {
             try {
               const rawPuzzle = JSON.parse(line) as RawPuzzleData;
               // Transform the raw data into our expected format
-              const puzzle: PuzzleData = {
+              const puzzle = {
                 size: rawPuzzle.puzzle.size,
                 cages: rawPuzzle.puzzle.cages,
                 solution: rawPuzzle.puzzle.solution,
                 difficulty: rawPuzzle.metadata.actual_difficulty,
                 difficulty_operations: rawPuzzle.puzzle.difficulty_operations,
                 operations_tier: rawPuzzle.metadata.operations_tier || 'all',
+                originalIndex: i,
               };
               puzzles.push(puzzle);
             } catch (parseError) {
@@ -399,6 +462,7 @@ function App() {
           difficulty_operations: selectedPuzzle.difficulty_operations,
         }); // Set definition part
         setSolutionGrid(selectedPuzzle.solution); // Set the solution grid
+        setCurrentPuzzleIndex(selectedPuzzle.originalIndex);
 
         // Clear initial state for new puzzles and set start time
         setInitialGridValues(undefined);
@@ -498,6 +562,7 @@ function App() {
   // Handler for game state changes - save to localStorage
   const handleGameStateChange = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
     latestGridValuesRef.current = gridValues;
+    latestPencilMarksRef.current = pencilMarks;
     if (puzzleDefinition && solutionGrid && hasUserProgress(gridValues)) {
       saveGameState(
         puzzleDefinition,
@@ -1223,6 +1288,8 @@ function App() {
         <SolverPlayback
           puzzleDefinition={puzzleDefinition}
           initialGridValues={latestGridValuesRef.current ?? initialGridValues}
+          initialPencilMarks={latestPencilMarksRef.current ?? initialPencilMarks}
+          solution={solutionGrid ?? undefined}
           onExit={() => setSolverActive(false)}
         />
       )}
@@ -1231,9 +1298,30 @@ function App() {
       {devPanelOpen && (
         <DevPanel
           onClose={() => setDevPanelOpen(false)}
-          onLoadPuzzleByIndex={record => {
-            // Clear saved state so the puzzle loads fresh
+          onLoadPuzzleByIndex={(record, index) => {
+            setCurrentPuzzleIndex(index);
+            // Tell the loadPuzzle effect to skip the random-from-bucket
+            // fetch — we're pinning a specific puzzle here.
+            suppressNextPuzzleLoadRef.current = true;
+            // Clear saved-state interception so future state changes proceed normally.
+            hasLoadedSavedStateRef.current = false;
             latestGridValuesRef.current = null;
+            latestPencilMarksRef.current = null;
+
+            const newSize = record.puzzle.size;
+            const newDifficulty = record.metadata.actual_difficulty;
+            const newOps = record.metadata.operations_tier ?? DEFAULT_OPERATION_TIER;
+
+            // Status bar / URL — keep them in sync with the loaded puzzle.
+            setPuzzleSize(newSize);
+            setDifficulty(newDifficulty);
+            setOperationsTier(newOps);
+            setSelectedSize(newSize);
+            setSelectedDifficulty(newDifficulty);
+            setSelectedOperationsTier(newOps);
+            updateURL(newSize, newDifficulty, newOps);
+
+            // Puzzle data
             setPuzzleDefinition({
               size: record.puzzle.size,
               cages: record.puzzle.cages,
@@ -1242,8 +1330,16 @@ function App() {
             setSolutionGrid(record.puzzle.solution);
             setInitialGridValues(undefined);
             setInitialPencilMarks(undefined);
+
+            // Game state reset
+            setIsGameWon(false);
+            setShowNewGameControls(false);
+            setCurrentCompletionTime(0);
+            completionTimeRef.current = 0;
             setGameStartTime(new Date());
             setIsTimerRunning(true);
+            // Force the grid to remount so it picks up the new puzzle cleanly.
+            setResetKey(prev => prev + 1);
           }}
         />
       )}
@@ -1266,6 +1362,7 @@ function App() {
           }}
         >
           v{APP_VERSION}
+          {currentPuzzleIndex !== null && ` · #${currentPuzzleIndex}`}
         </Box>
       )}
     </Box>

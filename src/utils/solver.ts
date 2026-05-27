@@ -126,6 +126,19 @@ type CageInfo = {
   everPossiblePerPos: Set<number>[];
 };
 
+export type SolveOptions = {
+  /** Cells the user has already placed. 0 means empty. */
+  startGrid?: number[][];
+  /** Pencil marks per cell. If provided, the solver starts from these
+   *  candidate sets instead of the full {1..size} default. */
+  startCandidates?: Set<number>[][];
+  /** Known solution. When provided alongside startCandidates, the solver
+   *  detects user pencil-mark sets that don't contain the solution value
+   *  for a cell (which would make the puzzle unsolvable from here) and
+   *  restores those candidates, emitting a step describing the fix. */
+  solution?: number[][];
+};
+
 class Solver {
   size: number;
   cages: CageInfo[];
@@ -135,8 +148,12 @@ class Solver {
   steps: SolverStep[];
   counts: Record<TechniqueId, number>;
   rawScore: number;
+  solution: number[][] | null;
 
-  constructor(puzzle: PuzzleDefinition, startGrid?: number[][]) {
+  constructor(puzzle: PuzzleDefinition, options: SolveOptions = {}) {
+    const startGrid = options.startGrid;
+    const startCandidates = options.startCandidates;
+    this.solution = options.solution ?? null;
     this.size = puzzle.size;
     this.steps = [];
     this.counts = {
@@ -192,7 +209,8 @@ class Solver {
       this.grid.push(row);
     }
 
-    // Initialize candidates from grid state
+    // Initialize candidates: start from user pencil marks if provided,
+    // else default to {1..size} for empty cells.
     this.candidates = [];
     for (let r = 0; r < this.size; r++) {
       const row: Set<number>[] = [];
@@ -200,7 +218,12 @@ class Solver {
         if (this.grid[r][c] !== 0) {
           row.push(new Set());
         } else {
-          row.push(new Set(range1(this.size)));
+          const userMarks = startCandidates?.[r]?.[c];
+          if (userMarks && userMarks.size > 0) {
+            row.push(new Set(userMarks));
+          } else {
+            row.push(new Set(range1(this.size)));
+          }
         }
       }
       this.candidates.push(row);
@@ -214,6 +237,52 @@ class Solver {
         }
       }
     }
+  }
+
+  /**
+   * If the user has eliminated the actual solution value from a cell's
+   * candidates (or wrongly placed a different value there), restore the
+   * correct candidate / fix the placement and emit a step describing what
+   * was changed. Returns true if any fixes were applied.
+   *
+   * Without this, starting from invalid user state would either crash the
+   * solver or force it into trial-and-error from a hopeless state.
+   */
+  private repairFromSolution(): boolean {
+    if (!this.solution) return false;
+    let fixed = false;
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        const correct = this.solution[r][c];
+        const placed = this.grid[r][c];
+        if (placed !== 0 && placed !== correct) {
+          // User placed the wrong value here. Clear it and restore candidates.
+          this.grid[r][c] = 0;
+          this.candidates[r][c] = new Set(range1(this.size));
+          // Re-eliminate from row/col based on other still-placed values
+          for (let i = 0; i < this.size; i++) {
+            if (this.grid[r][i] !== 0) this.candidates[r][c].delete(this.grid[r][i]);
+            if (this.grid[i][c] !== 0) this.candidates[r][c].delete(this.grid[i][c]);
+          }
+          this.recordStep(
+            'stipulated',
+            `Repair: ${cellLabel(r, c)} had ${placed} placed, but the solution is ${correct}. Cleared the wrong placement.`,
+            [{ row: r, col: c }]
+          );
+          fixed = true;
+        } else if (placed === 0 && !this.candidates[r][c].has(correct)) {
+          // User's pencil marks eliminated the correct value. Restore it.
+          this.candidates[r][c].add(correct);
+          this.recordStep(
+            'stipulated',
+            `Repair: restored ${correct} to ${cellLabel(r, c)} candidates — you had it eliminated, but it's the solution there.`,
+            [{ row: r, col: c }]
+          );
+          fixed = true;
+        }
+      }
+    }
+    return fixed;
   }
 
   private eliminateFromRowCol(row: number, col: number, value: number) {
@@ -918,6 +987,11 @@ class Solver {
    * be exploring dead-end branches looking for a second solution.
    */
   solve(maxSolutions = 1): SolverResult {
+    // Before anything else: if the user handed us invalid pencil marks or a
+    // wrong placement, fix it and tell them what we changed. Without this the
+    // logic loop would dead-end immediately.
+    this.repairFromSolution();
+
     // First: drop in every stipulated value (single-cell cages like "4="). These
     // are part of the puzzle definition and should always be placed before any
     // deductive reasoning starts.
@@ -1296,8 +1370,12 @@ function permutations<T>(arr: T[]): T[][] {
 
 export function solveWithTrace(
   puzzle: PuzzleDefinition,
-  startGrid?: number[][]
+  startGridOrOptions?: number[][] | SolveOptions
 ): SolverResult {
-  const solver = new Solver(puzzle, startGrid);
+  // Backwards-compat: a bare number[][] is the old `startGrid` arg.
+  const options: SolveOptions = Array.isArray(startGridOrOptions)
+    ? { startGrid: startGridOrOptions }
+    : (startGridOrOptions ?? {});
+  const solver = new Solver(puzzle, options);
   return solver.solve();
 }

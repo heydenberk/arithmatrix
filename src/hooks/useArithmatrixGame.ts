@@ -770,6 +770,19 @@ export const useArithmatrixGame = ({
     }
   };
 
+  /**
+   * Enter the same "temporary pencil mode" that regular shift+click sets,
+   * so a subsequent number keypress on a multi-cell selection produces
+   * pencil marks rather than a placement. Idempotent.
+   */
+  const enterTemporaryPencilMode = () => {
+    if (!isInTemporaryPencilMode) {
+      setPreviousMode(isPencilMode);
+      setIsPencilMode(true);
+      setIsInTemporaryPencilMode(true);
+    }
+  };
+
   return {
     // State
     gridValues,
@@ -777,6 +790,7 @@ export const useArithmatrixGame = ({
     isPencilMode,
     setIsPencilMode,
     isInTemporaryPencilMode,
+    enterTemporaryPencilMode,
     errorCells,
     flashingCells,
     selectedCells,

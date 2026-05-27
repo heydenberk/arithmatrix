@@ -69,13 +69,24 @@ const LEVEL_COLOR: Record<AnalysisRow['oldLevel'], string> = {
 type Props = {
   onClose: () => void;
   // Provided by App so the panel can swap in a specific puzzle.
-  onLoadPuzzleByIndex: (record: RawPuzzleRecord) => void;
+  onLoadPuzzleByIndex: (record: RawPuzzleRecord, index: number) => void;
 };
 
 const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
   const [puzzlesCache, setPuzzlesCache] = useState<RawPuzzleRecord[] | null>(null);
   const [indexInput, setIndexInput] = useState('');
   const [loadError, setLoadError] = useState<string | null>(null);
+  const indexInputRef = useRef<HTMLInputElement>(null);
+
+  // Focus + select on mount so Cmd+G is followed straight by typing.
+  useEffect(() => {
+    // Small delay so the input is actually mounted in the DOM tree.
+    const id = window.setTimeout(() => {
+      indexInputRef.current?.focus();
+      indexInputRef.current?.select();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, []);
 
   // Analysis state
   const [analyzing, setAnalyzing] = useState(false);
@@ -128,7 +139,7 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
       setLoadError(`Index must be 0–${puzzlesCache.length - 1}`);
       return;
     }
-    onLoadPuzzleByIndex(puzzlesCache[idx]);
+    onLoadPuzzleByIndex(puzzlesCache[idx], idx);
     onClose();
   };
 
@@ -229,6 +240,7 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
           <Text fw={700} size="sm" tt="uppercase" c="dimmed" mb={8}>Load puzzle by index</Text>
           <Group gap="xs" align="flex-end">
             <TextInput
+              ref={indexInputRef}
               placeholder={puzzlesCache ? `0–${puzzlesCache.length - 1}` : 'Loading puzzles…'}
               value={indexInput}
               onChange={e => setIndexInput(e.currentTarget.value)}

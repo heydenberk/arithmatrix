@@ -161,6 +161,17 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         cageCellKeys.forEach(k => next.add(k));
         return next;
       });
+      // Match regular shift+click behavior: enter temporary pencil mode so
+      // the next number key produces a pencil mark across the whole selection
+      // rather than placing a value in just the focused cell.
+      gameState.enterTemporaryPencilMode();
+      // Focus one of the cage's cells so subsequent keystrokes reach the cell
+      // input handler (which routes pencil-mark input to every selected cell).
+      const focusRow = Math.floor(cellIndex / size);
+      const focusCol = cellIndex % size;
+      setTimeout(() => {
+        gameState.inputRefs.current?.[focusRow]?.[focusCol]?.focus();
+      }, 0);
     };
 
     // Custom cell click handler for mobile that accumulates selection in pencil mode

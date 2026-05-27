@@ -38,10 +38,14 @@ type Props = {
   puzzleDefinition: PuzzleDefinition;
   // Optional initial grid (so the solver can pick up from current game state)
   initialGridValues?: string[][];
+  // User's pencil marks — used as starting candidate sets for the solver
+  initialPencilMarks?: Set<string>[][];
+  // Known solution — used to detect & repair invalid user candidate marks
+  solution?: number[][];
   onExit: () => void;
 };
 
-const SolverPlayback = ({ puzzleDefinition, initialGridValues, onExit }: Props) => {
+const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMarks, solution, onExit }: Props) => {
   const size = puzzleDefinition.size;
 
   // Compute the trace once
@@ -49,8 +53,30 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, onExit }: Props) 
     const startGrid = initialGridValues
       ? initialGridValues.map(row => row.map(v => (v === '' ? 0 : parseInt(v, 10) || 0)))
       : undefined;
-    return solveWithTrace(puzzleDefinition, startGrid);
-  }, [puzzleDefinition, initialGridValues]);
+
+    // Convert pencil marks (Set<string>) to Set<number>. Only pass through if
+    // the user has actually marked something on at least one cell.
+    let startCandidates: Set<number>[][] | undefined;
+    if (initialPencilMarks) {
+      let hasAny = false;
+      const converted: Set<number>[][] = initialPencilMarks.map(row =>
+        row.map(s => {
+          const conv = new Set<number>();
+          for (const v of s) {
+            const n = parseInt(v, 10);
+            if (!Number.isNaN(n)) {
+              conv.add(n);
+              hasAny = true;
+            }
+          }
+          return conv;
+        })
+      );
+      if (hasAny) startCandidates = converted;
+    }
+
+    return solveWithTrace(puzzleDefinition, { startGrid, startCandidates, solution });
+  }, [puzzleDefinition, initialGridValues, initialPencilMarks, solution]);
 
   const playback = useSolverPlayback(result, size);
   const {

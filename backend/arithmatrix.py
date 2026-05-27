@@ -101,37 +101,51 @@ def carve_square(square, cage_sizes, max_attempts=100):
         return unused
 
     def try_place_cage(used, start_row, start_col, target_size):
-        """Try to place a cage of target_size starting from the given position"""
+        """Try to place a cage of target_size starting from the given position.
+
+        Growth prefers cells with more unused neighbors (so we don't fragment
+        the board) AND breaks strict linearity when possible — for cages of
+        size 3+ we'd rather have an L/T/blob than a perfect line, since
+        non-linear cages create the positional constraints (elbow-style
+        intersections, multi-cage line locks) the new solver relies on.
+        """
         if used[start_row, start_col]:
             return None
 
-        # Use a more controlled approach - try different growth patterns
         cage_cells = [(start_row, start_col)]
         used_temp = used.copy()
         used_temp[start_row, start_col] = True
 
-        # Grow the cage one cell at a time, prioritizing shapes that don't fragment the board
+        def is_line_after_add(candidate):
+            """1 if adding `candidate` keeps the cage on a single row/col, else 0."""
+            rows = {r for r, _ in cage_cells} | {candidate[0]}
+            cols = {c for _, c in cage_cells} | {candidate[1]}
+            return 1 if (len(rows) == 1 or len(cols) == 1) else 0
+
+        # Grow the cage one cell at a time
         while len(cage_cells) < target_size:
             best_candidates = []
+            existing = set(cage_cells)
 
-            # Get all possible next cells
             for row, col in cage_cells:
                 neighbors = get_neighbors(row, col, used_temp)
                 for nr, nc in neighbors:
-                    if (nr, nc) not in [cell for cell in cage_cells]:
-                        # Count how many unused neighbors this cell would have
+                    if (nr, nc) not in existing:
                         future_neighbors = len(get_neighbors(nr, nc, used_temp))
-                        best_candidates.append((nr, nc, future_neighbors))
+                        line_penalty = is_line_after_add((nr, nc))
+                        best_candidates.append((nr, nc, future_neighbors, line_penalty))
 
             if not best_candidates:
                 return None
 
-            # Sort by number of future neighbors (prefer cells that don't isolate others)
-            # But also add some randomness to avoid getting stuck in patterns
-            best_candidates.sort(key=lambda x: (x[2], random.random()), reverse=True)
+            # Primary key: more unused future neighbors (avoid fragmenting board).
+            # Secondary key: non-line preferred (break perfect linearity).
+            # Tertiary: random jitter so equal-rank candidates rotate.
+            best_candidates.sort(
+                key=lambda x: (x[2], -x[3], random.random()), reverse=True
+            )
 
-            # Take the best candidate
-            next_row, next_col, _ = best_candidates[0]
+            next_row, next_col, _, _ = best_candidates[0]
             cage_cells.append((next_row, next_col))
             used_temp[next_row, next_col] = True
 
@@ -455,8 +469,8 @@ def generate_arithmatrix_puzzle(
     for attempt in range(max_difficulty_attempts):
         logger.info(f"Attempt {attempt + 1} of {max_difficulty_attempts}")
         try:
-            # Generate a basic puzzle
-            puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations)
+            # Generate a basic puzzle (cage-size distribution depends on target difficulty)
+            puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations, difficulty)
 
             # Use heuristic for initial filtering
             if use_heuristic:
@@ -509,29 +523,56 @@ def generate_arithmatrix_puzzle(
 
     # Last resort: return any valid puzzle
     logger.info("Falling back to basic generation")
-    puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations)
+    puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations, difficulty)
     stats = solve_puzzle(puzzle)
     puzzle["actual_difficulty"] = stats.difficulty_level if stats.is_valid else "unknown"
     puzzle["difficulty_score"] = stats.difficulty_score
     return puzzle
 
 
-def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None):
+# Cage-size weights for [1-cell, 2-cell, 3-cell, 4-cell, 5-cell] cages,
+# conditioned on target difficulty. Harder difficulties get fewer 1-cell
+# gimmes and more 3-5 cell cages, which give the solver positional work
+# (intersection/multi-cage line locks/elbow techniques). 5-cell cages stay
+# extremely rare regardless — they tend to be visually unwieldy and the
+# carver struggles to place them cleanly.
+_CAGE_SIZE_WEIGHTS = {
+    "easiest": [20, 30, 12, 6, 1],
+    "easy":    [15, 30, 18, 10, 1],
+    "medium":  [10, 30, 20, 15, 1],
+    "hard":    [6,  28, 25, 18, 2],
+    "expert":  [4,  22, 28, 22, 2],
+}
+
+
+def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None, difficulty="medium"):
     """Generate a basic Arithmatrix puzzle without difficulty filtering."""
     # Generate Latin square (uses pooled squares with adaptive isotopy for speed)
     square = get_latin_square(size)
 
-    # Generate cage sizes that sum to size^2
+    # Generate cage sizes that sum to size^2 and carve them — if a specific
+    # cage-size combo turns out to be un-carvable (the harder difficulties
+    # produce 4-cell-heavy distributions that occasionally just don't fit),
+    # re-roll the sizes a few times before giving up.
     total_cells = size * size
-    cage_sizes = dict(
-        zip(
-            string.ascii_uppercase,
-            weighted_partition_sample([5, 20, 5, 7, 1], total_cells),
-        )
-    )
+    weights = _CAGE_SIZE_WEIGHTS.get(difficulty, _CAGE_SIZE_WEIGHTS["medium"])
 
-    # Carve the square into cages
-    caged_square = carve_square(square, cage_sizes, max_attempts=max_attempts)
+    last_err: Exception | None = None
+    for _ in range(8):
+        cage_sizes = dict(
+            zip(
+                string.ascii_uppercase,
+                weighted_partition_sample(weights, total_cells),
+            )
+        )
+        try:
+            caged_square = carve_square(square, cage_sizes, max_attempts=max_attempts)
+            break
+        except ValueError as e:
+            last_err = e
+            continue
+    else:
+        raise last_err or ValueError("carve_square failed for all re-rolled cage-size combinations")
 
     # Get the values in each cage
     cage_values = get_cage_values(square, caged_square)
