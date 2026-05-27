@@ -1,32 +1,71 @@
 """
-Technique-based Arithmatrix solver with human-correlated difficulty scoring.
+Technique-based Arithmatrix solver.
 
-Solving techniques (in order of difficulty):
-1. Naked Single: Cell has only one valid candidate (row/col constraint)
-2. Hidden Single: Number can only go in one cell in a row/column
-3. Cage Single: Cage arithmetic leaves only one possibility for a cell
-4. Cage Combinations: Enumerate valid value combinations for a cage
-5. Intersection: Cage values constrained to specific row/col
-6. Trial and Error: Backtracking when logic fails
+Mirrors `src/utils/solver.ts` so the puzzle generator can rate difficulty
+using the same model the UI playback uses. The techniques and their weights
+match the TS implementation exactly.
 
-Difficulty is scored based on which techniques are required to solve.
+Solving techniques (cheapest to most expensive):
+  stipulated              0   single-cell cage → place its value
+  naked_single            1   only one candidate at a cell → place
+  cage_impossible         2   value never appears in any of a cage's combos
+  hidden_single           2   row/col has only one cell that can take a value
+  cage_single             3   cage filter forces a specific value at a cell
+  cage_locked             3   every surviving combo of a cage is the same multiset
+  cage_intersection       4   value v guaranteed in this cage's row/col → eliminate elsewhere
+  cage_combinations       5   per-cell positional narrowing within a cage
+  multi_cage_line_lock    8   joint analysis of two cages sharing a row/col
+  cross_cage_feasibility  10  combo eliminated because it would break another cage
+  trial_and_error         15  fallback backtracking
+
+The score is a weighted sum of technique applications, log-compressed and
+linearly mapped to 0-100 via size-specific anchors. Difficulty buckets:
+  ≤15 easiest, ≤30 easy, ≤50 medium, ≤70 hard, >70 expert.
 """
 
 import math
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import List, Set, Dict, Tuple, Optional
+from typing import Dict, List, Optional, Set, Tuple
 import itertools
 
 
 class Technique(IntEnum):
-    """Solving techniques in order of difficulty."""
-    NAKED_SINGLE = 1      # Only one number fits in cell
-    HIDDEN_SINGLE = 2     # Number can only go in one place in row/col
-    CAGE_SINGLE = 3       # Cage arithmetic forces a value
-    CAGE_COMBINATIONS = 4 # Enumerate cage possibilities
-    INTERSECTION = 5      # Cage constrains row/col
-    TRIAL_AND_ERROR = 6   # Backtracking required
+    """All solving techniques, in approximate difficulty order."""
+    STIPULATED = 0
+    NAKED_SINGLE = 1
+    CAGE_IMPOSSIBLE = 2
+    HIDDEN_SINGLE = 3
+    CAGE_SINGLE = 4
+    CAGE_LOCKED = 5
+    CAGE_INTERSECTION = 6
+    CAGE_COMBINATIONS = 7
+    MULTI_CAGE_LINE_LOCK = 8
+    CROSS_CAGE_FEASIBILITY = 9
+    TRIAL_AND_ERROR = 10
+
+
+TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
+    Technique.STIPULATED: 0,
+    Technique.NAKED_SINGLE: 1,
+    Technique.CAGE_IMPOSSIBLE: 2,
+    Technique.HIDDEN_SINGLE: 2,
+    Technique.CAGE_SINGLE: 3,
+    Technique.CAGE_LOCKED: 3,
+    Technique.CAGE_INTERSECTION: 4,
+    Technique.CAGE_COMBINATIONS: 5,
+    Technique.MULTI_CAGE_LINE_LOCK: 8,
+    Technique.CROSS_CAGE_FEASIBILITY: 10,
+    Technique.TRIAL_AND_ERROR: 15,
+}
+
+# Size-specific anchors in log2(raw_score) space. Linear map: low → 10, high → 90.
+SIZE_ANCHORS: Dict[int, Tuple[float, float]] = {
+    4: (5.5, 7.8),
+    5: (6.5, 8.3),
+    6: (7.15, 11.0),
+    7: (8.0, 16.0),
+}
 
 
 @dataclass
@@ -47,504 +86,682 @@ class SolveStats:
         return max(self.techniques_used.keys())
 
     @property
+    def raw_score(self) -> int:
+        return sum(TECHNIQUE_WEIGHTS.get(t, 0) * c for t, c in self.techniques_used.items())
+
+    @property
     def difficulty_score(self) -> float:
-        """
-        Calculate human-correlated difficulty score (0-100).
-
-        Uses a weighted sum of all technique applications (not just the
-        hardest technique) to produce a continuous score. Harder techniques
-        get higher weights, and more applications of any technique increase
-        the score. Log-scaling compresses the huge variance in raw counts,
-        and size-specific anchors normalize across grid sizes so that each
-        size can produce the full range from easiest to expert.
-        """
-        if not self.techniques_used:
-            return 0.0
-
-        # Weight each technique application by its difficulty
-        technique_weights = {
-            Technique.NAKED_SINGLE: 1,
-            Technique.HIDDEN_SINGLE: 2,
-            Technique.CAGE_SINGLE: 3,
-            Technique.CAGE_COMBINATIONS: 5,
-            Technique.INTERSECTION: 8,
-            Technique.TRIAL_AND_ERROR: 15,
-        }
-        raw = sum(technique_weights.get(t, 0) * c
-                  for t, c in self.techniques_used.items())
-
+        """0–100 normalized difficulty score (matches src/utils/solver.ts)."""
+        raw = self.raw_score
         if raw <= 0:
             return 0.0
-
         log_raw = math.log2(max(1, raw))
-
-        # Size-specific anchors in log2 space: (low, high)
-        # Calibrated from empirical data so that the median puzzle
-        # scores ~40-50 (medium) and the full range spans all levels.
-        anchors = {
-            4: (5.5, 7.8),
-            5: (6.5, 8.3),
-            6: (7.15, 11.0),
-            7: (8.0, 16.0),
-        }
-        low, high = anchors.get(self.size, (6.0, 12.0))
-
-        # Linear map: low → 10, high → 90
+        low, high = SIZE_ANCHORS.get(self.size, (6.0, 12.0))
         score = 10 + (log_raw - low) / (high - low) * 80
-
-        return min(100, max(0, score))
+        return min(100.0, max(0.0, score))
 
     @property
     def difficulty_level(self) -> str:
-        """Map score to difficulty level."""
         score = self.difficulty_score
         if score <= 15:
             return "easiest"
-        elif score <= 30:
+        if score <= 30:
             return "easy"
-        elif score <= 50:
+        if score <= 50:
             return "medium"
-        elif score <= 70:
+        if score <= 70:
             return "hard"
-        else:
-            return "expert"
+        return "expert"
+
+
+# --------------------------------------------------------------------------- #
+# Cage data structures                                                        #
+# --------------------------------------------------------------------------- #
+
+
+def _precompute_combinations(cage: dict, size: int) -> List[Tuple[int, ...]]:
+    """Enumerate all valid value tuples for this cage.
+
+    Respects the row/column uniqueness constraint: any two cells in the cage
+    that share a row or column must hold different values. So a 3-in-a-row
+    28× cage cannot use (2, 2, 7); an L-shaped 28× cage can use the (6, 7, 6)
+    combo only if the two 6s sit in non-shared rows AND non-shared columns.
+    """
+    n_cells = len(cage["cells"])
+    op = cage["operation"]
+    target = cage["value"]
+
+    coords = [(c // size, c % size) for c in cage["cells"]]
+    conflicts: List[Tuple[int, int]] = []
+    for i in range(n_cells):
+        for j in range(i + 1, n_cells):
+            if coords[i][0] == coords[j][0] or coords[i][1] == coords[j][1]:
+                conflicts.append((i, j))
+
+    def violates_uniqueness(combo: Tuple[int, ...]) -> bool:
+        return any(combo[i] == combo[j] for i, j in conflicts)
+
+    results: Set[Tuple[int, ...]] = set()
+
+    if op == "" or n_cells == 1:
+        results.add((target,))
+    elif op == "+":
+        for base in itertools.combinations_with_replacement(range(1, size + 1), n_cells):
+            if sum(base) == target:
+                for perm in set(itertools.permutations(base)):
+                    if not violates_uniqueness(perm):
+                        results.add(perm)
+    elif op == "*":
+        for base in itertools.combinations_with_replacement(range(1, size + 1), n_cells):
+            p = 1
+            for v in base:
+                p *= v
+            if p == target:
+                for perm in set(itertools.permutations(base)):
+                    if not violates_uniqueness(perm):
+                        results.add(perm)
+    elif op == "-":
+        for a in range(1, size + 1):
+            for b in range(1, size + 1):
+                if abs(a - b) == target:
+                    combo = (a, b)
+                    if not violates_uniqueness(combo):
+                        results.add(combo)
+    elif op in ("/", "÷"):
+        for a in range(1, size + 1):
+            for b in range(1, size + 1):
+                if (b != 0 and a == b * target) or (a != 0 and b == a * target):
+                    combo = (a, b)
+                    if not violates_uniqueness(combo):
+                        results.add(combo)
+
+    return list(results)
+
+
+# --------------------------------------------------------------------------- #
+# Solver                                                                      #
+# --------------------------------------------------------------------------- #
 
 
 class ArithmatrixSolver:
-    """
-    Technique-based solver that tracks which methods are needed.
-    """
+    """Technique-based solver matching src/utils/solver.ts."""
 
     def __init__(self, puzzle: dict):
-        self.size = puzzle["size"]
-        self.cages = puzzle["cages"]
+        self.size: int = puzzle["size"]
+        self.cages: List[dict] = puzzle["cages"]
 
-        # Initialize grid and candidates
-        self.grid = [[0] * self.size for _ in range(self.size)]
-        self.candidates = [[set(range(1, self.size + 1)) for _ in range(self.size)]
-                          for _ in range(self.size)]
+        # Cage cells as (row, col)
+        self.cage_cells: List[List[Tuple[int, int]]] = [
+            [(c // self.size, c % self.size) for c in cage["cells"]] for cage in self.cages
+        ]
+        # Precomputed combinations per cage (with uniqueness filter applied)
+        self.cage_combos: List[List[Tuple[int, ...]]] = [
+            _precompute_combinations(cage, self.size) for cage in self.cages
+        ]
+        # Ever-possible value sets per cell position within each cage —
+        # the union of combo[pos] across all combos. Independent of state,
+        # so used by cage_impossible to identify candidates that never
+        # appear no matter what.
+        self.cage_ever_possible: List[List[Set[int]]] = []
+        for combos in self.cage_combos:
+            if combos:
+                per_pos = [set() for _ in range(len(combos[0]))]
+                for combo in combos:
+                    for pos, v in enumerate(combo):
+                        per_pos[pos].add(v)
+                self.cage_ever_possible.append(per_pos)
+            else:
+                self.cage_ever_possible.append([])
 
-        # Build cage map
-        self.cell_to_cage: Dict[Tuple[int, int], dict] = {}
-        for cage in self.cages:
-            cage_info = {
-                "cells": [(c // self.size, c % self.size) for c in cage["cells"]],
-                "operation": cage["operation"],
-                "value": cage["value"],
-            }
-            for cell_idx in cage["cells"]:
-                row, col = cell_idx // self.size, cell_idx % self.size
-                self.cell_to_cage[(row, col)] = cage_info
-
-        # Precompute valid combinations for each cage
-        self._precompute_cage_combinations()
+        self.grid: List[List[int]] = [[0] * self.size for _ in range(self.size)]
+        self.candidates: List[List[Set[int]]] = [
+            [set(range(1, self.size + 1)) for _ in range(self.size)] for _ in range(self.size)
+        ]
 
         self.stats = SolveStats(size=self.size)
 
-    def _precompute_cage_combinations(self):
-        """Compute all valid value combinations for each cage."""
-        self.cage_combinations: Dict[int, List[Tuple[int, ...]]] = {}
+    # ----- core helpers ---------------------------------------------------- #
 
-        for i, cage in enumerate(self.cages):
-            cells = [(c // self.size, c % self.size) for c in cage["cells"]]
-            op = cage["operation"]
-            target = cage["value"]
-            n_cells = len(cells)
+    def _record(self, technique: Technique):
+        """Record a technique application. For non-easy techniques, also cascade
+        naked + hidden singles so cheaper deductions fire immediately."""
+        self.stats.record(technique)
+        if technique not in (Technique.NAKED_SINGLE, Technique.HIDDEN_SINGLE):
+            self._cascade_easy_techniques()
 
-            valid_combos = []
+    def _cascade_easy_techniques(self) -> bool:
+        """Repeat naked + hidden singles until neither finds anything."""
+        any_progress = False
+        while True:
+            progress = False
+            if self._apply_naked_singles():
+                progress = True
+            if self._apply_hidden_singles():
+                progress = True
+            if not progress:
+                return any_progress
+            any_progress = True
 
-            if op == "":
-                # Single cell - just the value
-                valid_combos = [(target,)]
-            elif op == "+":
-                # Addition - find all combinations that sum to target
-                for combo in itertools.combinations_with_replacement(range(1, self.size + 1), n_cells):
-                    if sum(combo) == target:
-                        # Add all permutations
-                        for perm in set(itertools.permutations(combo)):
-                            valid_combos.append(perm)
-            elif op == "*":
-                # Multiplication - find all combinations that multiply to target
-                for combo in itertools.combinations_with_replacement(range(1, self.size + 1), n_cells):
-                    prod = 1
-                    for v in combo:
-                        prod *= v
-                    if prod == target:
-                        for perm in set(itertools.permutations(combo)):
-                            valid_combos.append(perm)
-            elif op == "-":
-                # Subtraction (2 cells only)
-                for a in range(1, self.size + 1):
-                    for b in range(1, self.size + 1):
-                        if abs(a - b) == target:
-                            valid_combos.append((a, b))
-            elif op == "/":
-                # Division (2 cells only)
-                for a in range(1, self.size + 1):
-                    for b in range(1, self.size + 1):
-                        if b != 0 and a == b * target:
-                            valid_combos.append((a, b))
-                        if a != 0 and b == a * target:
-                            valid_combos.append((a, b))
-
-            self.cage_combinations[i] = list(set(valid_combos))
-
-    def _get_cage_index(self, row: int, col: int) -> int:
-        """Get the cage index for a cell."""
-        for i, cage in enumerate(self.cages):
-            if row * self.size + col in cage["cells"]:
-                return i
-        return -1
-
-    def _place(self, row: int, col: int, value: int):
-        """Place a value and update candidates."""
-        self.grid[row][col] = value
-        self.candidates[row][col] = set()
-
-        # Remove from row and column candidates
+    def _eliminate_from_row_col(self, row: int, col: int, value: int):
         for i in range(self.size):
             self.candidates[row][i].discard(value)
             self.candidates[i][col].discard(value)
 
-    def _unplace(self, row: int, col: int, value: int):
-        """Remove a value (for backtracking)."""
-        self.grid[row][col] = 0
-        # Rebuild candidates for this cell
-        self.candidates[row][col] = set(range(1, self.size + 1))
-        for i in range(self.size):
-            if self.grid[row][i] != 0:
-                self.candidates[row][col].discard(self.grid[row][i])
-            if self.grid[i][col] != 0:
-                self.candidates[row][col].discard(self.grid[i][col])
+    def _place(self, row: int, col: int, value: int):
+        self.grid[row][col] = value
+        self.candidates[row][col] = set()
+        self._eliminate_from_row_col(row, col, value)
+
+    def _surviving_combos(self, cage_idx: int) -> List[Tuple[int, ...]]:
+        cells = self.cage_cells[cage_idx]
+        placed: List[Tuple[int, int]] = []  # (pos, value)
+        for pos, (r, c) in enumerate(cells):
+            if self.grid[r][c] != 0:
+                placed.append((pos, self.grid[r][c]))
+        placed_positions = {p for p, _ in placed}
+
+        out: List[Tuple[int, ...]] = []
+        for combo in self.cage_combos[cage_idx]:
+            if any(combo[p] != v for p, v in placed):
+                continue
+            ok = True
+            for pos in range(len(cells)):
+                if pos in placed_positions:
+                    continue
+                r, c = cells[pos]
+                if combo[pos] not in self.candidates[r][c]:
+                    ok = False
+                    break
+            if ok:
+                out.append(combo)
+        return out
+
+    # ----- techniques ------------------------------------------------------ #
 
     def _apply_naked_singles(self) -> bool:
-        """Find cells with only one candidate. Returns True if progress made."""
         progress = False
-        for row in range(self.size):
-            for col in range(self.size):
-                if self.grid[row][col] == 0 and len(self.candidates[row][col]) == 1:
-                    value = next(iter(self.candidates[row][col]))
-                    self._place(row, col, value)
-                    self.stats.record(Technique.NAKED_SINGLE)
+        for r in range(self.size):
+            for c in range(self.size):
+                if self.grid[r][c] == 0 and len(self.candidates[r][c]) == 1:
+                    v = next(iter(self.candidates[r][c]))
+                    self._place(r, c, v)
+                    self._record(Technique.NAKED_SINGLE)
                     progress = True
         return progress
 
     def _apply_hidden_singles(self) -> bool:
-        """Find numbers that can only go in one place in a row/col."""
-        progress = False
-
-        # Check rows
-        for row in range(self.size):
+        # Rows
+        for r in range(self.size):
             for num in range(1, self.size + 1):
-                if any(self.grid[row][c] == num for c in range(self.size)):
-                    continue  # Already placed
-
-                possible_cols = [c for c in range(self.size)
-                               if self.grid[row][c] == 0 and num in self.candidates[row][c]]
-
-                if len(possible_cols) == 1:
-                    col = possible_cols[0]
-                    self._place(row, col, num)
-                    self.stats.record(Technique.HIDDEN_SINGLE)
-                    progress = True
-
-        # Check columns
-        for col in range(self.size):
-            for num in range(1, self.size + 1):
-                if any(self.grid[r][col] == num for r in range(self.size)):
+                if any(self.grid[r][c] == num for c in range(self.size)):
                     continue
+                possible = [c for c in range(self.size)
+                            if self.grid[r][c] == 0 and num in self.candidates[r][c]]
+                if len(possible) == 1:
+                    c = possible[0]
+                    self._place(r, c, num)
+                    self._record(Technique.HIDDEN_SINGLE)
+                    return True  # stop on first progress; outer loop will re-run
+        # Columns
+        for c in range(self.size):
+            for num in range(1, self.size + 1):
+                if any(self.grid[r][c] == num for r in range(self.size)):
+                    continue
+                possible = [r for r in range(self.size)
+                            if self.grid[r][c] == 0 and num in self.candidates[r][c]]
+                if len(possible) == 1:
+                    r = possible[0]
+                    self._place(r, c, num)
+                    self._record(Technique.HIDDEN_SINGLE)
+                    return True
+        return False
 
-                possible_rows = [r for r in range(self.size)
-                               if self.grid[r][col] == 0 and num in self.candidates[r][col]]
+    def _place_stipulated_cages(self):
+        for idx, cage in enumerate(self.cages):
+            if len(cage["cells"]) != 1:
+                continue
+            r, c = self.cage_cells[idx][0]
+            if self.grid[r][c] != 0:
+                continue
+            self._place(r, c, cage["value"])
+            self._record(Technique.STIPULATED)
 
-                if len(possible_rows) == 1:
-                    row = possible_rows[0]
-                    self._place(row, col, num)
-                    self.stats.record(Technique.HIDDEN_SINGLE)
-                    progress = True
+    def _apply_cage_impossible(self) -> bool:
+        """Remove candidates that don't appear in ANY combo of their cage."""
+        ordered = sorted(range(len(self.cages)),
+                         key=lambda i: len(self.cage_combos[i]))
+        for idx in ordered:
+            cells = self.cage_cells[idx]
+            ever = self.cage_ever_possible[idx]
+            if not ever:
+                continue
+            for pos, (r, c) in enumerate(cells):
+                if self.grid[r][c] != 0:
+                    continue
+                allowed = ever[pos]
+                to_remove = [v for v in self.candidates[r][c] if v not in allowed]
+                if to_remove:
+                    for v in to_remove:
+                        self.candidates[r][c].discard(v)
+                    self._record(Technique.CAGE_IMPOSSIBLE)
+                    return True
+        return False
 
-        return progress
+    def _apply_cage_locked(self) -> bool:
+        """When every surviving combo of a cage is the SAME multiset, narrow
+        each cell of the cage to those values in one deduction."""
+        ordered = sorted(range(len(self.cages)),
+                         key=lambda i: len(self.cage_combos[i]))
+        for idx in ordered:
+            cells = self.cage_cells[idx]
+            if all(self.grid[r][c] != 0 for r, c in cells):
+                continue
+            combos = self._surviving_combos(idx)
+            if not combos:
+                continue
+            first_sorted = tuple(sorted(combos[0]))
+            if any(tuple(sorted(c)) != first_sorted for c in combos[1:]):
+                continue
+            multiset = set(combos[0])
+            removed_any = False
+            for r, c in cells:
+                if self.grid[r][c] != 0:
+                    continue
+                to_remove = [v for v in self.candidates[r][c] if v not in multiset]
+                if to_remove:
+                    for v in to_remove:
+                        self.candidates[r][c].discard(v)
+                    removed_any = True
+            if removed_any:
+                self._record(Technique.CAGE_LOCKED)
+                return True
+        return False
 
-    def _apply_cage_constraints(self) -> bool:
-        """Use cage arithmetic to eliminate candidates."""
-        progress = False
+    def _narrow_cage(self, idx: int) -> bool:
+        cells = self.cage_cells[idx]
+        if all(self.grid[r][c] != 0 for r, c in cells):
+            return False
+        combos = self._surviving_combos(idx)
+        if not combos:
+            return False
+        for pos, (r, c) in enumerate(cells):
+            if self.grid[r][c] != 0:
+                continue
+            possible = {combo[pos] for combo in combos}
+            if len(possible) == 1:
+                v = next(iter(possible))
+                if v in self.candidates[r][c]:
+                    self._place(r, c, v)
+                    self._record(Technique.CAGE_SINGLE)
+                    return True
+            else:
+                to_remove = [v for v in self.candidates[r][c] if v not in possible]
+                if to_remove:
+                    for v in to_remove:
+                        self.candidates[r][c].discard(v)
+                    self._record(Technique.CAGE_COMBINATIONS)
+                    return True
+        return False
 
-        for cage_idx, cage in enumerate(self.cages):
-            cells = [(c // self.size, c % self.size) for c in cage["cells"]]
-            empty_cells = [(r, c) for r, c in cells if self.grid[r][c] == 0]
+    def _intersect_cage(self, idx: int) -> bool:
+        cells = self.cage_cells[idx]
+        if all(self.grid[r][c] != 0 for r, c in cells):
+            return False
+        combos = self._surviving_combos(idx)
+        if not combos:
+            return False
+        rows = {r for r, _ in cells}
+        cols = {c for _, c in cells}
+        for v in range(1, self.size + 1):
+            for line_row in rows:
+                min_count = min(
+                    sum(1 for pos, (r, _) in enumerate(cells) if r == line_row and combo[pos] == v)
+                    for combo in combos
+                )
+                if min_count < 1:
+                    continue
+                in_cage = {(r, c) for r, c in cells if r == line_row}
+                eliminated = False
+                for c in range(self.size):
+                    if (line_row, c) in in_cage:
+                        continue
+                    if self.grid[line_row][c] == 0 and v in self.candidates[line_row][c]:
+                        self.candidates[line_row][c].discard(v)
+                        eliminated = True
+                if eliminated:
+                    self._record(Technique.CAGE_INTERSECTION)
+                    return True
+            for line_col in cols:
+                min_count = min(
+                    sum(1 for pos, (_, c) in enumerate(cells) if c == line_col and combo[pos] == v)
+                    for combo in combos
+                )
+                if min_count < 1:
+                    continue
+                in_cage = {(r, c) for r, c in cells if c == line_col}
+                eliminated = False
+                for r in range(self.size):
+                    if (r, line_col) in in_cage:
+                        continue
+                    if self.grid[r][line_col] == 0 and v in self.candidates[r][line_col]:
+                        self.candidates[r][line_col].discard(v)
+                        eliminated = True
+                if eliminated:
+                    self._record(Technique.CAGE_INTERSECTION)
+                    return True
+        return False
 
-            if not empty_cells:
+    def _process_cages_by_strength(self) -> bool:
+        """For each cage (sorted by fewest combos first), do narrow + intersect.
+        Stops on first cage that makes progress so cheaper techniques re-run."""
+        ordered = sorted(range(len(self.cages)),
+                         key=lambda i: len(self.cage_combos[i]))
+        for idx in ordered:
+            if self._narrow_cage(idx):
+                return True
+            if self._intersect_cage(idx):
+                return True
+        return False
+
+    def _apply_multi_cage_line_lock(self) -> bool:
+        """Joint analysis of pairs of cages sharing a row or column."""
+        MAX_JOINT_COMBOS = 2000
+        for orientation in ("row", "col"):
+            for line in range(self.size):
+                pieces: List[Tuple[int, List[int]]] = []  # (cage_idx, line_positions)
+                for idx, cells in enumerate(self.cage_cells):
+                    line_positions = [
+                        pos for pos, (r, c) in enumerate(cells)
+                        if (r if orientation == "row" else c) == line
+                    ]
+                    if line_positions:
+                        pieces.append((idx, line_positions))
+                if len(pieces) < 2:
+                    continue
+                line_cells = [
+                    (line, i) if orientation == "row" else (i, line)
+                    for i in range(self.size)
+                ]
+                for a_i in range(len(pieces)):
+                    for b_i in range(a_i + 1, len(pieces)):
+                        idx_a, pos_a = pieces[a_i]
+                        idx_b, pos_b = pieces[b_i]
+                        combos_a = self._surviving_combos(idx_a)
+                        combos_b = self._surviving_combos(idx_b)
+                        if not combos_a or not combos_b:
+                            continue
+                        if len(combos_a) * len(combos_b) > MAX_JOINT_COMBOS:
+                            continue
+                        cells_a = [self.cage_cells[idx_a][p] for p in pos_a]
+                        cells_b = [self.cage_cells[idx_b][p] for p in pos_b]
+                        joint = set(cells_a) | set(cells_b)
+                        joint_sets: List[List[int]] = []
+                        for ca in combos_a:
+                            vals_a = [ca[p] for p in pos_a]
+                            for cb in combos_b:
+                                vals_b = [cb[p] for p in pos_b]
+                                all_vals = vals_a + vals_b
+                                if len(set(all_vals)) != len(all_vals):
+                                    continue
+                                joint_sets.append(all_vals)
+                        if not joint_sets:
+                            continue
+                        for v in range(1, self.size + 1):
+                            min_count = min(s.count(v) for s in joint_sets)
+                            if min_count < 1:
+                                continue
+                            eliminated = False
+                            for cell in line_cells:
+                                if cell in joint:
+                                    continue
+                                r, c = cell
+                                if self.grid[r][c] == 0 and v in self.candidates[r][c]:
+                                    self.candidates[r][c].discard(v)
+                                    eliminated = True
+                            if eliminated:
+                                self._record(Technique.MULTI_CAGE_LINE_LOCK)
+                                return True
+        return False
+
+    def _apply_cross_cage_feasibility(self) -> bool:
+        """Eliminate a combo if applying it would leave another cage with no
+        viable combinations. Expensive — only run when simpler techniques stall."""
+        MAX_COMBOS = 200
+        for idx_a in range(len(self.cages)):
+            cells_a = self.cage_cells[idx_a]
+            if all(self.grid[r][c] != 0 for r, c in cells_a):
+                continue
+            survivors_a = self._surviving_combos(idx_a)
+            if len(survivors_a) <= 1 or len(survivors_a) > MAX_COMBOS:
+                continue
+            cage_a_rowcols = {("r", r) for r, _ in cells_a} | {("c", c) for _, c in cells_a}
+            intersecting = [
+                idx_b for idx_b in range(len(self.cages))
+                if idx_b != idx_a
+                and any(("r", r) in cage_a_rowcols or ("c", c) in cage_a_rowcols
+                        for r, c in self.cage_cells[idx_b])
+            ]
+            if not intersecting:
                 continue
 
-            # Get valid combinations for this cage
-            valid_combos = self.cage_combinations[cage_idx]
-
-            # Filter combinations based on already-placed values
-            placed_values = []
-            placed_positions = []
-            for i, (r, c) in enumerate(cells):
-                if self.grid[r][c] != 0:
-                    placed_values.append((i, self.grid[r][c]))
-                    placed_positions.append(i)
-
-            # Filter to combos that match placed values
-            filtered_combos = []
-            for combo in valid_combos:
-                matches = True
-                for pos, val in placed_values:
-                    if combo[pos] != val:
-                        matches = False
-                        break
-                if matches:
-                    # Also check row/col constraints for empty cells
-                    valid = True
-                    for i, (r, c) in enumerate(cells):
-                        if i not in placed_positions:
-                            if combo[i] not in self.candidates[r][c]:
-                                valid = False
+            feasible: List[Tuple[int, ...]] = []
+            for combo_a in survivors_a:
+                temp_grid = [row[:] for row in self.grid]
+                temp_cands = [[set(s) for s in row] for row in self.candidates]
+                for pos, (r, c) in enumerate(cells_a):
+                    if temp_grid[r][c] != 0:
+                        continue
+                    v = combo_a[pos]
+                    temp_grid[r][c] = v
+                    temp_cands[r][c] = set()
+                    for i in range(self.size):
+                        temp_cands[r][i].discard(v)
+                        temp_cands[i][c].discard(v)
+                still_ok = True
+                for idx_b in intersecting:
+                    cells_b = self.cage_cells[idx_b]
+                    placed_b = []
+                    for pos, (r, c) in enumerate(cells_b):
+                        if temp_grid[r][c] != 0:
+                            placed_b.append((pos, temp_grid[r][c]))
+                    placed_pos = {p for p, _ in placed_b}
+                    has_viable = False
+                    for combo_b in self.cage_combos[idx_b]:
+                        if any(combo_b[p] != v for p, v in placed_b):
+                            continue
+                        ok = True
+                        for pos in range(len(cells_b)):
+                            if pos in placed_pos:
+                                continue
+                            r, c = cells_b[pos]
+                            if combo_b[pos] not in temp_cands[r][c]:
+                                ok = False
                                 break
-                    if valid:
-                        filtered_combos.append(combo)
+                        if ok:
+                            has_viable = True
+                            break
+                    if not has_viable:
+                        still_ok = False
+                        break
+                if still_ok:
+                    feasible.append(combo_a)
 
-            if not filtered_combos:
-                continue  # No valid combos - puzzle is invalid
-
-            # For each empty cell, find which values are possible
-            for i, (r, c) in enumerate(cells):
+            if not feasible or len(feasible) == len(survivors_a):
+                continue
+            for pos, (r, c) in enumerate(cells_a):
                 if self.grid[r][c] != 0:
                     continue
+                still_possible = {f[pos] for f in feasible}
+                to_remove = [v for v in self.candidates[r][c] if v not in still_possible]
+                if to_remove:
+                    for v in to_remove:
+                        self.candidates[r][c].discard(v)
+                    self._record(Technique.CROSS_CAGE_FEASIBILITY)
+                    return True
+        return False
 
-                possible_values = set(combo[i] for combo in filtered_combos)
+    # ----- driver loop ----------------------------------------------------- #
 
-                # If only one value possible, place it
-                if len(possible_values) == 1:
-                    value = next(iter(possible_values))
-                    if value in self.candidates[r][c]:
-                        self._place(r, c, value)
-                        self.stats.record(Technique.CAGE_SINGLE)
-                        progress = True
-                else:
-                    # Eliminate impossible values
-                    to_remove = self.candidates[r][c] - possible_values
-                    if to_remove:
-                        self.candidates[r][c] -= to_remove
-                        self.stats.record(Technique.CAGE_COMBINATIONS)
-                        progress = True
-
-        return progress
+    def _is_complete(self) -> bool:
+        return all(self.grid[r][c] != 0 for r in range(self.size) for c in range(self.size))
 
     def _is_valid(self) -> bool:
-        """Check if current state is valid (no empty candidates for empty cells)."""
-        for row in range(self.size):
-            for col in range(self.size):
-                if self.grid[row][col] == 0 and len(self.candidates[row][col]) == 0:
+        for r in range(self.size):
+            for c in range(self.size):
+                if self.grid[r][c] == 0 and len(self.candidates[r][c]) == 0:
                     return False
         return True
 
-    def _is_complete(self) -> bool:
-        """Check if puzzle is fully solved."""
-        return all(self.grid[r][c] != 0 for r in range(self.size) for c in range(self.size))
-
     def _verify_solution(self) -> bool:
-        """Verify the solution satisfies all constraints."""
-        # Check rows and columns
         for i in range(self.size):
-            row_vals = [self.grid[i][j] for j in range(self.size)]
-            col_vals = [self.grid[j][i] for j in range(self.size)]
-            if set(row_vals) != set(range(1, self.size + 1)):
+            row_vals = {self.grid[i][j] for j in range(self.size)}
+            col_vals = {self.grid[j][i] for j in range(self.size)}
+            if row_vals != set(range(1, self.size + 1)):
                 return False
-            if set(col_vals) != set(range(1, self.size + 1)):
+            if col_vals != set(range(1, self.size + 1)):
                 return False
-
-        # Check cages
-        for cage in self.cages:
-            cells = [(c // self.size, c % self.size) for c in cage["cells"]]
-            values = [self.grid[r][c] for r, c in cells]
+        for idx, cage in enumerate(self.cages):
+            vals = [self.grid[r][c] for r, c in self.cage_cells[idx]]
             op = cage["operation"]
             target = cage["value"]
-
             if op == "":
-                if values[0] != target:
+                if vals[0] != target:
                     return False
             elif op == "+":
-                if sum(values) != target:
+                if sum(vals) != target:
                     return False
             elif op == "*":
                 prod = 1
-                for v in values:
+                for v in vals:
                     prod *= v
                 if prod != target:
                     return False
             elif op == "-":
-                if abs(values[0] - values[1]) != target:
+                if abs(vals[0] - vals[1]) != target:
                     return False
-            elif op == "/":
-                a, b = values
+            elif op in ("/", "÷"):
+                a, b = vals
                 if not ((b != 0 and a == b * target) or (a != 0 and b == a * target)):
                     return False
-
         return True
 
-    def _solve_with_backtracking(self, max_solutions: int = 2) -> int:
-        """
-        Backtracking solver for when logic techniques aren't enough.
-        Returns number of solutions found (up to max_solutions).
-        """
-        # First apply all logic techniques
+    def _run_logic_loop(self):
+        """Easiest-first restart. After any successful technique we go back
+        to the top — cheaper techniques re-run before any more expensive one."""
         while True:
-            progress = False
-            progress = self._apply_naked_singles() or progress
-            progress = self._apply_hidden_singles() or progress
-            progress = self._apply_cage_constraints() or progress
+            if self._cascade_easy_techniques():
+                continue
+            if self._apply_cage_impossible():
+                continue
+            if self._apply_cage_locked():
+                continue
+            if self._process_cages_by_strength():
+                continue
+            if self._apply_multi_cage_line_lock():
+                continue
+            if self._apply_cross_cage_feasibility():
+                continue
+            break
 
-            if not progress:
-                break
-
-            if not self._is_valid():
-                return 0
-
+    def _backtrack(self, remaining: int) -> int:
+        if remaining <= 0:
+            return 0
+        self._run_logic_loop()
         if self._is_complete():
             return 1 if self._verify_solution() else 0
-
         if not self._is_valid():
             return 0
 
-        # Find cell with fewest candidates (MRV heuristic)
-        min_candidates = self.size + 1
-        best_cell = None
-        for row in range(self.size):
-            for col in range(self.size):
-                if self.grid[row][col] == 0:
-                    n = len(self.candidates[row][col])
-                    if n < min_candidates:
-                        min_candidates = n
-                        best_cell = (row, col)
-
-        if best_cell is None:
+        # MRV: pick empty cell with fewest candidates
+        best: Optional[Tuple[int, int, int]] = None
+        for r in range(self.size):
+            for c in range(self.size):
+                if self.grid[r][c] == 0:
+                    n = len(self.candidates[r][c])
+                    if best is None or n < best[2]:
+                        best = (r, c, n)
+        if best is None:
             return 0
+        row, col, _ = best
+        tries = sorted(self.candidates[row][col])
 
-        row, col = best_cell
-        solutions = 0
+        found = 0
+        for value in tries:
+            saved_grid = [r[:] for r in self.grid]
+            saved_cands = [[set(s) for s in r] for r in self.candidates]
+            saved_counts = dict(self.stats.techniques_used)
 
-        # Record that we needed trial and error
-        self.stats.record(Technique.TRIAL_AND_ERROR)
-
-        # Save state
-        saved_grid = [row[:] for row in self.grid]
-        saved_candidates = [[cell.copy() for cell in row] for row in self.candidates]
-
-        for value in list(self.candidates[row][col]):
-            # Restore state
-            self.grid = [r[:] for r in saved_grid]
-            self.candidates = [[c.copy() for c in r] for r in saved_candidates]
-
-            # Try this value
             self._place(row, col, value)
+            self._record(Technique.TRIAL_AND_ERROR)
 
-            solutions += self._solve_with_backtracking(max_solutions - solutions)
+            found += self._backtrack(remaining - found)
+            if found >= remaining:
+                return found
 
-            if solutions >= max_solutions:
-                break
+            # Failed branch: restore state. Charge one T&E for the dead end
+            # (so the cost of the guess is reflected in difficulty).
+            self.grid = saved_grid
+            self.candidates = saved_cands
+            self.stats.techniques_used = saved_counts
+            self.stats.record(Technique.TRIAL_AND_ERROR)
+        return found
 
-        # Restore state
-        self.grid = saved_grid
-        self.candidates = saved_candidates
-
-        return solutions
-
-    def solve(self, count_solutions: bool = True) -> SolveStats:
-        """
-        Solve the puzzle and return statistics.
-
-        Args:
-            count_solutions: If True, verify exactly one solution exists
-
-        Returns:
-            SolveStats with technique usage and difficulty score
-        """
+    def solve(self, max_solutions: int = 1) -> SolveStats:
+        """Solve, returning stats. Stops at the first solution found by default
+        (matches the TS solver's behavior for UI playback)."""
         self.stats = SolveStats(size=self.size)
-
-        # Reset grid
         self.grid = [[0] * self.size for _ in range(self.size)]
-        self.candidates = [[set(range(1, self.size + 1)) for _ in range(self.size)]
-                          for _ in range(self.size)]
+        self.candidates = [
+            [set(range(1, self.size + 1)) for _ in range(self.size)] for _ in range(self.size)
+        ]
 
-        # Apply initial cage constraints to reduce candidates
-        self._apply_cage_constraints()
+        self._place_stipulated_cages()
+        self._run_logic_loop()
 
-        # Try to solve with logic techniques first
-        while True:
-            progress = False
-            progress = self._apply_naked_singles() or progress
-            progress = self._apply_hidden_singles() or progress
-            progress = self._apply_cage_constraints() or progress
+        solution_count = 0
+        if self._is_complete():
+            solution_count = 1 if self._verify_solution() else 0
+        elif self._is_valid():
+            solution_count = self._backtrack(max_solutions)
 
-            if not progress:
-                break
-
-            if not self._is_valid():
-                self.stats.is_valid = False
-                return self.stats
-
-        # If not complete, need backtracking
-        if not self._is_complete():
-            solution_count = self._solve_with_backtracking(max_solutions=2 if count_solutions else 1)
-            self.stats.solution_count = solution_count
-            self.stats.is_valid = solution_count == 1
-        else:
-            if self._verify_solution():
-                self.stats.solution_count = 1
-                self.stats.is_valid = True
-            else:
-                self.stats.is_valid = False
-
+        self.stats.solution_count = solution_count
+        self.stats.is_valid = solution_count == 1
         return self.stats
 
 
+# --------------------------------------------------------------------------- #
+# Convenience API (preserved for callers)                                     #
+# --------------------------------------------------------------------------- #
+
+
 def solve_puzzle(puzzle: dict) -> SolveStats:
-    """Convenience function to solve a puzzle and get stats."""
-    solver = ArithmatrixSolver(puzzle)
-    return solver.solve()
+    return ArithmatrixSolver(puzzle).solve()
 
 
 def get_difficulty(puzzle: dict) -> Tuple[str, float]:
-    """Get difficulty level and score for a puzzle."""
     stats = solve_puzzle(puzzle)
     return stats.difficulty_level, stats.difficulty_score
 
 
 def estimate_difficulty_fast(puzzle: dict) -> Tuple[str, float]:
-    """
-    Fast difficulty estimation without solving.
+    """Fast heuristic without running the full solver.
 
-    Key insight: puzzles that require backtracking (trial-and-error) are hard/expert.
-    Puzzles solvable with logic alone are easier.
-
-    Factors that predict need for backtracking:
-    - Few single-cell cages (gimmes give free starting points)
-    - Large cages (more ambiguity)
-    - Many combinations per cage
-    - Low constraint density
-
-    Returns (difficulty_level, score)
+    Used by the generator to filter candidate puzzles before paying the cost
+    of a full solve. Hand-tuned approximation — should not be relied on as a
+    final difficulty rating; that's what `solve_puzzle` is for.
     """
     size = puzzle["size"]
     cages = puzzle["cages"]
-    total_cells = size * size
 
-    # Count cage types
     single_cells = sum(1 for c in cages if len(c["cells"]) == 1)
     two_cells = sum(1 for c in cages if len(c["cells"]) == 2)
-    three_cells = sum(1 for c in cages if len(c["cells"]) == 3)
     large_cells = sum(1 for c in cages if len(c["cells"]) >= 4)
 
-    # Calculate total combinations across all cages
     total_combos = 0
     for cage in cages:
         n_cells = len(cage["cells"])
         op = cage["operation"]
         target = cage["value"]
-
         if n_cells == 1:
             total_combos += 1
         elif op == "+":
@@ -552,46 +769,33 @@ def estimate_difficulty_fast(puzzle: dict) -> Tuple[str, float]:
         elif op == "*":
             total_combos += _count_multiplication_combos(n_cells, target, size)
         elif op == "-":
-            total_combos += sum(1 for a in range(1, size+1) for b in range(1, size+1)
-                               if abs(a-b) == target)
-        elif op == "/":
-            total_combos += sum(1 for a in range(1, size+1) for b in range(1, size+1)
-                               if (b != 0 and a == b * target) or (a != 0 and b == a * target))
+            total_combos += sum(
+                1 for a in range(1, size + 1) for b in range(1, size + 1)
+                if abs(a - b) == target
+            )
+        elif op in ("/", "÷"):
+            total_combos += sum(
+                1 for a in range(1, size + 1) for b in range(1, size + 1)
+                if (b != 0 and a == b * target) or (a != 0 and b == a * target)
+            )
 
-    # Gimme ratio - more gimmes = easier
-    gimme_ratio = single_cells / len(cages)
+    n_cages = max(1, len(cages))
+    gimme_ratio = single_cells / n_cages
+    constraint_ratio = (single_cells + two_cells) / n_cages
+    non_single_cages = max(1, n_cages - single_cells)
+    avg_combos = (total_combos - single_cells) / non_single_cages
 
-    # Constraint ratio - more 2-cell cages = more constraints = easier
-    constraint_ratio = (single_cells + two_cells) / len(cages)
-
-    # Average combinations per cage (excluding singles)
-    non_single_cages = len(cages) - single_cells
-    avg_combos = (total_combos - single_cells) / max(1, non_single_cages)
-
-    # Build score (0-100)
-    # Base score from grid size
     base = {4: 40, 5: 50, 6: 60, 7: 70}.get(size, 60)
-
-    # Adjust for gimmes (each gimme reduces difficulty)
     score = base - (gimme_ratio * 40)
-
-    # Adjust for large cages (each large cage adds difficulty)
     score += large_cells * 8
-
-    # Adjust for average combinations
     if avg_combos > 10:
         score += min(15, (avg_combos - 10) * 1.5)
     elif avg_combos < 5:
         score -= (5 - avg_combos) * 3
-
-    # Low constraint ratio = harder
     if constraint_ratio < 0.5:
         score += 10
+    score = max(0.0, min(100.0, score))
 
-    # Clamp
-    score = max(0, min(100, score))
-
-    # Map to level (same thresholds as SolveStats.difficulty_level)
     if score <= 15:
         level = "easiest"
     elif score <= 30:
@@ -602,88 +806,61 @@ def estimate_difficulty_fast(puzzle: dict) -> Tuple[str, float]:
         level = "hard"
     else:
         level = "expert"
-
     return level, score
 
 
 def _count_addition_combos(n_cells: int, target: int, size: int) -> int:
-    """Count valid addition combinations."""
     count = 0
-    # Use itertools for small cases
     if n_cells <= 3:
         for combo in itertools.combinations_with_replacement(range(1, size + 1), n_cells):
             if sum(combo) == target:
                 count += len(set(itertools.permutations(combo)))
     else:
-        # Estimate for larger cages
-        count = max(1, target // n_cells)  # Rough estimate
+        count = max(1, target // n_cells)
     return count
 
 
 def _count_multiplication_combos(n_cells: int, target: int, size: int) -> int:
-    """Count valid multiplication combinations."""
     count = 0
     if n_cells <= 3:
         for combo in itertools.combinations_with_replacement(range(1, size + 1), n_cells):
-            prod = 1
+            p = 1
             for v in combo:
-                prod *= v
-            if prod == target:
+                p *= v
+            if p == target:
                 count += len(set(itertools.permutations(combo)))
     else:
-        # Estimate
-        count = max(1, 3)
+        count = 3
     return count
 
 
 if __name__ == "__main__":
+    import json
     import sys
     import time
-    sys.path.insert(0, ".")
 
+    sys.path.insert(0, ".")
     from arithmatrix import _generate_basic_puzzle
     from latin_square import warm_up_pool
 
     warm_up_pool()
-
-    print("=== Technique-Based Solver Test ===\n")
+    print("=== New Python solver smoke test ===\n")
 
     for size in [4, 5, 6, 7]:
-        print(f"{size}x{size} puzzles:")
-
-        solve_times = []
-        estimate_times = []
-        valid = 0
-        solved_difficulties = {level: 0 for level in ["easiest", "easy", "medium", "hard", "expert"]}
-        estimated_difficulties = {level: 0 for level in ["easiest", "easy", "medium", "hard", "expert"]}
-
-        for _ in range(20):
-            try:
-                puzzle = _generate_basic_puzzle(size, max_attempts=100)
-            except ValueError:
-                continue
-
-            # Fast estimate
-            start = time.time()
-            est_level, est_score = estimate_difficulty_fast(puzzle)
-            estimate_times.append(time.time() - start)
-            estimated_difficulties[est_level] += 1
-
-            # Full solve
-            start = time.time()
-            stats = solve_puzzle(puzzle)
-            solve_times.append(time.time() - start)
-
-            if stats.is_valid:
-                valid += 1
-                solved_difficulties[stats.difficulty_level] += 1
-
-        if solve_times:
-            avg_solve = sum(solve_times) / len(solve_times) * 1000
-            avg_estimate = sum(estimate_times) / len(estimate_times) * 1000
-            print(f"  Solve time:    {avg_solve:.1f}ms avg")
-            print(f"  Estimate time: {avg_estimate:.3f}ms avg ({avg_solve/avg_estimate:.0f}x faster)")
-            print(f"  Valid puzzles: {valid}/{len(solve_times)}")
-            print(f"  Solved dist:   {dict((k,v) for k,v in solved_difficulties.items() if v > 0)}")
-            print(f"  Estimate dist: {dict((k,v) for k,v in estimated_difficulties.items() if v > 0)}")
-        print()
+        for diff in ["easiest", "easy", "medium", "hard", "expert"]:
+            ok = 0
+            times = []
+            stats_dist = {"easiest": 0, "easy": 0, "medium": 0, "hard": 0, "expert": 0}
+            for _ in range(5):
+                try:
+                    puzzle = _generate_basic_puzzle(size, max_attempts=200, difficulty=diff)
+                except Exception:
+                    continue
+                t0 = time.time()
+                stats = solve_puzzle(puzzle)
+                times.append((time.time() - t0) * 1000)
+                if stats.is_valid:
+                    ok += 1
+                    stats_dist[stats.difficulty_level] += 1
+            avg = sum(times) / max(1, len(times))
+            print(f"{size}x{size} target={diff:8} ok={ok}/5  avg={avg:6.1f}ms  observed: {stats_dist}")
