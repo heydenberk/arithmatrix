@@ -60,11 +60,15 @@ TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
 }
 
 # Size-specific anchors in log2(raw_score) space. Linear map: low → 10, high → 90.
+# Calibrated against the empirical p10/p90 of the new technique set across the
+# 4000-puzzle corpus (see scripts/calibrate-anchors.py). The old anchors were
+# fit to the old scoring model and produced systematically low scores under
+# the new techniques (everything read as "easiest"/"easy").
 SIZE_ANCHORS: Dict[int, Tuple[float, float]] = {
-    4: (5.5, 7.8),
-    5: (6.5, 8.3),
-    6: (7.15, 11.0),
-    7: (8.0, 16.0),
+    4: (4.25, 5.73),
+    5: (5.17, 6.66),
+    6: (6.07, 8.02),
+    7: (6.98, 8.99),
 }
 
 

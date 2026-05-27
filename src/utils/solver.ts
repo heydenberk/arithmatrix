@@ -81,12 +81,14 @@ export type SolverResult = {
   isValid: boolean;
 };
 
-// ANCHOR points for log-normalized score, copied from backend/solver.py
+// Size-specific log2(raw_score) anchors. Calibrated against p10/p90 of the
+// empirical raw-score distribution across the corpus under the new technique
+// set (see scripts/calibrate-anchors.py).
 const SIZE_ANCHORS: Record<number, [number, number]> = {
-  4: [5.5, 7.8],
-  5: [6.5, 8.3],
-  6: [7.15, 11.0],
-  7: [8.0, 16.0],
+  4: [4.25, 5.73],
+  5: [5.17, 6.66],
+  6: [6.07, 8.02],
+  7: [6.98, 8.99],
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
