@@ -163,6 +163,17 @@ class GameState:
                 return False
         return True
 
+    def wrong_cells(self):
+        """Filled cells whose value differs from the puzzle's unique solution."""
+        n = self.size
+        return {
+            (r, c)
+            for r in range(n)
+            for c in range(n)
+            if self.grid[r][c] is not None
+            and self.grid[r][c] != self.solution[r][c]
+        }
+
     # ------------------------------------------------------------------
     # Private history helpers
     # ------------------------------------------------------------------

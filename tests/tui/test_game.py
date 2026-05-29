@@ -160,3 +160,20 @@ def test_cage_satisfied_division():
 
 def test_cage_satisfied_unknown_op():
     assert cage_satisfied("?", 1, [1]) is False
+
+
+def test_wrong_cells_flags_only_mismatches():
+    g = GameState(PUZZLE_4)
+    # Empty board (only givens, which are correct) → no wrong cells.
+    assert g.wrong_cells() == set()
+    # Enter a correct value at (1,1) (solution is 2) → still none.
+    g.cursor = (1, 1)
+    g.set_value(2)
+    assert g.wrong_cells() == set()
+    # Enter a wrong value at (1,2) (solution is 1) → flagged.
+    g.cursor = (1, 2)
+    g.set_value(3)
+    assert g.wrong_cells() == {(1, 2)}
+    # Clearing it removes the flag.
+    g.clear()
+    assert g.wrong_cells() == set()

@@ -59,6 +59,7 @@ class GameScreen(Screen):
         ("right", "move(0,1)", "Right"),
         ("backspace", "clear", "Clear"),
         ("p", "toggle_pencil_mode", "Pencil"),
+        ("c", "check", "Check"),
         ("u", "undo", "Undo"),
         ("r", "redo", "Redo"),
         ("n", "new_puzzle", "New"),
@@ -88,8 +89,13 @@ class GameScreen(Screen):
         mode = "PENCIL" if self.pencil_mode else "NORMAL"
         self.status.update(
             f"{self.puzzle_size}x{self.puzzle_size} {self.difficulty}  |  mode: {mode}  |  "
-            f"1-9 fill · backspace clear · p pencil · u/r undo/redo · n new · q quit"
+            f"1-9 fill · backspace clear · p pencil · c check · u/r undo/redo · n new · q quit"
         )
+
+    def _clear_check(self):
+        """Drop any stale 'check' highlight after the board changes."""
+        if self.grid_widget.wrong:
+            self.grid_widget.wrong = set()
 
     def action_move(self, dr: int, dc: int) -> None:
         self.game.move(dr, dc)
@@ -102,6 +108,7 @@ class GameScreen(Screen):
                 self.game.toggle_pencil(digit)
             else:
                 self.game.set_value(digit)
+            self._clear_check()
             self._check_solved()
             self._refresh()
             event.stop()
@@ -109,18 +116,35 @@ class GameScreen(Screen):
 
     def action_clear(self) -> None:
         self.game.clear()
+        self._clear_check()
         self._refresh()
 
     def action_toggle_pencil_mode(self) -> None:
         self.pencil_mode = not self.pencil_mode
         self._refresh()
 
+    def action_check(self) -> None:
+        wrong = self.game.wrong_cells()
+        self.grid_widget.wrong = wrong
+        self._refresh()
+        if wrong:
+            n = len(wrong)
+            self.notify(
+                f"{n} incorrect cell{'s' if n != 1 else ''}.",
+                title="Check",
+                severity="warning",
+            )
+        else:
+            self.notify("No mistakes so far!", title="Check")
+
     def action_undo(self) -> None:
         self.game.undo()
+        self._clear_check()
         self._refresh()
 
     def action_redo(self) -> None:
         self.game.redo()
+        self._clear_check()
         self._refresh()
 
     def action_new_puzzle(self) -> None:
