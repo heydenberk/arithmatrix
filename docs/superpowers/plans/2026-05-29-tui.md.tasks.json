@@ -1,0 +1,47 @@
+{
+  "planPath": "docs/superpowers/plans/2026-05-29-tui.md",
+  "tasks": [
+    {
+      "id": 1,
+      "subject": "Task 1: Package scaffolding + puzzle loader",
+      "status": "pending",
+      "description": "**Goal:** A `tui` package that loads and filters puzzles from public/all_puzzles.jsonl.\n\n**Files:** tui/__init__.py, tui/requirements.txt, tui/puzzles.py, tests/tui/__init__.py, tests/tui/test_puzzles.py\n\n**Verify:** python -m pytest tests/tui/test_puzzles.py -v\n\n```json:metadata\n{\"files\": [\"tui/__init__.py\",\"tui/requirements.txt\",\"tui/puzzles.py\",\"tests/tui/__init__.py\",\"tests/tui/test_puzzles.py\"], \"verifyCommand\": \"python -m pytest tests/tui/test_puzzles.py -v\", \"acceptanceCriteria\": [\"load_puzzles filters by size+difficulty\",\"pick_random deterministic + None on empty\",\"missing file raises FileNotFoundError\"]}\n```"
+    },
+    {
+      "id": 2,
+      "subject": "Task 2: GameState core — cages, givens, cursor, fill/clear",
+      "status": "pending",
+      "blockedBy": [1],
+      "description": "**Goal:** Pure-logic board with locked givens, cursor movement, value fill/clear.\n\n**Files:** tui/game.py, tests/tui/test_game.py\n\n**Verify:** python -m pytest tests/tui/test_game.py -v\n\n```json:metadata\n{\"files\": [\"tui/game.py\",\"tests/tui/test_game.py\"], \"verifyCommand\": \"python -m pytest tests/tui/test_game.py -v\", \"acceptanceCriteria\": [\"givens prefilled+locked\",\"set/clear no-op on givens\",\"move clamps; cage_of + label correct\"]}\n```"
+    },
+    {
+      "id": 3,
+      "subject": "Task 3: Pencil marks + undo/redo",
+      "status": "pending",
+      "blockedBy": [2],
+      "description": "**Goal:** Candidate pencil marks and full undo/redo history on GameState.\n\n**Files:** tui/game.py, tests/tui/test_game.py\n\n**Verify:** python -m pytest tests/tui/test_game.py -v\n\n```json:metadata\n{\"files\": [\"tui/game.py\",\"tests/tui/test_game.py\"], \"verifyCommand\": \"python -m pytest tests/tui/test_game.py -v\", \"acceptanceCriteria\": [\"pencil toggle + block on filled\",\"push only on change\",\"undo/redo + tail truncation\"]}\n```"
+    },
+    {
+      "id": 4,
+      "subject": "Task 4: Win detection",
+      "status": "pending",
+      "blockedBy": [3],
+      "description": "**Goal:** is_solved() validating Latin-square + every cage operation, matching backend semantics.\n\n**Files:** tui/game.py, tests/tui/test_game.py\n\n**Verify:** python -m pytest tests/tui/test_game.py -v\n\n```json:metadata\n{\"files\": [\"tui/game.py\",\"tests/tui/test_game.py\"], \"verifyCommand\": \"python -m pytest tests/tui/test_game.py -v\", \"acceptanceCriteria\": [\"false when empty/non-latin\",\"cage ops match backend\",\"solution -> solved\"]}\n```"
+    },
+    {
+      "id": 5,
+      "subject": "Task 5: Pure text rendering of the grid",
+      "status": "pending",
+      "blockedBy": [4],
+      "description": "**Goal:** Pure grid_to_lines(state) rendering board as plain text with heavy cage borders, plus cage_edges geometry.\n\n**Files:** tui/game.py, tui/render.py, tests/tui/test_render.py\n\n**Verify:** python -m pytest tests/tui/test_render.py -v\n\n```json:metadata\n{\"files\": [\"tui/game.py\",\"tui/render.py\",\"tests/tui/test_render.py\"], \"verifyCommand\": \"python -m pytest tests/tui/test_render.py -v\", \"acceptanceCriteria\": [\"cage_edges boundary booleans\",\"grid_to_lines dims+content\",\"heavy borders only\"]}\n```"
+    },
+    {
+      "id": 6,
+      "subject": "Task 6: Textual widgets, screens, app + entry point",
+      "status": "pending",
+      "blockedBy": [5],
+      "description": "**Goal:** Wire puzzles + GameState + render into a runnable Textual app with picker, grid, cursor highlight, key bindings, win notification.\n\n**Files:** tui/widgets.py, tui/screens.py, tui/app.py, tui/__main__.py, tests/tui/test_app.py, tests/tui/conftest.py, package.json\n\n**Verify:** python -m pytest tests/tui/test_app.py -v -o asyncio_mode=auto\n\n```json:metadata\n{\"files\": [\"tui/widgets.py\",\"tui/screens.py\",\"tui/app.py\",\"tui/__main__.py\",\"tests/tui/test_app.py\",\"tests/tui/conftest.py\",\"package.json\"], \"verifyCommand\": \"python -m pytest tests/tui/test_app.py -v -o asyncio_mode=auto\", \"acceptanceCriteria\": [\"picker->game launch\",\"bindings work\",\"solved notification\",\"pilot smoke passes\"]}\n```"
+    }
+  ],
+  "lastUpdated": "2026-05-29T00:00:00Z"
+}
