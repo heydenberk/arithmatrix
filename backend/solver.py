@@ -65,10 +65,10 @@ TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
 # fit to the old scoring model and produced systematically low scores under
 # the new techniques (everything read as "easiest"/"easy").
 SIZE_ANCHORS: Dict[int, Tuple[float, float]] = {
-    4: (4.25, 5.73),
-    5: (5.17, 6.66),
-    6: (6.07, 8.02),
-    7: (6.98, 8.99),
+    4: (4.0, 6.21),
+    5: (4.7, 6.85),
+    6: (6.02, 7.95),
+    7: (6.73, 9.07),
 }
 
 
@@ -691,9 +691,10 @@ class ArithmatrixSolver:
 
         found = 0
         for value in tries:
+            # Snapshot grid + candidates only — counts from this branch stay
+            # on failure so dead-end depth contributes to difficulty.
             saved_grid = [r[:] for r in self.grid]
             saved_cands = [[set(s) for s in r] for r in self.candidates]
-            saved_counts = dict(self.stats.techniques_used)
 
             self._place(row, col, value)
             self._record(Technique.TRIAL_AND_ERROR)
@@ -702,11 +703,11 @@ class ArithmatrixSolver:
             if found >= remaining:
                 return found
 
-            # Failed branch: restore state. Charge one T&E for the dead end
-            # (so the cost of the guess is reflected in difficulty).
+            # Failed branch — restore grid + candidates so the next value
+            # starts clean, but keep the technique counts that accumulated
+            # during the exploration. Charge one more T&E for the back-out.
             self.grid = saved_grid
             self.candidates = saved_cands
-            self.stats.techniques_used = saved_counts
             self.stats.record(Technique.TRIAL_AND_ERROR)
         return found
 

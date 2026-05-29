@@ -85,10 +85,10 @@ export type SolverResult = {
 // empirical raw-score distribution across the corpus under the new technique
 // set (see scripts/calibrate-anchors.py).
 const SIZE_ANCHORS: Record<number, [number, number]> = {
-  4: [4.25, 5.73],
-  5: [5.17, 6.66],
-  6: [6.07, 8.02],
-  7: [6.98, 8.99],
+  4: [4.0, 6.21],
+  5: [4.7, 6.85],
+  6: [6.02, 7.95],
+  7: [6.73, 9.07],
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
@@ -1184,12 +1184,11 @@ class Solver {
 
     let found = 0;
     for (const value of tries) {
-      // Snapshot state before trying — only needed if this branch fails
+      // Snapshot grid + candidates only — counts and trace steps from this
+      // branch are kept on failure so dead-end exploration contributes to
+      // difficulty (a deep contradiction is harder than an immediate one).
       const savedGrid = this.snapshotGrid();
       const savedCandidates = this.snapshotCandidates();
-      const savedSteps = this.steps.length;
-      const savedCounts = { ...this.counts };
-      const savedRaw = this.rawScore;
 
       this.place(row, col, value);
       this.recordStep(
@@ -1205,18 +1204,11 @@ class Solver {
         return found;
       }
 
-      // Failed branch: restore grid + candidates (the next iteration starts fresh).
-      // Truncate steps & restore counts so dead-end exploration doesn't pollute
-      // the trace or inflate the score.
+      // Failed branch — restore grid + candidates so the next value starts
+      // clean. Keep counts/score/steps as-is so the work the solver did
+      // while exploring this dead end is reflected in difficulty.
       this.grid = savedGrid;
       this.candidates = savedCandidates;
-      this.steps.length = savedSteps;
-      this.counts = savedCounts;
-      this.rawScore = savedRaw;
-      // Charge the cost of the guess itself (the user had to consider it),
-      // recorded as a single trial_and_error step describing the dead end.
-      this.counts.trial_and_error += 1;
-      this.rawScore += TECHNIQUE_WEIGHTS.trial_and_error;
       this.recordStep(
         'trial_and_error',
         `Trial and error: ${value} at ${cellLabel(row, col)} led to a dead end; backing out.`,
