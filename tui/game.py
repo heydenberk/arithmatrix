@@ -179,3 +179,27 @@ class GameState:
         grid, pencil = self._history[self._hist_idx]
         self.grid = deepcopy(grid)
         self.pencil = deepcopy(pencil)
+
+
+def cage_edges(cage_of, size):
+    """For each (row, col), which of its 4 edges is a cage boundary.
+
+    Grid borders always count as boundaries.
+    """
+    edges = {}
+    for r in range(size):
+        for c in range(size):
+            mine = cage_of[(r, c)]
+
+            def boundary(rr, cc):
+                if not (0 <= rr < size and 0 <= cc < size):
+                    return True
+                return cage_of[(rr, cc)] is not mine
+
+            edges[(r, c)] = {
+                "top": boundary(r - 1, c),
+                "bottom": boundary(r + 1, c),
+                "left": boundary(r, c - 1),
+                "right": boundary(r, c + 1),
+            }
+    return edges
