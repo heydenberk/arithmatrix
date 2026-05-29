@@ -57,3 +57,42 @@ def test_cage_lookup_and_label():
     assert isinstance(cage, Cage)
     assert cage.label() == "9+"
     assert g.cage_of[(0, 0)].label() == ""
+
+
+def test_pencil_toggle_and_block_on_filled():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    assert g.toggle_pencil(3) is True
+    assert g.pencil[1][1] == {3}
+    assert g.toggle_pencil(3) is True
+    assert g.pencil[1][1] == set()
+    g.set_value(2)
+    assert g.toggle_pencil(4) is False
+
+
+def test_undo_redo_roundtrip():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    g.set_value(2)
+    g.cursor = (1, 2)
+    g.set_value(1)
+    assert g.undo() is True
+    assert g.grid[1][2] is None
+    assert g.grid[1][1] == 2
+    assert g.redo() is True
+    assert g.grid[1][2] == 1
+
+
+def test_new_mutation_truncates_redo_tail():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    g.set_value(2)
+    g.undo()
+    g.set_value(3)
+    assert g.redo() is False
+    assert g.grid[1][1] == 3
+
+
+def test_undo_at_start_is_noop():
+    g = GameState(PUZZLE_4)
+    assert g.undo() is False

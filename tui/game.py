@@ -53,6 +53,9 @@ class GameState:
 
         self.cursor = self._first_editable()
 
+        self._history = [self._snapshot()]
+        self._hist_idx = 0
+
     def _first_editable(self):
         for r in range(self.size):
             for c in range(self.size):
@@ -72,8 +75,11 @@ class GameState:
         r, c = self.cursor
         if (r, c) in self.given or not (1 <= digit <= self.size):
             return False
+        if self.grid[r][c] == digit and not self.pencil[r][c]:
+            return False  # no change
         self.grid[r][c] = digit
         self.pencil[r][c] = set()
+        self._push()
         return True
 
     def clear(self):
@@ -81,6 +87,55 @@ class GameState:
         r, c = self.cursor
         if (r, c) in self.given:
             return False
+        if self.grid[r][c] is None and not self.pencil[r][c]:
+            return False  # nothing to clear
         self.grid[r][c] = None
         self.pencil[r][c] = set()
+        self._push()
         return True
+
+    def toggle_pencil(self, digit):
+        """Toggle a pencil-mark candidate. No-op on givens or filled cells."""
+        r, c = self.cursor
+        if (r, c) in self.given or self.grid[r][c] is not None:
+            return False
+        if not (1 <= digit <= self.size):
+            return False
+        marks = self.pencil[r][c]
+        if digit in marks:
+            marks.discard(digit)
+        else:
+            marks.add(digit)
+        self._push()
+        return True
+
+    def undo(self):
+        if self._hist_idx == 0:
+            return False
+        self._hist_idx -= 1
+        self._restore()
+        return True
+
+    def redo(self):
+        if self._hist_idx >= len(self._history) - 1:
+            return False
+        self._hist_idx += 1
+        self._restore()
+        return True
+
+    # ------------------------------------------------------------------
+    # Private history helpers
+    # ------------------------------------------------------------------
+
+    def _snapshot(self):
+        return (deepcopy(self.grid), deepcopy(self.pencil))
+
+    def _push(self):
+        del self._history[self._hist_idx + 1:]  # drop redo tail
+        self._history.append(self._snapshot())
+        self._hist_idx += 1
+
+    def _restore(self):
+        grid, pencil = self._history[self._hist_idx]
+        self.grid = deepcopy(grid)
+        self.pencil = deepcopy(pencil)
