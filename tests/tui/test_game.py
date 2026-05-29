@@ -1,4 +1,4 @@
-from tui.game import Cage, GameState
+from tui.game import Cage, GameState, cage_satisfied
 
 # 4x4 puzzle (first row of public/all_puzzles.jsonl), solution known unique.
 PUZZLE_4 = {
@@ -123,3 +123,40 @@ def test_not_solved_with_wrong_but_full_grid():
     g.cursor = (1, 1)
     g.set_value(1 if g.grid[1][1] != 1 else 4)
     assert g.is_solved() is False
+
+
+def test_cage_satisfied_single():
+    assert cage_satisfied("", 3, [3]) is True
+    assert cage_satisfied("", 3, [4]) is False
+    assert cage_satisfied("", 3, [3, 3]) is False  # wrong arity
+
+
+def test_cage_satisfied_addition():
+    assert cage_satisfied("+", 8, [3, 5]) is True
+    assert cage_satisfied("+", 8, [2, 2, 4]) is True
+    assert cage_satisfied("+", 8, [3, 4]) is False
+
+
+def test_cage_satisfied_subtraction():
+    assert cage_satisfied("-", 2, [5, 3]) is True
+    assert cage_satisfied("-", 2, [3, 5]) is True  # order-independent
+    assert cage_satisfied("-", 2, [5, 2]) is False
+    assert cage_satisfied("-", 2, [5, 3, 1]) is False  # wrong arity
+
+
+def test_cage_satisfied_multiplication():
+    assert cage_satisfied("*", 24, [2, 3, 4]) is True
+    assert cage_satisfied("*", 12, [3, 4]) is True
+    assert cage_satisfied("*", 12, [3, 3]) is False
+
+
+def test_cage_satisfied_division():
+    assert cage_satisfied("/", 3, [6, 2]) is True
+    assert cage_satisfied("/", 3, [2, 6]) is True  # order-independent
+    assert cage_satisfied("/", 2, [6, 2]) is False
+    assert cage_satisfied("/", 3, [6, 4]) is False  # not divisible
+    assert cage_satisfied("/", 3, [6, 2, 1]) is False  # wrong arity
+
+
+def test_cage_satisfied_unknown_op():
+    assert cage_satisfied("?", 1, [1]) is False

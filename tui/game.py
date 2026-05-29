@@ -98,7 +98,7 @@ class GameState:
         r, c = self.cursor
         if (r, c) in self.given or not (1 <= digit <= self.size):
             return False
-        if self.grid[r][c] == digit and not self.pencil[r][c]:
+        if self.grid[r][c] == digit:
             return False  # no change
         self.grid[r][c] = digit
         self.pencil[r][c] = set()
