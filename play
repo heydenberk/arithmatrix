@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Launch the Arithmatrix TUI.
+# Bootstraps a local .venv with Textual on first run, then starts the game.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV="$ROOT/.venv"
+PY="$VENV/bin/python"
+
+# Create the venv and install deps if it's missing or Textual isn't importable.
+if [[ ! -x "$PY" ]] || ! "$PY" -c "import textual" >/dev/null 2>&1; then
+  echo "Setting up the Arithmatrix TUI environment (first run only)..."
+  python3 -m venv "$VENV"
+  "$PY" -m pip install --quiet --upgrade pip
+  "$PY" -m pip install --quiet -r "$ROOT/tui/requirements.txt"
+fi
+
+exec "$PY" -m tui

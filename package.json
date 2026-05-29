@@ -11,6 +11,7 @@
     "backend:install": "python3 -m venv backend/.venv && backend/.venv/bin/pip install -r backend/requirements.txt",
     "backend:dev": "backend/.venv/bin/flask --app backend.app run --debug --port 5001",
     "start:dev": "concurrently \"npm:dev\" \"npm:backend:dev\"",
+    "tui": "python3 -m tui",
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",

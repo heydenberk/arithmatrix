@@ -20,6 +20,7 @@ export type TechniqueId =
   | 'cage_intersection'
   | 'cage_combinations'
   | 'multi_cage_line_lock'
+  | 'summation'
   | 'cross_cage_feasibility'
   | 'trial_and_error';
 
@@ -33,6 +34,7 @@ export const TECHNIQUE_WEIGHTS: Record<TechniqueId, number> = {
   cage_intersection: 4,
   cage_combinations: 5,
   multi_cage_line_lock: 8,
+  summation: 9,
   cross_cage_feasibility: 10,
   trial_and_error: 15,
 };
@@ -47,6 +49,7 @@ export const TECHNIQUE_LABELS: Record<TechniqueId, string> = {
   cage_intersection: 'Cage intersection',
   cage_combinations: 'Cage combinations',
   multi_cage_line_lock: 'Multi-cage lock',
+  summation: 'Summation',
   cross_cage_feasibility: 'Cross-cage feasibility',
   trial_and_error: 'Trial and error',
 };
@@ -85,10 +88,10 @@ export type SolverResult = {
 // empirical raw-score distribution across the corpus under the new technique
 // set (see scripts/calibrate-anchors.py).
 const SIZE_ANCHORS: Record<number, [number, number]> = {
-  4: [4.0, 6.21],
-  5: [4.7, 6.85],
-  6: [6.02, 7.95],
-  7: [6.73, 9.07],
+  4: [3.91, 6.25],
+  5: [4.64, 6.97],
+  6: [5.95, 7.83],
+  7: [6.63, 8.98],
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
@@ -168,6 +171,7 @@ class Solver {
       cage_intersection: 0,
       cage_combinations: 0,
       multi_cage_line_lock: 0,
+      summation: 0,
       cross_cage_feasibility: 0,
       trial_and_error: 0,
     };
@@ -686,6 +690,147 @@ class Solver {
    * {1,3} or {2,6}; if {1,3} is already eliminated elsewhere, this combo
    * would leave 3÷ with nothing).
    */
+  /**
+   * Summation (innie/outie).
+   *
+   * Each row (or column) in the puzzle must sum to T₁ = size·(size+1)/2.
+   * For any subset S of K rows, the cells in those rows must sum to K·T₁.
+   * When the contributing cages' total sums account for all but K cells in
+   * S, the residual sum is known — K=1 places the cell, K=2 narrows pairs.
+   *
+   * A cage's contribution to S is known when its total sum is known
+   * (addition / stipulated / cage-locked-to-one-multiset) AND either the
+   * cage is fully inside S, or every cage cell outside S is already placed.
+   *
+   * Example: a row of 7 with a 4-cell 11+ and a 2-cell 42× covers 6 cells
+   * (sum 11 + sum 13 = 24), leaving 28-24 = 4 for the seventh cell.
+   */
+  private applySummation(): boolean {
+    const perLineTarget = (this.size * (this.size + 1)) / 2;
+
+    const cageKnownSubsetSum = (cageIdx: number, subset: Set<number>, orientation: 'row' | 'col'): number | null => {
+      const cage = this.cages[cageIdx];
+      const inSubset = (cell: CellRef) =>
+        orientation === 'row' ? subset.has(cell.row) : subset.has(cell.col);
+
+      const cellsIn = cage.cells.filter(inSubset);
+      if (cellsIn.length === 0) return null;
+      const cellsOut = cage.cells.filter(c => !inSubset(c));
+
+      if (cellsIn.every(c => this.grid[c.row][c.col] !== 0)) {
+        let s = 0;
+        for (const c of cellsIn) s += this.grid[c.row][c.col];
+        return s;
+      }
+
+      let cageTotal: number | null = null;
+      if (cage.operation === '' || cage.operation === '+') {
+        cageTotal = cage.value;
+      } else {
+        const survivors = this.survivingCombos(cage);
+        if (survivors.length === 0) return null;
+        const sums = new Set<number>();
+        for (const combo of survivors) {
+          let s = 0;
+          for (const v of combo) s += v;
+          sums.add(s);
+        }
+        if (sums.size === 1) cageTotal = sums.values().next().value as number;
+      }
+      if (cageTotal === null) return null;
+
+      if (cellsOut.length === 0) return cageTotal;
+      if (!cellsOut.every(c => this.grid[c.row][c.col] !== 0)) return null;
+      let outSum = 0;
+      for (const c of cellsOut) outSum += this.grid[c.row][c.col];
+      return cageTotal - outSum;
+    };
+
+    for (const orientation of ['row', 'col'] as const) {
+      for (let subsetSize = 1; subsetSize <= 3; subsetSize++) {
+        const combos = combinationsOfRange(this.size, subsetSize);
+        for (const subsetArr of combos) {
+          const subset = new Set(subsetArr);
+          const target = subsetSize * perLineTarget;
+
+          const subsetCells: CellRef[] = [];
+          for (let r = 0; r < this.size; r++) {
+            for (let c = 0; c < this.size; c++) {
+              if ((orientation === 'row' ? subset.has(r) : subset.has(c))) {
+                subsetCells.push({ row: r, col: c });
+              }
+            }
+          }
+
+          const covered = new Set<string>();
+          let knownSum = 0;
+          for (let cageIdx = 0; cageIdx < this.cages.length; cageIdx++) {
+            const contrib = cageKnownSubsetSum(cageIdx, subset, orientation);
+            if (contrib === null) continue;
+            knownSum += contrib;
+            for (const c of this.cages[cageIdx].cells) {
+              if (orientation === 'row' ? subset.has(c.row) : subset.has(c.col)) {
+                covered.add(`${c.row}-${c.col}`);
+              }
+            }
+          }
+
+          const uncovered = subsetCells.filter(c => !covered.has(`${c.row}-${c.col}`));
+          let placedUncoveredSum = 0;
+          const emptyUncovered: CellRef[] = [];
+          for (const cell of uncovered) {
+            if (this.grid[cell.row][cell.col] !== 0) {
+              placedUncoveredSum += this.grid[cell.row][cell.col];
+            } else {
+              emptyUncovered.push(cell);
+            }
+          }
+          const residual = target - knownSum - placedUncoveredSum;
+
+          if (emptyUncovered.length === 1) {
+            const { row, col } = emptyUncovered[0];
+            if (residual >= 1 && residual <= this.size && this.candidates[row][col].has(residual)) {
+              this.place(row, col, residual);
+              this.recordStep(
+                'summation',
+                `Summation: rows/cols ${[...subset].sort().map(i => i + 1).join(',')} (${orientation}) sum to ${target}; cage totals cover ${knownSum + placedUncoveredSum}, so ${cellLabel(row, col)} must be ${residual}.`,
+                [{ row, col }]
+              );
+              return true;
+            }
+          } else if (emptyUncovered.length === 2) {
+            const [a, b] = emptyUncovered;
+            const sameLine = a.row === b.row || a.col === b.col;
+            const new1 = new Set<number>();
+            const new2 = new Set<number>();
+            for (const v of this.candidates[a.row][a.col]) {
+              const u = residual - v;
+              if (u < 1 || u > this.size) continue;
+              if (!this.candidates[b.row][b.col].has(u)) continue;
+              if (sameLine && v === u) continue;
+              new1.add(v);
+              new2.add(u);
+            }
+            if (new1.size === 0 || new2.size === 0) continue;
+            const changed1 = !setsEqual(new1, this.candidates[a.row][a.col]);
+            const changed2 = !setsEqual(new2, this.candidates[b.row][b.col]);
+            if (changed1 || changed2) {
+              this.candidates[a.row][a.col] = new1;
+              this.candidates[b.row][b.col] = new2;
+              this.recordStep(
+                'summation',
+                `Summation: rows/cols ${[...subset].sort().map(i => i + 1).join(',')} (${orientation}) need ${residual} across ${cellLabel(a.row, a.col)} and ${cellLabel(b.row, b.col)}.`,
+                [a, b]
+              );
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+
   private applyCrossCageFeasibility(): boolean {
     const MAX_COMBOS_TO_CHECK = 200; // skip cages with too many combos
 
@@ -1154,6 +1299,7 @@ class Solver {
       if (this.applyCageLockedAcrossCages()) continue outer;
       if (this.processCagesByStrength()) continue outer;
       if (this.applyMultiCageLineLock()) continue outer;
+      if (this.applySummation()) continue outer;
       if (this.applyCrossCageFeasibility()) continue outer;
       break;
     }
@@ -1320,6 +1466,30 @@ function precomputeCageCombinations(
   }
 
   return [...result].map(s => s.split(',').map(Number));
+}
+
+function setsEqual<T>(a: Set<T>, b: Set<T>): boolean {
+  if (a.size !== b.size) return false;
+  for (const x of a) if (!b.has(x)) return false;
+  return true;
+}
+
+function combinationsOfRange(n: number, k: number): number[][] {
+  const out: number[][] = [];
+  const combo: number[] = [];
+  const recurse = (start: number) => {
+    if (combo.length === k) {
+      out.push(combo.slice());
+      return;
+    }
+    for (let i = start; i < n; i++) {
+      combo.push(i);
+      recurse(i + 1);
+      combo.pop();
+    }
+  };
+  recurse(0);
+  return out;
 }
 
 function enumerateWithReplacement(
