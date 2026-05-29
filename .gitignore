@@ -21,4 +21,8 @@ dist/
 
 # OS generated files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Local data / experimentation artifacts not committed to the corpus
+public/test_batch.jsonl
+public/all_puzzles_legacy.jsonl
