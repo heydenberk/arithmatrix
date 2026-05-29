@@ -177,3 +177,25 @@ def test_wrong_cells_flags_only_mismatches():
     # Clearing it removes the flag.
     g.clear()
     assert g.wrong_cells() == set()
+
+
+def test_to_puzzle_roundtrip():
+    g = GameState(PUZZLE_4)
+    rebuilt = GameState(g.to_puzzle())
+    assert rebuilt.solution == g.solution
+    assert rebuilt.given == g.given
+    assert {(c.cells, c.operation, c.value) for c in rebuilt.cages} == {
+        (c.cells, c.operation, c.value) for c in g.cages
+    }
+
+
+def test_import_progress_restores_and_resets_history():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    g.set_value(2)
+    progress = g.export_progress()
+    restored = GameState(PUZZLE_4)
+    restored.import_progress(progress)
+    assert restored.grid[1][1] == 2
+    assert restored.cursor == (1, 1)
+    assert restored.undo() is False  # history reset to the loaded state

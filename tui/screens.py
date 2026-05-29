@@ -7,7 +7,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Label, RadioButton, RadioSet, Static
 
-from tui import puzzles
+from tui import persistence, puzzles
 from tui.game import GameState
 from tui.widgets import GridWidget
 
@@ -17,6 +17,13 @@ class PickerScreen(Screen):
 
     def compose(self) -> ComposeResult:
         yield Header()
+        save = persistence.load_save()
+        if save:
+            yield Button(
+                f"Resume saved game ({save['size']}x{save['size']} {save['difficulty']})",
+                id="resume",
+                variant="success",
+            )
         yield Label("Choose a puzzle", id="picker-title")
         with Horizontal():
             with Vertical():
@@ -34,6 +41,14 @@ class PickerScreen(Screen):
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "resume":
+            save = persistence.load_save()
+            if save is None:
+                return
+            game = GameState(save["puzzle"])
+            game.import_progress(save["progress"])
+            self.app.push_screen(GameScreen(game, save["size"], save["difficulty"]))
+            return
         if event.button.id != "play":
             return
         size = puzzles.SIZES[self.query_one("#size", RadioSet).pressed_index]
@@ -150,8 +165,14 @@ class GameScreen(Screen):
     def action_new_puzzle(self) -> None:
         self.app.pop_screen()
 
+    def persist(self) -> None:
+        """Save the in-progress game so it can be resumed later."""
+        if not self.solved:
+            persistence.save_game(self.game, self.difficulty)
+
     def _check_solved(self):
         if not self.solved and self.game.is_solved():
             self.solved = True
+            persistence.clear_save()  # nothing left to resume
             self.app.bell()
             self.notify("Solved! Press 'n' for a new puzzle.", title="Solved!")

@@ -175,6 +175,37 @@ class GameState:
         }
 
     # ------------------------------------------------------------------
+    # Save / restore
+    # ------------------------------------------------------------------
+
+    def to_puzzle(self):
+        """Reconstruct the puzzle dict this state was built from."""
+        return {
+            "size": self.size,
+            "solution": self.solution,
+            "cages": [
+                {"cells": list(c.cells), "operation": c.operation, "value": c.value}
+                for c in self.cages
+            ],
+        }
+
+    def export_progress(self):
+        """Serialisable player progress (grid values, pencil marks, cursor)."""
+        return {
+            "grid": [list(row) for row in self.grid],
+            "pencil": [[sorted(marks) for marks in row] for row in self.pencil],
+            "cursor": list(self.cursor),
+        }
+
+    def import_progress(self, progress):
+        """Overlay saved progress and reset undo history to this point."""
+        self.grid = [list(row) for row in progress["grid"]]
+        self.pencil = [[set(marks) for marks in row] for row in progress["pencil"]]
+        self.cursor = tuple(progress["cursor"])
+        self._history = [self._snapshot()]
+        self._hist_idx = 0
+
+    # ------------------------------------------------------------------
     # Private history helpers
     # ------------------------------------------------------------------
 
