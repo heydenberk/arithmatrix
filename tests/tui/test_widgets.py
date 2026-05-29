@@ -35,3 +35,12 @@ def test_no_red_when_not_checked():
     widget = GridWidget(g)
     styles = _styles(widget._render_text())
     assert not any("red" in s for s in styles)
+
+
+def test_selected_cells_render_underline():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 2)
+    g.toggle_select()
+    widget = GridWidget(g)
+    styles = _styles(widget._render_text())
+    assert any("underline" in s for s in styles)

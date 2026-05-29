@@ -19,7 +19,7 @@ class GridWidget(Static):
     def refresh_grid(self):
         self.update(self._render_text())
 
-    def _cell_style(self, r, c, sub, cursor):
+    def _cell_style(self, r, c, sub, cursor, selection):
         """Rich style for one cell's content span on sub-row ``sub`` (0=label,
         1=value, 2=pencil)."""
         parts = []
@@ -27,6 +27,8 @@ class GridWidget(Static):
             parts.append("italic")
         if cursor == (r, c):
             parts.append("reverse")
+        if (r, c) in selection:
+            parts.append("underline")
         if (r, c) in self.wrong:
             parts.append("red")
         return " ".join(parts)
@@ -35,6 +37,7 @@ class GridWidget(Static):
         lines = grid_to_lines(self.game)
         size = self.game.size
         cursor = self.game.cursor
+        selection = self.game.selection
         text = Text()
         for i, line in enumerate(lines):
             if i > 0:
@@ -50,7 +53,8 @@ class GridWidget(Static):
                 start = c * (CELL_W + 1) + 1
                 text.append(line[pos:start])  # leading separator/border
                 end = start + CELL_W
-                text.append(line[start:end], style=self._cell_style(r, c, sub, cursor))
+                style = self._cell_style(r, c, sub, cursor, selection)
+                text.append(line[start:end], style=style)
                 pos = end
             text.append(line[pos:])  # trailing separator
         return text

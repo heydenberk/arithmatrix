@@ -75,6 +75,7 @@ class GameState:
                 self.given.add((r, c))
 
         self.cursor = self._first_editable()
+        self.selection = set()  # cells (r, c) targeted for batch operations
 
         self._history = [self._snapshot()]
         self._hist_idx = 0
@@ -93,42 +94,80 @@ class GameState:
             max(0, min(self.size - 1, c + dc)),
         )
 
+    # ------------------------------------------------------------------
+    # Selection (multiselect for batch operations)
+    # ------------------------------------------------------------------
+
+    def toggle_select(self):
+        """Add/remove the cursor cell from the multiselect set."""
+        cell = self.cursor
+        if cell in self.selection:
+            self.selection.discard(cell)
+        else:
+            self.selection.add(cell)
+
+    def clear_selection(self):
+        self.selection.clear()
+
+    def _targets(self):
+        """Cells a mutation applies to: the selection, or the cursor alone."""
+        return sorted(self.selection) if self.selection else [self.cursor]
+
+    # ------------------------------------------------------------------
+    # Mutations — apply to every target cell, recording one undo step
+    # ------------------------------------------------------------------
+
     def set_value(self, digit):
-        """Place a digit in the cursor cell. No-op on givens or invalid digits."""
-        r, c = self.cursor
-        if (r, c) in self.given or not (1 <= digit <= self.size):
-            return False
-        if self.grid[r][c] == digit:
-            return False  # no change
-        self.grid[r][c] = digit
-        self.pencil[r][c] = set()
-        self._push()
-        return True
-
-    def clear(self):
-        """Clear the cursor cell's value and pencil marks. No-op on givens."""
-        r, c = self.cursor
-        if (r, c) in self.given:
-            return False
-        if self.grid[r][c] is None and not self.pencil[r][c]:
-            return False  # nothing to clear
-        self.grid[r][c] = None
-        self.pencil[r][c] = set()
-        self._push()
-        return True
-
-    def toggle_pencil(self, digit):
-        """Toggle a pencil-mark candidate. No-op on givens or filled cells."""
-        r, c = self.cursor
-        if (r, c) in self.given or self.grid[r][c] is not None:
-            return False
+        """Place a digit in every target cell. No-op on givens/invalid digits."""
         if not (1 <= digit <= self.size):
             return False
-        marks = self.pencil[r][c]
-        if digit in marks:
-            marks.discard(digit)
-        else:
-            marks.add(digit)
+        changed = False
+        for r, c in self._targets():
+            if (r, c) in self.given or self.grid[r][c] == digit:
+                continue
+            self.grid[r][c] = digit
+            self.pencil[r][c] = set()
+            changed = True
+        if changed:
+            self._push()
+        return changed
+
+    def clear(self):
+        """Clear value and pencil marks in every target cell. No-op on givens."""
+        changed = False
+        for r, c in self._targets():
+            if (r, c) in self.given:
+                continue
+            if self.grid[r][c] is None and not self.pencil[r][c]:
+                continue
+            self.grid[r][c] = None
+            self.pencil[r][c] = set()
+            changed = True
+        if changed:
+            self._push()
+        return changed
+
+    def toggle_pencil(self, digit):
+        """Toggle a candidate across target cells (givens/filled cells skipped).
+
+        If any eligible target lacks the mark, it is added to all of them;
+        otherwise it is removed from all — the standard batch fill/clear feel.
+        """
+        if not (1 <= digit <= self.size):
+            return False
+        targets = [
+            (r, c)
+            for r, c in self._targets()
+            if (r, c) not in self.given and self.grid[r][c] is None
+        ]
+        if not targets:
+            return False
+        add = any(digit not in self.pencil[r][c] for r, c in targets)
+        for r, c in targets:
+            if add:
+                self.pencil[r][c].add(digit)
+            else:
+                self.pencil[r][c].discard(digit)
         self._push()
         return True
 

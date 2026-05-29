@@ -74,6 +74,8 @@ class GameScreen(Screen):
         ("right", "move(0,1)", "Right"),
         ("backspace", "clear", "Clear"),
         ("p", "toggle_pencil_mode", "Pencil"),
+        ("space", "toggle_select", "Select"),
+        ("escape", "clear_selection", "Deselect"),
         ("c", "check", "Check"),
         ("u", "undo", "Undo"),
         ("r", "redo", "Redo"),
@@ -102,9 +104,12 @@ class GameScreen(Screen):
     def _refresh(self):
         self.grid_widget.refresh_grid()
         mode = "PENCIL" if self.pencil_mode else "NORMAL"
+        sel = len(self.game.selection)
+        sel_note = f"  |  {sel} selected" if sel else ""
         self.status.update(
-            f"{self.puzzle_size}x{self.puzzle_size} {self.difficulty}  |  mode: {mode}  |  "
-            f"1-9 fill · backspace clear · p pencil · c check · u/r undo/redo · n new · q quit"
+            f"{self.puzzle_size}x{self.puzzle_size} {self.difficulty}  |  mode: {mode}{sel_note}  |  "
+            f"1-9 fill · backspace clear · p pencil · space select · esc deselect · "
+            f"c check · u/r undo/redo · n new · q quit"
         )
 
     def _clear_check(self):
@@ -136,6 +141,14 @@ class GameScreen(Screen):
 
     def action_toggle_pencil_mode(self) -> None:
         self.pencil_mode = not self.pencil_mode
+        self._refresh()
+
+    def action_toggle_select(self) -> None:
+        self.game.toggle_select()
+        self._refresh()
+
+    def action_clear_selection(self) -> None:
+        self.game.clear_selection()
         self._refresh()
 
     def action_check(self) -> None:

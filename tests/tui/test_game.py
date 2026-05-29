@@ -199,3 +199,59 @@ def test_import_progress_restores_and_resets_history():
     assert restored.grid[1][1] == 2
     assert restored.cursor == (1, 1)
     assert restored.undo() is False  # history reset to the loaded state
+
+
+def test_selection_toggle_and_clear():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    g.toggle_select()
+    g.cursor = (1, 2)
+    g.toggle_select()
+    assert g.selection == {(1, 1), (1, 2)}
+    g.toggle_select()  # toggling (1,2) again removes it
+    assert g.selection == {(1, 1)}
+    g.clear_selection()
+    assert g.selection == set()
+
+
+def test_batch_fill_is_single_undo():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    g.toggle_select()
+    g.cursor = (1, 2)
+    g.toggle_select()
+    assert g.set_value(2) is True
+    assert g.grid[1][1] == 2 and g.grid[1][2] == 2
+    assert g.undo() is True  # one undo reverts the whole batch
+    assert g.grid[1][1] is None and g.grid[1][2] is None
+
+
+def test_batch_fill_skips_givens():
+    g = GameState(PUZZLE_4)
+    given = next(iter(g.given))
+    g.cursor = given
+    g.toggle_select()
+    g.cursor = (1, 1)  # editable
+    g.toggle_select()
+    g.set_value(2)
+    assert g.grid[1][1] == 2
+    assert g.grid[given[0]][given[1]] == g.solution[given[0]][given[1]]  # unchanged
+
+
+def test_batch_pencil_adds_then_removes_for_all():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    g.toggle_select()
+    g.cursor = (1, 2)
+    g.toggle_select()
+    assert g.toggle_pencil(3) is True  # absent in both → add to both
+    assert 3 in g.pencil[1][1] and 3 in g.pencil[1][2]
+    assert g.toggle_pencil(3) is True  # present in both → remove from both
+    assert 3 not in g.pencil[1][1] and 3 not in g.pencil[1][2]
+
+
+def test_no_selection_falls_back_to_cursor():
+    g = GameState(PUZZLE_4)
+    g.cursor = (1, 1)
+    assert g.set_value(2) is True
+    assert g.grid[1][1] == 2
