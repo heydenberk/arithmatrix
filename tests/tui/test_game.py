@@ -96,3 +96,30 @@ def test_new_mutation_truncates_redo_tail():
 def test_undo_at_start_is_noop():
     g = GameState(PUZZLE_4)
     assert g.undo() is False
+
+
+def _fill_with_solution(g):
+    for r in range(g.size):
+        for c in range(g.size):
+            g.cursor = (r, c)
+            if (r, c) not in g.given:
+                g.set_value(g.solution[r][c])
+
+
+def test_unsolved_when_empty():
+    g = GameState(PUZZLE_4)
+    assert g.is_solved() is False
+
+
+def test_solved_with_correct_solution():
+    g = GameState(PUZZLE_4)
+    _fill_with_solution(g)
+    assert g.is_solved() is True
+
+
+def test_not_solved_with_wrong_but_full_grid():
+    g = GameState(PUZZLE_4)
+    _fill_with_solution(g)
+    g.cursor = (1, 1)
+    g.set_value(1 if g.grid[1][1] != 1 else 4)
+    assert g.is_solved() is False

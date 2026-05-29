@@ -24,6 +24,29 @@ class Cage:
         return f"{self.value}{self.operation}"
 
 
+def cage_satisfied(operation, target, values):
+    """True if ``values`` satisfy a cage with the given operation/target."""
+    if operation == "":
+        return len(values) == 1 and values[0] == target
+    if operation == "+":
+        return sum(values) == target
+    if operation == "-":
+        return len(values) == 2 and abs(values[0] - values[1]) == target
+    if operation == "*":
+        product = 1
+        for v in values:
+            product *= v
+        return product == target
+    if operation == "/":
+        if len(values) != 2:
+            return False
+        a, b = values
+        return (a and b % a == 0 and b // a == target) or (
+            b and a % b == 0 and a // b == target
+        )
+    return False
+
+
 class GameState:
     """Mutable board state. Coordinates are (row, col); cells are row-major."""
 
@@ -121,6 +144,23 @@ class GameState:
             return False
         self._hist_idx += 1
         self._restore()
+        return True
+
+    def is_solved(self):
+        n = self.size
+        full = {*range(1, n + 1)}
+        for row in self.grid:
+            if any(v is None for v in row):
+                return False
+        for i in range(n):
+            if set(self.grid[i]) != full:
+                return False
+            if {self.grid[r][i] for r in range(n)} != full:
+                return False
+        for cage in self.cages:
+            values = [self.grid[cell // n][cell % n] for cell in cage.cells]
+            if not cage_satisfied(cage.operation, cage.value, values):
+                return False
         return True
 
     # ------------------------------------------------------------------
