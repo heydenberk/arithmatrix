@@ -41,8 +41,9 @@ class Technique(IntEnum):
     CAGE_INTERSECTION = 6
     CAGE_COMBINATIONS = 7
     MULTI_CAGE_LINE_LOCK = 8
-    CROSS_CAGE_FEASIBILITY = 9
-    TRIAL_AND_ERROR = 10
+    SUMMATION = 9
+    CROSS_CAGE_FEASIBILITY = 10
+    TRIAL_AND_ERROR = 11
 
 
 TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
@@ -55,6 +56,7 @@ TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
     Technique.CAGE_INTERSECTION: 4,
     Technique.CAGE_COMBINATIONS: 5,
     Technique.MULTI_CAGE_LINE_LOCK: 8,
+    Technique.SUMMATION: 9,
     Technique.CROSS_CAGE_FEASIBILITY: 10,
     Technique.TRIAL_AND_ERROR: 15,
 }
@@ -65,10 +67,10 @@ TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
 # fit to the old scoring model and produced systematically low scores under
 # the new techniques (everything read as "easiest"/"easy").
 SIZE_ANCHORS: Dict[int, Tuple[float, float]] = {
-    4: (4.0, 6.21),
-    5: (4.7, 6.85),
-    6: (6.02, 7.95),
-    7: (6.73, 9.07),
+    4: (3.91, 6.25),
+    5: (4.64, 6.97),
+    6: (5.95, 7.83),
+    7: (6.63, 8.98),
 }
 
 
@@ -527,6 +529,130 @@ class ArithmatrixSolver:
                                 return True
         return False
 
+    def _cage_known_subset_sum(self, cage_idx: int, subset: frozenset, orientation: str) -> Optional[int]:
+        """How much does this cage contribute to cells whose row (or col) is
+        in `subset`? Returns None if undeterminable from current state.
+
+        Three cases the contribution can be derived:
+          - all in-subset cells already placed → sum them directly
+          - cage's total sum is known (addition/stipulated, or cage-locked
+            with one multiset) AND
+              - cage fully in subset → contribution = cage total
+              - cage partially in subset BUT every out-of-subset cell already
+                placed → contribution = cage total − sum(placed out cells)
+        """
+        cage = self.cages[cage_idx]
+        cells = self.cage_cells[cage_idx]
+
+        def in_sub(rc):
+            return (rc[0] in subset) if orientation == "row" else (rc[1] in subset)
+
+        cells_in = [pos for pos, rc in enumerate(cells) if in_sub(rc)]
+        if not cells_in:
+            return None
+        cells_out = [pos for pos in range(len(cells)) if pos not in cells_in]
+
+        if all(self.grid[cells[p][0]][cells[p][1]] != 0 for p in cells_in):
+            return sum(self.grid[cells[p][0]][cells[p][1]] for p in cells_in)
+
+        op = cage["operation"]
+        if op == "" or op == "+":
+            cage_total: Optional[int] = cage["value"]
+        else:
+            survivors = self._surviving_combos(cage_idx)
+            if not survivors:
+                return None
+            sums = {sum(combo) for combo in survivors}
+            cage_total = sums.pop() if len(sums) == 1 else None
+        if cage_total is None:
+            return None
+
+        if not cells_out:
+            return cage_total
+
+        if not all(self.grid[cells[p][0]][cells[p][1]] != 0 for p in cells_out):
+            return None
+        out_sum = sum(self.grid[cells[p][0]][cells[p][1]] for p in cells_out)
+        return cage_total - out_sum
+
+    def _apply_summation(self) -> bool:
+        """Innie/outie technique extended to multi-line subsets.
+
+        Each row (or column) must sum to T₁ = size·(size+1)/2 = 28 at size 7.
+        For any subset S of K rows, the cells in those rows must sum to K·T₁.
+
+        For each subset S of size 1, 2, or 3:
+          - compute known_sum = Σ cage contributions to cells in S
+          - find cells in S not covered by any contributing cage
+          - residual = K·T₁ − known_sum − (already-placed uncovered cells)
+
+        If exactly one empty uncovered cell remains, its value = residual.
+        If exactly two remain, narrow their candidates to pairs summing to
+        residual.
+        """
+        per_line_target = self.size * (self.size + 1) // 2
+
+        for orientation in ("row", "col"):
+            for subset_size in (1, 2, 3):
+                for subset_tuple in itertools.combinations(range(self.size), subset_size):
+                    subset = frozenset(subset_tuple)
+                    target = subset_size * per_line_target
+
+                    subset_cells = [
+                        (r, c) for r in range(self.size) for c in range(self.size)
+                        if ((r in subset) if orientation == "row" else (c in subset))
+                    ]
+                    covered: set = set()
+                    known_sum = 0
+                    for cage_idx in range(len(self.cages)):
+                        contrib = self._cage_known_subset_sum(cage_idx, subset, orientation)
+                        if contrib is None:
+                            continue
+                        known_sum += contrib
+                        for rc in self.cage_cells[cage_idx]:
+                            if (rc[0] in subset) if orientation == "row" else (rc[1] in subset):
+                                covered.add(rc)
+
+                    uncovered = [rc for rc in subset_cells if rc not in covered]
+                    placed_uncovered_sum = sum(
+                        self.grid[r][c] for r, c in uncovered if self.grid[r][c] != 0
+                    )
+                    empty_uncovered = [(r, c) for r, c in uncovered if self.grid[r][c] == 0]
+                    residual = target - known_sum - placed_uncovered_sum
+
+                    if len(empty_uncovered) == 1:
+                        r, c = empty_uncovered[0]
+                        v = residual
+                        if 1 <= v <= self.size and v in self.candidates[r][c]:
+                            self._place(r, c, v)
+                            self._record(Technique.SUMMATION)
+                            return True
+
+                    elif len(empty_uncovered) == 2:
+                        (r1, c1), (r2, c2) = empty_uncovered
+                        same_line = (r1 == r2) or (c1 == c2)
+                        new1: set = set()
+                        new2: set = set()
+                        for v in self.candidates[r1][c1]:
+                            u = residual - v
+                            if u < 1 or u > self.size:
+                                continue
+                            if u not in self.candidates[r2][c2]:
+                                continue
+                            if same_line and v == u:
+                                continue
+                            new1.add(v)
+                            new2.add(u)
+                        if not new1 or not new2:
+                            continue
+                        if new1 != self.candidates[r1][c1] or new2 != self.candidates[r2][c2]:
+                            self.candidates[r1][c1] = new1
+                            self.candidates[r2][c2] = new2
+                            self._record(Technique.SUMMATION)
+                            return True
+
+        return False
+
     def _apply_cross_cage_feasibility(self) -> bool:
         """Eliminate a combo if applying it would leave another cage with no
         viable combinations. Expensive — only run when simpler techniques stall."""
@@ -662,6 +788,8 @@ class ArithmatrixSolver:
             if self._process_cages_by_strength():
                 continue
             if self._apply_multi_cage_line_lock():
+                continue
+            if self._apply_summation():
                 continue
             if self._apply_cross_cage_feasibility():
                 continue

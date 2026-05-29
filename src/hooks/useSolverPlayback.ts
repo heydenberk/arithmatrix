@@ -57,6 +57,7 @@ const EMPTY_COUNTS: Record<TechniqueId, number> = {
   cage_intersection: 0,
   cage_combinations: 0,
   multi_cage_line_lock: 0,
+  summation: 0,
   cross_cage_feasibility: 0,
   trial_and_error: 0,
 };
@@ -192,6 +193,7 @@ export const TECHNIQUE_ORDER: TechniqueId[] = [
   'cage_intersection',
   'cage_combinations',
   'multi_cage_line_lock',
+  'summation',
   'cross_cage_feasibility',
   'trial_and_error',
 ];

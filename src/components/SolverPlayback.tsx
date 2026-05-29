@@ -405,6 +405,7 @@ function techniqueColor(t: TechniqueId): string {
     case 'cage_intersection': return 'indigo';
     case 'cage_combinations': return 'violet';
     case 'multi_cage_line_lock': return 'pink';
+    case 'summation': return 'yellow';
     case 'cross_cage_feasibility': return 'orange';
     case 'trial_and_error': return 'red';
   }
