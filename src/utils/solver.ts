@@ -88,10 +88,10 @@ export type SolverResult = {
 // empirical raw-score distribution across the corpus under the new technique
 // set (see scripts/calibrate-anchors.py).
 const SIZE_ANCHORS: Record<number, [number, number]> = {
-  4: [3.91, 6.25],
-  5: [4.64, 6.97],
-  6: [5.95, 7.83],
-  7: [6.63, 8.98],
+  4: [4.86, 6.38],
+  5: [5.81, 7.01],
+  6: [6.86, 8.43],
+  7: [7.44, 9.59],
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);

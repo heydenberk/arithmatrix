@@ -67,10 +67,10 @@ TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
 # fit to the old scoring model and produced systematically low scores under
 # the new techniques (everything read as "easiest"/"easy").
 SIZE_ANCHORS: Dict[int, Tuple[float, float]] = {
-    4: (3.91, 6.25),
-    5: (4.64, 6.97),
-    6: (5.95, 7.83),
-    7: (6.63, 8.98),
+    4: (4.86, 6.38),
+    5: (5.81, 7.01),
+    6: (6.86, 8.43),
+    7: (7.44, 9.59),
 }
 
 

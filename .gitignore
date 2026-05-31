@@ -29,3 +29,4 @@ public/test_batch.jsonl
 public/all_puzzles_legacy.jsonl
 public/all_puzzles_pre_depth.jsonl
 public/all_puzzles_pre_summation.jsonl
+public/all_puzzles_pre_singlecap.jsonl

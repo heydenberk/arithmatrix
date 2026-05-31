@@ -536,13 +536,28 @@ def generate_arithmatrix_puzzle(
 # (intersection/multi-cage line locks/elbow techniques). 5-cell cages stay
 # extremely rare regardless — they tend to be visually unwieldy and the
 # carver struggles to place them cleanly.
+#
+# Single-cell (stipulated) cages are kept low everywhere: they're free givens
+# that make a puzzle tedious rather than interestingly easy. The actual count
+# is also hard-capped (see _max_single_cages) so weight variance can't produce
+# a board that's a quarter pre-filled. Easiest puzzles get their ease from
+# small, tightly-constrained 2-cell cages, not from freebies.
 _CAGE_SIZE_WEIGHTS = {
-    "easiest": [20, 30, 12, 6, 1],
-    "easy":    [15, 30, 18, 10, 1],
-    "medium":  [10, 30, 20, 15, 1],
-    "hard":    [6,  28, 25, 18, 2],
-    "expert":  [4,  22, 28, 22, 2],
+    "easiest": [8, 34, 16, 6, 1],
+    "easy":    [6, 32, 20, 10, 1],
+    "medium":  [4, 30, 22, 15, 1],
+    "hard":    [3, 25, 26, 18, 2],
+    "expert":  [2, 20, 28, 22, 2],
 }
+
+
+def _max_single_cages(size: int) -> int:
+    """Hard cap on single-cell (stipulated) cages: ~10% of cells, min 1.
+
+    Yields 1 (4x4), 2 (5x5), 3 (6x6), 4 (7x7) — enough for a gentle foothold,
+    far from the ~22% the unconstrained weights used to produce.
+    """
+    return max(1, round(0.10 * size * size))
 
 
 def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None, difficulty="medium"):
@@ -550,21 +565,22 @@ def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None, diff
     # Generate Latin square (uses pooled squares with adaptive isotopy for speed)
     square = get_latin_square(size)
 
-    # Generate cage sizes that sum to size^2 and carve them — if a specific
-    # cage-size combo turns out to be un-carvable (the harder difficulties
-    # produce 4-cell-heavy distributions that occasionally just don't fit),
-    # re-roll the sizes a few times before giving up.
+    # Generate cage sizes that sum to size^2 and carve them. We re-roll the
+    # size partition when either (a) it has too many single-cell cages, or
+    # (b) the carver can't fit the specific combo (the harder, 4-cell-heavy
+    # distributions occasionally just don't tile).
     total_cells = size * size
     weights = _CAGE_SIZE_WEIGHTS.get(difficulty, _CAGE_SIZE_WEIGHTS["medium"])
+    max_singles = _max_single_cages(size)
 
     last_err: Exception | None = None
-    for _ in range(8):
-        cage_sizes = dict(
-            zip(
-                string.ascii_uppercase,
-                weighted_partition_sample(weights, total_cells),
-            )
-        )
+    for _ in range(20):
+        partition = weighted_partition_sample(weights, total_cells)
+        if partition is None:
+            continue
+        if sum(1 for s in partition if s == 1) > max_singles:
+            continue  # too many stipulated cells; re-roll
+        cage_sizes = dict(zip(string.ascii_uppercase, partition))
         try:
             caged_square = carve_square(square, cage_sizes, max_attempts=max_attempts)
             break
