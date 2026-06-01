@@ -61,16 +61,35 @@ TECHNIQUE_WEIGHTS: Dict[Technique, int] = {
     Technique.TRIAL_AND_ERROR: 15,
 }
 
-# Size-specific anchors in log2(raw_score) space. Linear map: low → 10, high → 90.
-# Calibrated against the empirical p10/p90 of the new technique set across the
-# 4000-puzzle corpus (see scripts/calibrate-anchors.py). The old anchors were
-# fit to the old scoring model and produced systematically low scores under
-# the new techniques (everything read as "easiest"/"easy").
-SIZE_ANCHORS: Dict[int, Tuple[float, float]] = {
-    4: (4.86, 6.38),
-    5: (5.81, 7.01),
-    6: (6.86, 8.43),
-    7: (7.44, 9.59),
+# Techniques a human experiences as genuine bottlenecks (weight >= 8). These
+# drive the difficulty score at full weight; everything cheaper is volume-
+# compressed (see SolveStats.raw_score).
+def _interp(x: float, x0: float, x1: float, y0: float, y1: float) -> float:
+    """Linear interpolation of x in [x0,x1] onto [y0,y1]."""
+    if x1 <= x0:
+        return y0
+    return y0 + (x - x0) / (x1 - x0) * (y1 - y0)
+
+
+_HARD_TECHNIQUES = frozenset({
+    Technique.MULTI_CAGE_LINE_LOCK,
+    Technique.SUMMATION,
+    Technique.CROSS_CAGE_FEASIBILITY,
+    Technique.TRIAL_AND_ERROR,
+})
+
+# Per-size raw-score quantile boundaries (q20, q40, q60, q80) that define the
+# five difficulty tiers directly: easiest = bottom 20%, easy = 20-40%,
+# medium = 40-60%, hard = 60-80%, expert = top 20%. Quantile bucketing is used
+# (rather than fixed thresholds on a normalized score) because the bottleneck
+# raw_score is bimodal — puzzles either flow with no hard techniques or hit
+# walls that need them — so fixed thresholds leave "medium" nearly empty.
+# Recompute with scripts/calibrate-quantiles.py after any weight change.
+SIZE_QUANTILES: Dict[int, Tuple[float, float, float, float]] = {
+    4: (5.9, 7.8, 21.7, 36.8),
+    5: (7.9, 8.7, 19.1, 33.0),
+    6: (25.1, 40.0, 59.2, 109.6),
+    7: (14.0, 29.6, 82.1, 205.8),
 }
 
 
@@ -92,30 +111,68 @@ class SolveStats:
         return max(self.techniques_used.keys())
 
     @property
-    def raw_score(self) -> int:
-        return sum(TECHNIQUE_WEIGHTS.get(t, 0) * c for t, c in self.techniques_used.items())
+    def raw_score(self) -> float:
+        """Bottleneck-aware difficulty magnitude.
+
+        Human-felt difficulty tracks the BOTTLENECKS (how often you need the
+        hard techniques), not the total volume of deductions. A puzzle that
+        "unzips" into a long cascade of cheap deductions (e.g. 93 naked
+        singles) plays easy despite a huge raw count.
+
+        So: hard techniques (weight >= 8 — multi-cage line lock, summation,
+        cross-cage feasibility, trial-and-error) count at full weight, while
+        the cheaper bulk is square-root compressed so its volume can't
+        dominate. See the difficulty-volume-vs-bottleneck validation note.
+        """
+        hard = 0
+        cheap = 0
+        for t, c in self.techniques_used.items():
+            contribution = TECHNIQUE_WEIGHTS.get(t, 0) * c
+            if t in _HARD_TECHNIQUES:
+                hard += contribution
+            else:
+                cheap += contribution
+        return hard + math.sqrt(cheap)
 
     @property
     def difficulty_score(self) -> float:
-        """0–100 normalized difficulty score (matches src/utils/solver.ts)."""
+        """0–100 display score (matches src/utils/solver.ts).
+
+        Piecewise-linear interpolation of raw_score through the per-size
+        quantile boundaries, so the tier cutoffs land at exactly 20/40/60/80.
+        Below q20 maps into [0,20]; above q80 extrapolates from the q60→q80
+        slope toward 100.
+        """
         raw = self.raw_score
+        q = SIZE_QUANTILES.get(self.size, SIZE_QUANTILES[7])
+        q20, q40, q60, q80 = q
+        # Control points: (raw, score). Anchor 0→0; quantiles→20/40/60/80.
         if raw <= 0:
             return 0.0
-        log_raw = math.log2(max(1, raw))
-        low, high = SIZE_ANCHORS.get(self.size, (6.0, 12.0))
-        score = 10 + (log_raw - low) / (high - low) * 80
-        return min(100.0, max(0.0, score))
+        if raw < q20:
+            return _interp(raw, 0, q20, 0, 20)
+        if raw < q40:
+            return _interp(raw, q20, q40, 20, 40)
+        if raw < q60:
+            return _interp(raw, q40, q60, 40, 60)
+        if raw < q80:
+            return _interp(raw, q60, q80, 60, 80)
+        # Beyond q80: extrapolate using the q60→q80 slope, clamp to 100.
+        span = max(1e-9, q80 - q60)
+        score = 80 + (raw - q80) / span * 20
+        return min(100.0, score)
 
     @property
     def difficulty_level(self) -> str:
-        score = self.difficulty_score
-        if score <= 15:
+        raw = self.raw_score
+        q20, q40, q60, q80 = SIZE_QUANTILES.get(self.size, SIZE_QUANTILES[7])
+        if raw < q20:
             return "easiest"
-        if score <= 30:
+        if raw < q40:
             return "easy"
-        if score <= 50:
+        if raw < q60:
             return "medium"
-        if score <= 70:
+        if raw < q80:
             return "hard"
         return "expert"
 

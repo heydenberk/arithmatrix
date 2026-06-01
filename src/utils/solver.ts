@@ -84,37 +84,74 @@ export type SolverResult = {
   isValid: boolean;
 };
 
-// Size-specific log2(raw_score) anchors. Calibrated against p10/p90 of the
-// empirical raw-score distribution across the corpus under the new technique
-// set (see scripts/calibrate-anchors.py).
-const SIZE_ANCHORS: Record<number, [number, number]> = {
-  4: [4.86, 6.38],
-  5: [5.81, 7.01],
-  6: [6.86, 8.43],
-  7: [7.44, 9.59],
+// Techniques a human experiences as genuine bottlenecks (weight >= 8). They
+// drive difficulty at full weight; cheaper techniques are volume-compressed
+// (see bottleneckRaw). Mirrors _HARD_TECHNIQUES in backend/solver.py.
+const HARD_TECHNIQUES: ReadonlySet<TechniqueId> = new Set<TechniqueId>([
+  'multi_cage_line_lock',
+  'summation',
+  'cross_cage_feasibility',
+  'trial_and_error',
+]);
+
+/**
+ * Bottleneck-aware raw difficulty magnitude: hard techniques at full weight,
+ * cheaper bulk square-root compressed so a long cascade of cheap deductions
+ * (e.g. many naked singles) can't dominate. Mirrors SolveStats.raw_score.
+ */
+export function bottleneckRaw(counts: Record<TechniqueId, number>): number {
+  let hard = 0;
+  let cheap = 0;
+  for (const t of Object.keys(counts) as TechniqueId[]) {
+    const contribution = TECHNIQUE_WEIGHTS[t] * counts[t];
+    if (HARD_TECHNIQUES.has(t)) hard += contribution;
+    else cheap += contribution;
+  }
+  return hard + Math.sqrt(cheap);
+}
+
+// Per-size raw-score quantile boundaries (q20, q40, q60, q80) defining the
+// five tiers: easiest = bottom 20% … expert = top 20%. Quantile bucketing is
+// used because the bottleneck raw is bimodal (flows vs hits-walls), so fixed
+// thresholds would leave "medium" nearly empty. Mirrors SIZE_QUANTILES in
+// backend/solver.py; recompute with scripts/calibrate-quantiles.py.
+const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
+  4: [5.9, 7.8, 21.7, 36.8],
+  5: [7.9, 8.7, 19.1, 33.0],
+  6: [25.1, 40.0, 59.2, 109.6],
+  7: [14.0, 29.6, 82.1, 205.8],
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
 const cellLabel = (row: number, col: number) => `${colLetter(col)}${row + 1}`;
 const cellList = (cells: CellRef[]) => cells.map(c => cellLabel(c.row, c.col)).join(', ');
 
+function interp(x: number, x0: number, x1: number, y0: number, y1: number): number {
+  if (x1 <= x0) return y0;
+  return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
+}
+
 /**
- * Normalize raw weighted score to 0-100 difficulty score using size-specific anchors.
- * Mirrors SolveStats.difficulty_score in backend/solver.py.
+ * Map a bottleneck raw score to a 0-100 display score by piecewise-linear
+ * interpolation through the per-size quantile boundaries, so the tier cutoffs
+ * land at exactly 20/40/60/80. Mirrors SolveStats.difficulty_score.
  */
 export function normalizeScore(rawScore: number, size: number): number {
   if (rawScore <= 0) return 0;
-  const logRaw = Math.log2(Math.max(1, rawScore));
-  const [low, high] = SIZE_ANCHORS[size] ?? [6.0, 12.0];
-  const score = 10 + ((logRaw - low) / (high - low)) * 80;
-  return Math.min(100, Math.max(0, score));
+  const [q20, q40, q60, q80] = SIZE_QUANTILES[size] ?? SIZE_QUANTILES[7];
+  if (rawScore < q20) return interp(rawScore, 0, q20, 0, 20);
+  if (rawScore < q40) return interp(rawScore, q20, q40, 20, 40);
+  if (rawScore < q60) return interp(rawScore, q40, q60, 40, 60);
+  if (rawScore < q80) return interp(rawScore, q60, q80, 60, 80);
+  const span = Math.max(1e-9, q80 - q60);
+  return Math.min(100, 80 + ((rawScore - q80) / span) * 20);
 }
 
 export function difficultyLevel(score: number): 'easiest' | 'easy' | 'medium' | 'hard' | 'expert' {
-  if (score <= 15) return 'easiest';
-  if (score <= 30) return 'easy';
-  if (score <= 50) return 'medium';
-  if (score <= 70) return 'hard';
+  if (score < 20) return 'easiest';
+  if (score < 40) return 'easy';
+  if (score < 60) return 'medium';
+  if (score < 80) return 'hard';
   return 'expert';
 }
 
@@ -319,8 +356,8 @@ class Solver {
     supportCells?: CellRef[]
   ) {
     const delta = TECHNIQUE_WEIGHTS[technique];
-    this.rawScore += delta;
     this.counts[technique] += 1;
+    this.rawScore = bottleneckRaw(this.counts);
     this.steps.push({
       technique,
       description,
@@ -1158,7 +1195,7 @@ class Solver {
       steps: this.steps,
       finalGrid: this.snapshotGrid(),
       techniqueCounts: { ...this.counts },
-      rawScore: this.rawScore,
+      rawScore: bottleneckRaw(this.counts),
       solutionCount,
       isValid: solutionCount === 1,
     };
