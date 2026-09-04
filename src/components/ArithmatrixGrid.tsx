@@ -26,12 +26,22 @@ import MobileNumberPad from './MobileNumberPad';
 const COLUMN_GAP = {
   DESKTOP: 2, // Desktop (>1024px)
   TABLET: 3, // Tablets (769-1024px)
-  LARGE_PHONE: 2, // Large phones (481-768px) - minimal gaps
-  SMALL_PHONE: 1, // Small phones (≤480px) - minimal gaps
+  LARGE_PHONE: 1, // Large phones (481-768px) - hairline lattice
+  SMALL_PHONE: 1, // Small phones (≤480px) - hairline lattice
   EMERGENCY: 1, // Emergency fallback for very small screens
   DYNAMIC_MIN: 1, // Minimum for dynamic calculation
   DYNAMIC_MAX: 2, // Maximum for dynamic calculation
 };
+
+// Mobile cells butt up against each other, separated only by the 1px grid
+// background showing through the gap, so the grid itself needs no padding.
+const MOBILE_GRID_PADDING = 0;
+const MOBILE_OUTER_MARGIN = 4;
+
+// Vertical space reserved at the top of every cell for the cage target badge.
+// Pencil marks start below this, and it is uniform across cells so the pencil
+// digits line up from cell to cell even though only one cell per cage has a badge.
+const CAGE_BADGE_INSET = { MOBILE: 12, DESKTOP: 26 };
 
 // Type imports
 import { ArithmatrixGridProps } from '../types/ArithmatrixTypes';
@@ -343,7 +353,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const computeFittingCellSize = (): number => {
       const viewportWidth = layout.width || window.innerWidth;
       // Page horizontal padding/margins outside grid - minimal on mobile
-      const outerMargin = viewportWidth <= 768 ? 8 : 32;
+      const outerMargin = viewportWidth <= 768 ? MOBILE_OUTER_MARGIN : 32;
       const availableWidth = Math.max(0, viewportWidth - outerMargin);
 
       // Match CSS gaps/padding per breakpoints - minimal on mobile
@@ -355,7 +365,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             : viewportWidth <= 1024
               ? COLUMN_GAP.TABLET
               : COLUMN_GAP.DESKTOP;
-      let gridPadding = viewportWidth <= 480 ? 2 : viewportWidth <= 768 ? 4 : 12;
+      let gridPadding = viewportWidth <= 768 ? MOBILE_GRID_PADDING : 12;
 
       // Minimum touch target size
       const minCell = layout.isTouchDevice ? 44 : 32;
@@ -380,26 +390,49 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     };
 
     const cellSize = computeFittingCellSize();
-    // Determine spacing proportional to the cell size for consistent feel
     const viewportWidth = layout.width || window.innerWidth;
-    const dynamicColumnGap = Math.max(
-      COLUMN_GAP.DYNAMIC_MIN,
-      Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.04))
-    );
-    // Minimal padding on mobile to maximize puzzle size (1px on mobile)
-    const dynamicPadding = viewportWidth <= 768 ? 1 : 12;
+    const isMobileViewport = viewportWidth <= 768;
+
+    // Mobile keeps a uniform 1px lattice so cells read as one continuous grid;
+    // desktop keeps its airier gaps, scaled to the cell size.
+    const dynamicColumnGap = isMobileViewport
+      ? COLUMN_GAP.SMALL_PHONE
+      : Math.max(
+          COLUMN_GAP.DYNAMIC_MIN,
+          Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.04))
+        );
+    const dynamicRowGap = isMobileViewport ? COLUMN_GAP.SMALL_PHONE : 2;
+    const dynamicPadding = isMobileViewport ? MOBILE_GRID_PADDING : 12;
+
+    // Cells are square at every breakpoint
+    const cellHeight = cellSize;
 
     // Scale fonts based on cell size - larger on mobile for readability
-    const isMobileViewport = viewportWidth <= 768;
     const cellFontMultiplier = isMobileViewport ? 0.028 : 0.025;
     const cellFontMin = isMobileViewport ? 1.3 : 1.2;
     const cellFontMax = isMobileViewport ? 2.0 : 2.1;
-    const cellFontRem = Math.max(cellFontMin, Math.min(cellFontMax, +(cellSize * cellFontMultiplier).toFixed(2)));
-    // Pencil mark font size - larger on mobile
-    const pencilFontMultiplier = isMobileViewport ? 0.012 : 0.0095;
-    const pencilFontMin = isMobileViewport ? 0.55 : 0.45;
-    const pencilFontMax = isMobileViewport ? 0.85 : 0.75;
-    const pencilFontRem = Math.max(pencilFontMin, Math.min(pencilFontMax, +(cellSize * pencilFontMultiplier).toFixed(2)));
+    const cellFontRem = Math.max(
+      cellFontMin,
+      Math.min(cellFontMax, +(cellSize * cellFontMultiplier).toFixed(2))
+    );
+
+    // Pencil marks are laid out as a 2x2 (4x4 puzzles) or 3x3 grid filling the
+    // cell below the cage badge. Size the digits from the space a single mark
+    // actually gets rather than from the cell size, so they grow to fill it.
+    const pencilTopInset = isMobileViewport ? CAGE_BADGE_INSET.MOBILE : CAGE_BADGE_INSET.DESKTOP;
+    const pencilTracks = size <= 4 ? 2 : 3;
+    const pencilGridPadding = 1; // matches .pencil-marks-grid padding
+    const pencilMarkHeight = (cellHeight - pencilTopInset - pencilGridPadding * 2) / pencilTracks;
+    const pencilMarkWidth = (cellSize - pencilGridPadding * 2) / pencilTracks;
+    const pencilFontMin = isMobileViewport ? 0.6 : 0.45;
+    const pencilFontMax = isMobileViewport ? 1.05 : 0.8;
+    const pencilFontRem = Math.max(
+      pencilFontMin,
+      Math.min(
+        pencilFontMax,
+        +(Math.min(pencilMarkHeight * 0.9, pencilMarkWidth * 0.9) / 16).toFixed(2)
+      )
+    );
 
     // Controls component (rendered at top on mobile, bottom on desktop)
     const controlsElement = (
@@ -428,14 +461,16 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         className="arithmatrix-grid"
         style={{
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
-          gridTemplateRows: `repeat(${size}, ${isMobileViewport ? cellSize + 3 : cellSize}px)`,
+          gridTemplateRows: `repeat(${size}, ${cellHeight}px)`,
           columnGap: `${dynamicColumnGap}px`,
+          rowGap: `${dynamicRowGap}px`,
           padding: `${dynamicPadding}px`,
           // Provide CSS variables so cells adopt the same size
           ['--cell-size']: `${cellSize}px`,
-          ['--cell-height']: `${isMobileViewport ? cellSize + 3 : cellSize}px`,
+          ['--cell-height']: `${cellHeight}px`,
           ['--cell-font-size']: `${cellFontRem}rem`,
           ['--pencil-font-size']: `${pencilFontRem}rem`,
+          ['--pencil-top-inset']: `${pencilTopInset}px`,
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
         }}
       >

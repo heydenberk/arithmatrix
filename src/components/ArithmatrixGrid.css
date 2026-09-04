@@ -3,7 +3,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 .arithmatrix-grid {
@@ -15,7 +19,7 @@
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 24px;
-  box-shadow: 
+  box-shadow:
     0 25px 50px -12px rgba(0, 0, 0, 0.25),
     0 10px 20px -8px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
@@ -41,7 +45,9 @@
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 4px 8px rgba(0, 0, 0, 0.1);
   overflow: visible;
-  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+    box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   z-index: 1;
   /* Ensure consistent sizing regardless of border width */
   box-sizing: border-box;
@@ -174,7 +180,7 @@
 /* Enhanced hover effects for cage colors */
 .arithmatrix-cell:hover {
   transform: translateY(-1px) scale(1.02);
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 8px 20px rgba(0, 0, 0, 0.15);
@@ -189,7 +195,7 @@
 
 /* Cage-specific focus indicators */
 .cage-color-0:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(236, 72, 153, 0.3),
@@ -197,7 +203,7 @@
 }
 
 .cage-color-1:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(245, 158, 11, 0.3),
@@ -205,7 +211,7 @@
 }
 
 .cage-color-2:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(16, 185, 129, 0.3),
@@ -213,7 +219,7 @@
 }
 
 .cage-color-3:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(59, 130, 246, 0.3),
@@ -221,7 +227,7 @@
 }
 
 .cage-color-4:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(139, 92, 246, 0.3),
@@ -229,7 +235,7 @@
 }
 
 .cage-color-5:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(14, 165, 233, 0.3),
@@ -237,7 +243,7 @@
 }
 
 .cage-color-6:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(20, 184, 166, 0.3),
@@ -245,7 +251,7 @@
 }
 
 .cage-color-7:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(234, 88, 12, 0.3),
@@ -253,7 +259,7 @@
 }
 
 .cage-color-8:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(99, 102, 241, 0.3),
@@ -261,7 +267,7 @@
 }
 
 .cage-color-9:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(236, 72, 153, 0.3),
@@ -269,7 +275,7 @@
 }
 
 .cage-color-10:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(34, 197, 94, 0.3),
@@ -277,7 +283,7 @@
 }
 
 .cage-color-11:focus-within {
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 12px 24px rgba(249, 115, 22, 0.3),
@@ -292,7 +298,8 @@
   width: 100%;
   height: 100%;
   background: transparent; /* Make transparent so cage colors show through */
-  padding-top: 1.75em; /* Slightly increased to move pencil marks lower */
+  /* Clears the cage target badge in the top-left corner */
+  padding-top: var(--pencil-top-inset, 1.75em);
   box-sizing: border-box;
   pointer-events: none;
   z-index: 5;
@@ -302,7 +309,9 @@
 .pencil-marks-grid {
   display: grid;
   width: 100%;
-  height: calc(100% - 1.75em); /* Updated to match new padding-top */
+  /* The container's padding-top already reserves the badge space; subtracting
+     it again here collapsed the grid to a couple of pixels tall. */
+  height: 100%;
   box-sizing: border-box;
   padding: 2px; /* Reduced from 4px */
   gap: 0.5px; /* Reduced from 1px */
@@ -322,11 +331,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--pencil-font-size, 0.6rem); /* Reduced default size */
+  font-size: var(--pencil-font-size, 0.6rem);
   font-weight: 600;
   color: #64748b;
   text-align: center;
-  line-height: 0.9; /* Tighter line height */
+  line-height: 1;
   border-radius: 2px; /* Smaller border radius */
   background: rgba(255, 255, 255, 0.3);
   transition: all 0.2s ease;
@@ -353,7 +362,11 @@
   box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);
   color: #1f2937;
   text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
 }
 
 /* Cage exterior border styles - medium gray borders around cage edges */
@@ -382,7 +395,7 @@
 /* Cage-specific selection indicators */
 .cage-color-0.selected-cell {
   border: 4px solid #ec4899 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(236, 72, 153, 0.7),
@@ -391,7 +404,7 @@
 
 .cage-color-1.selected-cell {
   border: 4px solid #f59e0b !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(245, 158, 11, 0.7),
@@ -400,7 +413,7 @@
 
 .cage-color-2.selected-cell {
   border: 4px solid #10b981 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(16, 185, 129, 0.7),
@@ -409,7 +422,7 @@
 
 .cage-color-3.selected-cell {
   border: 4px solid #3b82f6 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(59, 130, 246, 0.7),
@@ -418,7 +431,7 @@
 
 .cage-color-4.selected-cell {
   border: 4px solid #8b5cf6 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(139, 92, 246, 0.7),
@@ -427,7 +440,7 @@
 
 .cage-color-5.selected-cell {
   border: 4px solid #0ea5e9 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(14, 165, 233, 0.7),
@@ -436,7 +449,7 @@
 
 .cage-color-6.selected-cell {
   border: 4px solid #14b8a6 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(20, 184, 166, 0.7),
@@ -445,7 +458,7 @@
 
 .cage-color-7.selected-cell {
   border: 4px solid #ea580c !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(234, 88, 12, 0.7),
@@ -454,7 +467,7 @@
 
 .cage-color-8.selected-cell {
   border: 4px solid #6366f1 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(99, 102, 241, 0.7),
@@ -463,7 +476,7 @@
 
 .cage-color-9.selected-cell {
   border: 4px solid #ec4899 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(236, 72, 153, 0.7),
@@ -472,7 +485,7 @@
 
 .cage-color-10.selected-cell {
   border: 4px solid #22c55e !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(34, 197, 94, 0.7),
@@ -481,7 +494,7 @@
 
 .cage-color-11.selected-cell {
   border: 4px solid #f97316 !important;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(0, 0, 0, 0.1),
     0 0 0 3px rgba(249, 115, 22, 0.7),
@@ -492,7 +505,7 @@
 .error-cell {
   background: linear-gradient(145deg, #fef2f2, #fee2e2) !important;
   animation: errorPulse 0.5s ease-out;
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.6),
     inset 0 -2px 4px rgba(239, 68, 68, 0.2),
     0 0 0 3px rgba(239, 68, 68, 0.4),
@@ -500,9 +513,15 @@
 }
 
 @keyframes errorPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .input-error {
@@ -518,14 +537,15 @@
 }
 
 @keyframes invalidFlash {
-  0%, 100% {
-    box-shadow: 
+  0%,
+  100% {
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 4px 8px rgba(0, 0, 0, 0.1);
   }
   50% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(239, 68, 68, 0.2),
       0 0 0 3px rgba(239, 68, 68, 0.4),
@@ -534,34 +554,58 @@
 }
 
 /* Pulsate animations for each cage color - runs once instead of infinitely to save CPU */
-.cage-color-0.selected-cell { animation: pulsate-focus-0 0.6s ease-out 1; }
-.cage-color-1.selected-cell { animation: pulsate-focus-1 0.6s ease-out 1; }
-.cage-color-2.selected-cell { animation: pulsate-focus-2 0.6s ease-out 1; }
-.cage-color-3.selected-cell { animation: pulsate-focus-3 0.6s ease-out 1; }
-.cage-color-4.selected-cell { animation: pulsate-focus-4 0.6s ease-out 1; }
-.cage-color-5.selected-cell { animation: pulsate-focus-5 0.6s ease-out 1; }
-.cage-color-6.selected-cell { animation: pulsate-focus-6 0.6s ease-out 1; }
-.cage-color-7.selected-cell { animation: pulsate-focus-7 0.6s ease-out 1; }
-.cage-color-8.selected-cell { animation: pulsate-focus-8 0.6s ease-out 1; }
-.cage-color-9.selected-cell { animation: pulsate-focus-9 0.6s ease-out 1; }
-.cage-color-10.selected-cell { animation: pulsate-focus-10 0.6s ease-out 1; }
-.cage-color-11.selected-cell { animation: pulsate-focus-11 0.6s ease-out 1; }
+.cage-color-0.selected-cell {
+  animation: pulsate-focus-0 0.6s ease-out 1;
+}
+.cage-color-1.selected-cell {
+  animation: pulsate-focus-1 0.6s ease-out 1;
+}
+.cage-color-2.selected-cell {
+  animation: pulsate-focus-2 0.6s ease-out 1;
+}
+.cage-color-3.selected-cell {
+  animation: pulsate-focus-3 0.6s ease-out 1;
+}
+.cage-color-4.selected-cell {
+  animation: pulsate-focus-4 0.6s ease-out 1;
+}
+.cage-color-5.selected-cell {
+  animation: pulsate-focus-5 0.6s ease-out 1;
+}
+.cage-color-6.selected-cell {
+  animation: pulsate-focus-6 0.6s ease-out 1;
+}
+.cage-color-7.selected-cell {
+  animation: pulsate-focus-7 0.6s ease-out 1;
+}
+.cage-color-8.selected-cell {
+  animation: pulsate-focus-8 0.6s ease-out 1;
+}
+.cage-color-9.selected-cell {
+  animation: pulsate-focus-9 0.6s ease-out 1;
+}
+.cage-color-10.selected-cell {
+  animation: pulsate-focus-10 0.6s ease-out 1;
+}
+.cage-color-11.selected-cell {
+  animation: pulsate-focus-11 0.6s ease-out 1;
+}
 
 @keyframes pulsate-focus-0 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(236, 72, 153, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(236, 72, 153, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(236, 72, 153, 0);
@@ -570,19 +614,19 @@
 
 @keyframes pulsate-focus-1 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(245, 158, 11, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(245, 158, 11, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(245, 158, 11, 0);
@@ -591,19 +635,19 @@
 
 @keyframes pulsate-focus-2 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(16, 185, 129, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(16, 185, 129, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(16, 185, 129, 0);
@@ -612,19 +656,19 @@
 
 @keyframes pulsate-focus-3 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(59, 130, 246, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(59, 130, 246, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(59, 130, 246, 0);
@@ -633,19 +677,19 @@
 
 @keyframes pulsate-focus-4 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(139, 92, 246, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(139, 92, 246, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(139, 92, 246, 0);
@@ -654,19 +698,19 @@
 
 @keyframes pulsate-focus-5 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(14, 165, 233, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(14, 165, 233, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(14, 165, 233, 0);
@@ -675,19 +719,19 @@
 
 @keyframes pulsate-focus-6 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(20, 184, 166, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(20, 184, 166, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(20, 184, 166, 0);
@@ -696,19 +740,19 @@
 
 @keyframes pulsate-focus-7 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(234, 88, 12, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(234, 88, 12, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(234, 88, 12, 0);
@@ -717,19 +761,19 @@
 
 @keyframes pulsate-focus-8 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(99, 102, 241, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(99, 102, 241, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(99, 102, 241, 0);
@@ -738,19 +782,19 @@
 
 @keyframes pulsate-focus-9 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(236, 72, 153, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(236, 72, 153, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(236, 72, 153, 0);
@@ -759,19 +803,19 @@
 
 @keyframes pulsate-focus-10 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(34, 197, 94, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(34, 197, 94, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(34, 197, 94, 0);
@@ -780,19 +824,19 @@
 
 @keyframes pulsate-focus-11 {
   0% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(249, 115, 22, 0.7);
   }
   70% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 8px rgba(249, 115, 22, 0.3);
   }
   100% {
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 0 0 0 rgba(249, 115, 22, 0);
@@ -801,21 +845,47 @@
 
 /* Grid area assignments for pencil marks */
 /* For 2x2 grid */
-.size-2x2 .pencil-mark:nth-child(1) { grid-area: 1 / 1; }
-.size-2x2 .pencil-mark:nth-child(2) { grid-area: 1 / 2; }
-.size-2x2 .pencil-mark:nth-child(3) { grid-area: 2 / 1; }
-.size-2x2 .pencil-mark:nth-child(4) { grid-area: 2 / 2; }
+.size-2x2 .pencil-mark:nth-child(1) {
+  grid-area: 1 / 1;
+}
+.size-2x2 .pencil-mark:nth-child(2) {
+  grid-area: 1 / 2;
+}
+.size-2x2 .pencil-mark:nth-child(3) {
+  grid-area: 2 / 1;
+}
+.size-2x2 .pencil-mark:nth-child(4) {
+  grid-area: 2 / 2;
+}
 
 /* For 3x3 grid */
-.size-3x3 .pencil-mark:nth-child(1) { grid-area: 1 / 1; }
-.size-3x3 .pencil-mark:nth-child(2) { grid-area: 1 / 2; }
-.size-3x3 .pencil-mark:nth-child(3) { grid-area: 1 / 3; }
-.size-3x3 .pencil-mark:nth-child(4) { grid-area: 2 / 1; }
-.size-3x3 .pencil-mark:nth-child(5) { grid-area: 2 / 2; }
-.size-3x3 .pencil-mark:nth-child(6) { grid-area: 2 / 3; }
-.size-3x3 .pencil-mark:nth-child(7) { grid-area: 3 / 1; }
-.size-3x3 .pencil-mark:nth-child(8) { grid-area: 3 / 2; }
-.size-3x3 .pencil-mark:nth-child(9) { grid-area: 3 / 3; }
+.size-3x3 .pencil-mark:nth-child(1) {
+  grid-area: 1 / 1;
+}
+.size-3x3 .pencil-mark:nth-child(2) {
+  grid-area: 1 / 2;
+}
+.size-3x3 .pencil-mark:nth-child(3) {
+  grid-area: 1 / 3;
+}
+.size-3x3 .pencil-mark:nth-child(4) {
+  grid-area: 2 / 1;
+}
+.size-3x3 .pencil-mark:nth-child(5) {
+  grid-area: 2 / 2;
+}
+.size-3x3 .pencil-mark:nth-child(6) {
+  grid-area: 2 / 3;
+}
+.size-3x3 .pencil-mark:nth-child(7) {
+  grid-area: 3 / 1;
+}
+.size-3x3 .pencil-mark:nth-child(8) {
+  grid-area: 3 / 2;
+}
+.size-3x3 .pencil-mark:nth-child(9) {
+  grid-area: 3 / 3;
+}
 
 /* Responsive adjustments - Enhanced mobile breakpoints */
 
@@ -825,41 +895,17 @@
     padding: 0;
   }
 
-  .arithmatrix-grid {
-    row-gap: 1px;
-    column-gap: 1px;
-    padding: 1px;
-    border-radius: 6px;
-  }
-
   .arithmatrix-cell {
     width: var(--cell-size, 54px);
     height: var(--cell-height, var(--cell-size, 54px));
-    border-radius: 6px;
     /* Ensure minimum touch target size */
     min-width: 44px;
     min-height: 44px;
   }
-  
+
   .cell-input {
     font-size: 1.5rem;
     font-weight: 700;
-  }
-  
-  .cage-info {
-    top: 1px;
-    left: 1px;
-    font-size: 0.5rem;
-    padding: 0px 2px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.7);
-    border: none;
-    box-shadow: none;
-  }
-
-  .pencil-mark {
-    font-size: 0.5rem; /* Smaller for mobile */
-    line-height: 0.8;
   }
 
   /* Ensure pencil marks are readable on small screens */
@@ -867,14 +913,10 @@
     gap: 0.5px;
     padding: 1px;
   }
-  
+
   .pencil-marks-grid.size-2x2 {
     gap: 1px;
     padding: 1px;
-  }
-  
-  .pencil-marks-container.overlay {
-    padding-top: 1.5em; /* Slightly increased for mobile positioning */
   }
 }
 
@@ -884,38 +926,14 @@
     padding: 0;
   }
 
-  .arithmatrix-grid {
-    row-gap: 1px;
-    column-gap: 1px;
-    padding: 1px;
-    border-radius: 8px;
-  }
-
   .arithmatrix-cell {
     width: var(--cell-size, 64px);
     height: var(--cell-height, var(--cell-size, 64px));
-    border-radius: 7px;
   }
 
   .cell-input {
     font-size: 1.6rem;
     font-weight: 700;
-  }
-
-  .cage-info {
-    top: 1px;
-    left: 1px;
-    font-size: 0.55rem;
-    padding: 0px 2px;
-    border-radius: 2px;
-    background: rgba(255, 255, 255, 0.7);
-    border: none;
-    box-shadow: none;
-  }
-
-  .pencil-mark {
-    font-size: 0.55rem; /* Smaller for large phones */
-    line-height: 0.85;
   }
 }
 
@@ -960,19 +978,14 @@
     width: var(--cell-size, 48px);
     height: var(--cell-height, var(--cell-size, 48px));
   }
-  
+
   .cell-input {
     font-size: 1.4rem;
   }
-  
+
   .cage-info {
     font-size: 0.5rem;
     padding: 1px 2px;
-  }
-
-  .pencil-mark {
-    font-size: 0.5rem; /* Smaller for landscape */
-    line-height: 0.8;
   }
 }
 
@@ -1006,7 +1019,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   .cell-input {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -1019,19 +1032,14 @@
     width: var(--cell-size, 60px);
     height: var(--cell-height, var(--cell-size, 60px));
   }
-  
+
   .cell-input {
     font-size: 1.6rem;
   }
-  
+
   .cage-info {
     font-size: 0.6rem;
     padding: 2px 4px;
-  }
-  
-  .pencil-mark {
-    font-size: 0.55rem; /* Smaller for general mobile */
-    line-height: 0.85;
   }
 }
 
@@ -1055,7 +1063,11 @@
   outline: none;
   padding: 0;
   color: #1e293b;
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
   transition: color 0.2s ease;
   /* Mobile optimizations */
   -webkit-tap-highlight-color: transparent;
@@ -1084,13 +1096,118 @@
 }
 
 .touch-feedback {
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
 }
 
 .touch-feedback:active {
   transform: scale(0.98);
-  box-shadow: 
+  box-shadow:
     inset 0 2px 4px rgba(255, 255, 255, 0.8),
     inset 0 -2px 4px rgba(0, 0, 0, 0.15),
     0 2px 4px rgba(0, 0, 0, 0.1);
-} 
+}
+
+/* ============================================================
+   Mobile tight grid (<= 768px)
+   ------------------------------------------------------------
+   One authoritative block for phones, intentionally last in the file so it
+   wins over the earlier breakpoint blocks at equal specificity.
+
+   Cells butt directly against each other and are separated only by the 1px
+   grid background showing through the gap, which forms a hairline lattice.
+   Cage outlines are dropped entirely - the cage background colors (assigned by
+   graph coloring, so neighbours never match) carry cage membership - which
+   also hands the full width of every cell back to its value and pencil marks.
+   ============================================================ */
+@media (max-width: 768px) {
+  .arithmatrix-grid {
+    /* Shows through the 1px gaps as the lattice lines */
+    background: #cbd5e1;
+    border: none;
+    border-radius: 10px;
+    /* Rounds off the corner cells, since they sit flush with the edge */
+    overflow: hidden;
+    backdrop-filter: none;
+  }
+
+  .arithmatrix-cell {
+    border: none !important;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  /* Minimal cage outlines: an overlay tints the single gap pixel along a cage
+     edge instead of drawing a border, so a cage boundary costs exactly the
+     same space as the lattice line already there - it just reads darker.
+     Only the top and left edges are drawn; every interior boundary is covered
+     by its right/bottom neighbour, and grid-edge lines fall outside the grid's
+     content box and are clipped away by its overflow: hidden. */
+  .arithmatrix-cell::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: 0;
+    bottom: 0;
+    pointer-events: none;
+    border: 0 solid rgba(51, 65, 85, 0.6);
+    z-index: 6;
+  }
+
+  .cage-border-top::after {
+    border-top-width: 1px;
+  }
+
+  .cage-border-left::after {
+    border-left-width: 1px;
+  }
+
+  /* Flat cells: the per-tile lift would reintroduce visual gaps */
+  .arithmatrix-cell:hover,
+  .arithmatrix-cell:focus-within {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Selection and errors ring the cell from the inside, so they neither
+     resize the cell's content box nor spill over its neighbours. */
+  .arithmatrix-cell.selected-cell {
+    transform: none;
+    border: none !important;
+    animation: none !important;
+    box-shadow: inset 0 0 0 3px #4f46e5 !important;
+    z-index: 20;
+  }
+
+  .arithmatrix-cell.error-cell {
+    box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.85) !important;
+  }
+
+  /* Cage target tucked flush into the corner it belongs to */
+  .cage-info {
+    top: 0;
+    left: 0;
+    font-size: 0.58rem;
+    line-height: 1.15;
+    padding: 1px 3px;
+    border-radius: 0 0 6px 0;
+    background: rgba(255, 255, 255, 0.82);
+    border: none;
+    box-shadow: none;
+    text-shadow: none;
+  }
+
+  .pencil-marks-container.overlay {
+    border-radius: 0;
+  }
+
+  /* Bare digits: at this size the per-mark chip crowded them */
+  .pencil-mark,
+  .pencil-mark:not(:empty) {
+    background: transparent;
+    box-shadow: none;
+    font-weight: 700;
+  }
+}
