@@ -94,6 +94,22 @@ and can be shared. Starting a random new game drops the parameter. On startup a
 saved game in progress takes precedence over `?p=`, so reloading mid-puzzle
 resumes rather than restarting.
 
+## Addendum: unfiltered operations
+
+The operations filter gained an "Any" option, so the gallery can be browsed
+without filtering by operations at all. Size stays single-select.
+
+That makes the worst case 1000 tiles (4 tiers x 250) rather than 250, and the
+cost turned out to be non-linear: laying out ~23k SVG nodes measured 535ms here,
+which would be seconds on a phone. Fixed with `content-visibility: auto` on each
+thumbnail, which skips layout and paint for off-screen previews: 535ms -> 21ms,
+with an identical total container height (11440px) confirming no layout shift -
+the SVG's box is fixed by `width` plus `aspect-ratio`, not by the contents being
+skipped.
+
+Tiles show their operations tier only when the filter is "Any", since that is
+the only time the value differs between visible tiles.
+
 ## Out of scope
 
 Search, sort options, pagination controls.

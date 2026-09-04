@@ -31,9 +31,14 @@
        * its own CTA and call prompt() at a moment of its choosing.
        */
       window.__installPrompt = null;
+      // Sticky record of whether the event ever fired, for diagnostics: the
+      // prompt above is cleared once used, but "did Chrome ever offer one?"
+      // is the question worth answering when no install CTA shows up.
+      window.__installPromptFired = false;
       window.addEventListener('beforeinstallprompt', function (event) {
         event.preventDefault();
         window.__installPrompt = event;
+        window.__installPromptFired = true;
         window.dispatchEvent(new Event('installpromptchange'));
       });
       window.addEventListener('appinstalled', function () {

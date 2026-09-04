@@ -101,6 +101,14 @@ const PuzzleThumbnail: React.FC<PuzzleThumbnailProps> = ({ size, cages, width = 
         height: 'auto',
         borderRadius: 4,
         background: '#ffffff',
+        /*
+         * Skip layout and paint for off-screen previews. With operations
+         * unfiltered a view holds 1000 puzzles (~23k SVG nodes), and laying all
+         * of them out costs ~535ms here - seconds on a phone. This drops that to
+         * ~21ms. There is no layout shift: the box above is fixed by width plus
+         * aspect-ratio, not by the contents being skipped.
+         */
+        contentVisibility: 'auto',
       }}
     >
       {/* Cell hairlines */}

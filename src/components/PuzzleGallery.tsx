@@ -50,6 +50,9 @@ interface PuzzleGalleryProps {
   onSelectPuzzle: (record: RawPuzzleRecord, index: number) => void;
 }
 
+/** Sentinel for the operations filter meaning "don't filter by operations". */
+const ANY_OPS = 'any';
+
 const TIER_COLOR: Record<string, string> = {
   easiest: 'green',
   easy: 'teal',
@@ -109,7 +112,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     const matching = catalog.filter(
       entry =>
         entry.size === size &&
-        entry.operationsTier === operationsTier &&
+        (operationsTier === ANY_OPS || entry.operationsTier === operationsTier) &&
         !(hideCompleted && solved.has(entry.cagesSig))
     );
     return groupByScoreBand(matching);
@@ -127,7 +130,8 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     let total = 0;
     let done = 0;
     for (const entry of catalog) {
-      if (entry.size !== size || entry.operationsTier !== operationsTier) continue;
+      if (entry.size !== size) continue;
+      if (operationsTier !== ANY_OPS && entry.operationsTier !== operationsTier) continue;
       total++;
       if (solved.has(entry.cagesSig)) done++;
     }
@@ -193,10 +197,13 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
                   size="xs"
                   value={operationsTier}
                   onChange={setOperationsTier}
-                  data={OPERATION_TIERS.map(tier => ({
-                    value: tier,
-                    label: OPERATION_TIER_LABELS[tier],
-                  }))}
+                  data={[
+                    { value: ANY_OPS, label: 'Any' },
+                    ...OPERATION_TIERS.map(tier => ({
+                      value: tier,
+                      label: OPERATION_TIER_LABELS[tier],
+                    })),
+                  ]}
                 />
               </Stack>
             </Group>
@@ -296,6 +303,12 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
                     <Text size="xs" fw={700} ta="center" mt={2} c="gray.7">
                       {entry.score.toFixed(1)}
                     </Text>
+                    {/* Only worth showing when tiles can differ in operations */}
+                    {operationsTier === ANY_OPS && (
+                      <Text size="10px" ta="center" c="dimmed" lh={1.1}>
+                        {OPERATION_TIER_LABELS[entry.operationsTier]}
+                      </Text>
+                    )}
                   </UnstyledButton>
                 );
               })}

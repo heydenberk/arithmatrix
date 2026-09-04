@@ -38,6 +38,7 @@ import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/Arithmatrix
 import Timer from './components/Timer';
 import MobileSettingsPanel from './components/MobileSettingsPanel';
 import PuzzleGallery from './components/PuzzleGallery';
+import InstallDiagnostics from './components/InstallDiagnostics';
 import {
   OPERATION_TIERS,
   DEFAULT_OPERATION_TIER,
@@ -1470,8 +1471,7 @@ function App() {
                   Look for <b>"Install app"</b> or <b>"Add to Home Screen"</b>
                 </List.Item>
                 <List.Item>
-                  If you don't see it, try visiting a few more times — Chrome requires repeat visits
-                  before offering install
+                  If neither appears, the details below say why — copy them and send them over
                 </List.Item>
               </List>
             </>
@@ -1479,6 +1479,7 @@ function App() {
           <Text size="xs" c="dimmed">
             The app will launch in its own window with no browser bar, just like a native app.
           </Text>
+          <InstallDiagnostics />
         </Stack>
       </Modal>
 
