@@ -29,6 +29,12 @@ export type CompletedPuzzleStats = {
   difficultyOperations?: number;
   /** The operation tier used for this puzzle */
   operationTier?: string;
+  /**
+   * Line index of this puzzle in the puzzle database, when known.
+   * Absent on completions recorded before indexes were stored; the puzzle's
+   * cage signature identifies those instead (see puzzleCatalog).
+   */
+  puzzleIndex?: number;
 };
 
 /** Serialized version of CompletedPuzzleStats (as stored in localStorage) */
@@ -79,7 +85,8 @@ export const saveCompletedPuzzle = (
   puzzle: PuzzleDefinition,
   difficultyLevel: string,
   completionTimeSeconds: number,
-  operationTier?: string
+  operationTier?: string,
+  puzzleIndex?: number | null
 ): void => {
   try {
     const stats: CompletedPuzzleStats = {
@@ -91,6 +98,7 @@ export const saveCompletedPuzzle = (
       size: puzzle.size,
       difficultyOperations: puzzle.difficulty_operations,
       operationTier,
+      ...(puzzleIndex === null || puzzleIndex === undefined ? {} : { puzzleIndex }),
     };
 
     const existingStats = getStoredStats();

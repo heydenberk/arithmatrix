@@ -14,7 +14,7 @@
 
 import React from 'react';
 import { Box, Button, Group, Stack, Text, ActionIcon, SegmentedControl } from '@mantine/core';
-import { IconX, IconSparkles } from '@tabler/icons-react';
+import { IconX, IconSparkles, IconLayoutGrid } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import './MobileSettingsPanel.css';
 
@@ -29,6 +29,8 @@ interface MobileSettingsPanelProps {
   onDifficultyChange: (difficulty: string) => void;
   onOperationsTierChange: (tier: string) => void;
   onStartGame: () => void;
+  /** Opens the puzzle gallery - the secondary way to pick a game. */
+  onBrowseGallery: () => void;
   onClose: () => void;
 }
 
@@ -52,6 +54,7 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
   onDifficultyChange,
   onOperationsTierChange,
   onStartGame,
+  onBrowseGallery,
   onClose,
 }) => {
   const handleSizeChange = (value: string) => {
@@ -72,6 +75,12 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
   const handleStartGame = () => {
     triggerHapticFeedback('medium');
     onStartGame();
+    onClose();
+  };
+
+  const handleBrowseGallery = () => {
+    triggerHapticFeedback('light');
+    onBrowseGallery();
     onClose();
   };
 
@@ -188,6 +197,20 @@ const MobileSettingsPanel: React.FC<MobileSettingsPanelProps> = ({
           className="start-game-button"
         >
           {hasChanges ? 'Start New Game' : 'New Puzzle'}
+        </Button>
+
+        {/* Secondary: pick an exact puzzle instead of a random one */}
+        <Button
+          fullWidth
+          size="md"
+          radius="xl"
+          variant="subtle"
+          color="gray"
+          mt="xs"
+          leftSection={<IconLayoutGrid size="1.1rem" />}
+          onClick={handleBrowseGallery}
+        >
+          Browse all puzzles
         </Button>
       </Box>
     </Box>

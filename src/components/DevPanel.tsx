@@ -19,26 +19,8 @@ import {
   TextInput,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
-import {
-  difficultyLevel,
-  normalizeScore,
-  solveWithTrace,
-  TECHNIQUE_LABELS,
-} from '../utils/solver';
-
-type RawPuzzleRecord = {
-  puzzle: {
-    size: number;
-    cages: { value: number; operation: string; cells: number[] }[];
-    solution: number[][];
-    difficulty_operations?: number;
-  };
-  metadata: {
-    size: number;
-    actual_difficulty: 'easiest' | 'easy' | 'medium' | 'hard' | 'expert';
-    operations_tier?: string;
-  };
-};
+import { difficultyLevel, normalizeScore, solveWithTrace, TECHNIQUE_LABELS } from '../utils/solver';
+import { RawPuzzleRecord, loadCatalog } from '../utils/puzzleCatalog';
 
 type AnalysisRow = {
   idx: number;
@@ -100,13 +82,8 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
     let cancelled = false;
     (async () => {
       try {
-        const resp = await fetch('/arithmatrix/all_puzzles.jsonl');
-        const text = await resp.text();
-        const records: RawPuzzleRecord[] = [];
-        for (const line of text.trim().split('\n')) {
-          if (line.trim()) records.push(JSON.parse(line));
-        }
-        if (!cancelled) setPuzzlesCache(records);
+        const catalog = await loadCatalog();
+        if (!cancelled) setPuzzlesCache(catalog.map(entry => entry.record));
       } catch (e) {
         if (!cancelled) setLoadError(e instanceof Error ? e.message : String(e));
       }
@@ -224,10 +201,19 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
         overflow: 'auto',
       }}
     >
-      <Group justify="space-between" align="center" mb="md" style={{ maxWidth: 1200, margin: '0 auto 16px' }}>
+      <Group
+        justify="space-between"
+        align="center"
+        mb="md"
+        style={{ maxWidth: 1200, margin: '0 auto 16px' }}
+      >
         <Group gap="xs">
-          <Badge size="lg" color="indigo" variant="filled">Dev Panel</Badge>
-          <Text c="white" size="sm">Cmd+G to toggle · Esc to close</Text>
+          <Badge size="lg" color="indigo" variant="filled">
+            Dev Panel
+          </Badge>
+          <Text c="white" size="sm">
+            Cmd+G to toggle · Esc to close
+          </Text>
         </Group>
         <ActionIcon variant="filled" color="gray" size="lg" radius="xl" onClick={onClose}>
           <IconX size={18} />
@@ -237,7 +223,9 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
       <Stack style={{ maxWidth: 1200, margin: '0 auto' }} gap="md">
         {/* Load by index */}
         <Box style={{ background: 'rgba(255,255,255,0.96)', borderRadius: 12, padding: 16 }}>
-          <Text fw={700} size="sm" tt="uppercase" c="dimmed" mb={8}>Load puzzle by index</Text>
+          <Text fw={700} size="sm" tt="uppercase" c="dimmed" mb={8}>
+            Load puzzle by index
+          </Text>
           <Group gap="xs" align="flex-end">
             <TextInput
               ref={indexInputRef}
@@ -245,27 +233,45 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
               value={indexInput}
               onChange={e => setIndexInput(e.currentTarget.value)}
               disabled={!puzzlesCache}
-              onKeyDown={e => { if (e.key === 'Enter') handleLoad(); }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') handleLoad();
+              }}
               autoFocus
               style={{ flex: 1, maxWidth: 200 }}
             />
-            <Button onClick={handleLoad} disabled={!puzzlesCache}>Load</Button>
-            {loadError && <Text c="red" size="sm">{loadError}</Text>}
+            <Button onClick={handleLoad} disabled={!puzzlesCache}>
+              Load
+            </Button>
+            {loadError && (
+              <Text c="red" size="sm">
+                {loadError}
+              </Text>
+            )}
           </Group>
-          <Text size="xs" c="dimmed" mt={6}>{TECHNIQUE_LABELS && ''}Index = line number in public/all_puzzles.jsonl (0-indexed).</Text>
+          <Text size="xs" c="dimmed" mt={6}>
+            {TECHNIQUE_LABELS && ''}Index = line number in public/all_puzzles.jsonl (0-indexed).
+          </Text>
         </Box>
 
         {/* Difficulty analysis */}
         <Box style={{ background: 'rgba(255,255,255,0.96)', borderRadius: 12, padding: 16 }}>
           <Group justify="space-between" align="center" mb={8}>
-            <Text fw={700} size="sm" tt="uppercase" c="dimmed">Difficulty analysis</Text>
+            <Text fw={700} size="sm" tt="uppercase" c="dimmed">
+              Difficulty analysis
+            </Text>
             {!analyzing && (
               <Button size="xs" onClick={startAnalysis} disabled={!puzzlesCache}>
                 {results.length > 0 ? 'Restart' : 'Run on all puzzles'}
               </Button>
             )}
             {analyzing && (
-              <Button size="xs" variant="default" onClick={() => { cancelRef.current = true; }}>
+              <Button
+                size="xs"
+                variant="default"
+                onClick={() => {
+                  cancelRef.current = true;
+                }}
+              >
                 Stop
               </Button>
             )}
@@ -275,29 +281,57 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
           )}
           {stats && (
             <Group gap="sm" mb={8}>
-              <Text size="xs">Processed: <b>{stats.total}</b></Text>
-              <Text size="xs" c="green">Exact match: <b>{stats.exact}</b> ({((stats.exact / stats.total) * 100).toFixed(1)}%)</Text>
-              <Text size="xs" c="orange">Now harder: <b>{stats.harder}</b></Text>
-              <Text size="xs" c="blue">Now easier: <b>{stats.easier}</b></Text>
+              <Text size="xs">
+                Processed: <b>{stats.total}</b>
+              </Text>
+              <Text size="xs" c="green">
+                Exact match: <b>{stats.exact}</b> ({((stats.exact / stats.total) * 100).toFixed(1)}
+                %)
+              </Text>
+              <Text size="xs" c="orange">
+                Now harder: <b>{stats.harder}</b>
+              </Text>
+              <Text size="xs" c="blue">
+                Now easier: <b>{stats.easier}</b>
+              </Text>
             </Group>
           )}
           {stats && (
             <Group gap={4} mb={12}>
-              {Object.entries(stats.dist).sort(([a], [b]) => Number(a) - Number(b)).map(([d, n]) => (
-                <Badge key={d} variant="light" color={Number(d) === 0 ? 'green' : Number(d) > 0 ? 'orange' : 'blue'}>
-                  Δ{Number(d) >= 0 ? '+' : ''}{d}: {n}
-                </Badge>
-              ))}
+              {Object.entries(stats.dist)
+                .sort(([a], [b]) => Number(a) - Number(b))
+                .map(([d, n]) => (
+                  <Badge
+                    key={d}
+                    variant="light"
+                    color={Number(d) === 0 ? 'green' : Number(d) > 0 ? 'orange' : 'blue'}
+                  >
+                    Δ{Number(d) >= 0 ? '+' : ''}
+                    {d}: {n}
+                  </Badge>
+                ))}
             </Group>
           )}
 
           <Group align="flex-start" gap="md" grow>
-            <ResultTable title={`Biggest harder (${biggestHarder.length})`} rows={biggestHarder} color="orange" />
-            <ResultTable title={`Biggest easier (${biggestEasier.length})`} rows={biggestEasier} color="blue" />
+            <ResultTable
+              title={`Biggest harder (${biggestHarder.length})`}
+              rows={biggestHarder}
+              color="orange"
+            />
+            <ResultTable
+              title={`Biggest easier (${biggestEasier.length})`}
+              rows={biggestEasier}
+              color="blue"
+            />
           </Group>
           {exactMatches.length > 0 && (
             <Box mt="md">
-              <ResultTable title={`Sample exact matches (${exactMatches.length})`} rows={exactMatches} color="green" />
+              <ResultTable
+                title={`Sample exact matches (${exactMatches.length})`}
+                rows={exactMatches}
+                color="green"
+              />
             </Box>
           )}
         </Box>
@@ -318,7 +352,9 @@ const ResultTable = ({
   color: string;
 }) => (
   <Box>
-    <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb={4}>{title}</Text>
+    <Text size="xs" fw={600} c="dimmed" tt="uppercase" mb={4}>
+      {title}
+    </Text>
     <Table verticalSpacing={4} fz="xs" highlightOnHover striped withTableBorder>
       <Table.Thead>
         <Table.Tr>
@@ -336,11 +372,24 @@ const ResultTable = ({
           <Table.Tr key={r.idx}>
             <Table.Td>{r.idx}</Table.Td>
             <Table.Td>{r.size}</Table.Td>
-            <Table.Td><Badge size="xs" color={LEVEL_COLOR[r.oldLevel]}>{r.oldLevel}</Badge></Table.Td>
-            <Table.Td><Badge size="xs" color={LEVEL_COLOR[r.newLevel]}>{r.newLevel}</Badge></Table.Td>
+            <Table.Td>
+              <Badge size="xs" color={LEVEL_COLOR[r.oldLevel]}>
+                {r.oldLevel}
+              </Badge>
+            </Table.Td>
+            <Table.Td>
+              <Badge size="xs" color={LEVEL_COLOR[r.newLevel]}>
+                {r.newLevel}
+              </Badge>
+            </Table.Td>
             <Table.Td>{r.newScore.toFixed(1)}</Table.Td>
             <Table.Td>{r.rawScore}</Table.Td>
-            <Table.Td><Badge size="xs" color={color}>{r.delta > 0 ? '+' : ''}{r.delta}</Badge></Table.Td>
+            <Table.Td>
+              <Badge size="xs" color={color}>
+                {r.delta > 0 ? '+' : ''}
+                {r.delta}
+              </Badge>
+            </Table.Td>
           </Table.Tr>
         ))}
       </Table.Tbody>
