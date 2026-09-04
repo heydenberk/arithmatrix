@@ -418,6 +418,94 @@
   }
 }
 
+/*
+ * Wider screens: each cage is outlined in its own accent color instead of the
+ * neutral gap line.
+ *
+ * The outline is drawn INSIDE the cage's own cells (inset 0) and on all four
+ * sides, so a cage carries one complete outline in one color. The narrow-screen
+ * treatment draws only top and left edges, letting each boundary be drawn once
+ * by its right/bottom neighbour - which is right for a single neutral line, but
+ * with colors would paint a cage's right and bottom edges in its neighbours'
+ * colors and make every cage look mismatched.
+ *
+ * Two adjacent cages therefore each draw their own edge, separated by the 1px
+ * lattice gap. That costs a few more pixels per boundary, which is the point of
+ * doing it only where there is room.
+ */
+@media (min-width: 769px) {
+  .arithmatrix-cell::after {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+
+  .cage-border-top::after {
+    border-top-width: 2px;
+  }
+
+  .cage-border-right::after {
+    border-right-width: 2px;
+  }
+
+  .cage-border-bottom::after {
+    border-bottom-width: 2px;
+  }
+
+  .cage-border-left::after {
+    border-left-width: 2px;
+  }
+
+  .cage-color-0::after {
+    border-color: #ec4899;
+  }
+
+  .cage-color-1::after {
+    border-color: #f59e0b;
+  }
+
+  .cage-color-2::after {
+    border-color: #10b981;
+  }
+
+  .cage-color-3::after {
+    border-color: #3b82f6;
+  }
+
+  .cage-color-4::after {
+    border-color: #8b5cf6;
+  }
+
+  .cage-color-5::after {
+    border-color: #0ea5e9;
+  }
+
+  .cage-color-6::after {
+    border-color: #14b8a6;
+  }
+
+  .cage-color-7::after {
+    border-color: #ea580c;
+  }
+
+  .cage-color-8::after {
+    border-color: #6366f1;
+  }
+
+  .cage-color-9::after {
+    border-color: #ec4899;
+  }
+
+  .cage-color-10::after {
+    border-color: #22c55e;
+  }
+
+  .cage-color-11::after {
+    border-color: #f97316;
+  }
+}
+
 @media (min-width: 769px) and (max-width: 1024px) {
   .arithmatrix-container {
     padding: 16px;
