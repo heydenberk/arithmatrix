@@ -5,7 +5,6 @@ import {
   Box,
   Container,
   Paper,
-  Select,
   Loader,
   Text,
   Title,
@@ -26,17 +25,13 @@ import {
 import {
   IconAlertCircle,
   IconTrophy,
-  IconSparkles,
   IconLayoutGrid,
   IconDownload,
   IconX,
   IconRefresh,
-  IconPlus,
-  IconSettings,
 } from '@tabler/icons-react';
 import ArithmatrixGrid, { ArithmatrixGridHandle } from './components/ArithmatrixGrid';
 import Timer from './components/Timer';
-import MobileSettingsPanel from './components/MobileSettingsPanel';
 import PuzzleGallery from './components/PuzzleGallery';
 import InstallDiagnostics from './components/InstallDiagnostics';
 import {
@@ -279,12 +274,6 @@ function App() {
             setPuzzleSize(savedState.puzzleSettings.size);
             setDifficulty(savedState.puzzleSettings.difficulty);
             setOperationsTier(savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
-            setSelectedSize(savedState.puzzleSettings.size);
-            setSelectedDifficulty(savedState.puzzleSettings.difficulty);
-            setSelectedOperationsTier(
-              savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER
-            );
-
             // Update URL to match restored settings
             updateURL(
               savedState.puzzleSettings.size,
@@ -326,11 +315,6 @@ function App() {
   const [operationsTier, setOperationsTier] = useState<string>(initialParams.operationsTier);
 
   // Separate state for UI selections (what user has selected but not yet applied)
-  const [selectedSize, setSelectedSize] = useState<number>(initialParams.size);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<string>(initialParams.difficulty);
-  const [selectedOperationsTier, setSelectedOperationsTier] = useState<string>(
-    initialParams.operationsTier
-  );
 
   const [puzzleDefinition, setPuzzleDefinition] = useState<PuzzleDefinition | null>(null);
 
@@ -339,9 +323,7 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true); // Add state for timer
   const [isGameWon, setIsGameWon] = useState<boolean>(false); // State for win condition
-  const [showNewGameControls, setShowNewGameControls] = useState<boolean>(false); // State for showing new game controls
   const [resetKey, setResetKey] = useState<number>(0); // Key to force ArithmatrixGrid re-render for reset
-  const [puzzleRefreshKey, setPuzzleRefreshKey] = useState<number>(0); // Key to force new puzzle fetch
   const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time (used for initial restore)
   const completionTimeRef = useRef<number>(0); // Ref to avoid re-rendering App every second
   const [initialGridValues, setInitialGridValues] = useState<string[][] | undefined>(undefined);
@@ -360,7 +342,6 @@ function App() {
   const arithmatrixGridRef = useRef<ArithmatrixGridHandle>(null);
 
   // Mobile settings panel state
-  const [showMobileSettings, setShowMobileSettings] = useState<boolean>(false);
   // Use screen width to determine mobile layout, not touch capability
   // This ensures touchscreen laptops get the full desktop UI with checkpoint buttons
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
@@ -381,7 +362,14 @@ function App() {
 
   // Dev panel state (Cmd/Ctrl+G to toggle)
   const [devPanelOpen, setDevPanelOpen] = useState<boolean>(false);
-  const [showPuzzleGallery, setShowPuzzleGallery] = useState<boolean>(false);
+  /*
+   * The gallery is the only way to start a game, so it opens on arrival -
+   * except when there is a saved game to resume, or the URL already names a
+   * specific puzzle, in which case the player already has one.
+   */
+  const [showPuzzleGallery, setShowPuzzleGallery] = useState<boolean>(
+    () => initialParams.puzzleIndex === null && !hasSavedGameState()
+  );
   // When the dev panel forces a specific puzzle, suppress the auto-reload
   // that would otherwise fire from puzzleSize/difficulty/ops state changes.
   // Also true from the start when the URL pins a puzzle via `p`, so the random
@@ -431,14 +419,13 @@ function App() {
     console.log('🧩 Puzzle loading effect triggered with:', {
       puzzleSize,
       difficulty,
-      puzzleRefreshKey,
       hasLoadedSavedStateRef: hasLoadedSavedStateRef.current,
     });
 
     // Function to fetch puzzle data from the JSONL file
     const loadPuzzle = async () => {
       // Skip loading new puzzle if saved state was already loaded on startup
-      if (hasLoadedSavedStateRef.current && puzzleRefreshKey === 0) {
+      if (hasLoadedSavedStateRef.current) {
         console.log('⏭️ Skipping puzzle load - saved state already loaded');
         return;
       }
@@ -511,16 +498,15 @@ function App() {
     loadPuzzle();
 
     // Only reset state for new puzzles, not when loading saved state
-    if (!hasLoadedSavedStateRef.current || puzzleRefreshKey > 0) {
+    if (!hasLoadedSavedStateRef.current) {
       setIsGameWon(false); // Reset win state when puzzle settings change
-      setShowNewGameControls(false); // Hide new game controls when loading new puzzle
       setCurrentCompletionTime(0);
       completionTimeRef.current = 0;
       console.log('🔄 Resetting game state for new puzzle');
     } else {
       console.log('⏭️ Skipping game state reset - loading from saved state');
     }
-  }, [puzzleSize, difficulty, operationsTier, puzzleRefreshKey]);
+  }, [puzzleSize, difficulty, operationsTier]);
 
   // Effect to handle browser back/forward navigation only
   useEffect(() => {
@@ -530,10 +516,6 @@ function App() {
       setPuzzleSize(urlParams.size);
       setDifficulty(urlParams.difficulty);
       setOperationsTier(urlParams.operationsTier);
-      // Also update the selected values to match URL
-      setSelectedSize(urlParams.size);
-      setSelectedDifficulty(urlParams.difficulty);
-      setSelectedOperationsTier(urlParams.operationsTier);
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -606,49 +588,6 @@ function App() {
     }
   };
 
-  // Handlers for size and difficulty changes - Now only update UI state
-  const handleSizeChange = (value: string | null) => {
-    if (value) {
-      const newSize = parseInt(value, 10);
-      setSelectedSize(newSize);
-    }
-  };
-
-  // Handler for difficulty change - Now only update UI state
-  const handleDifficultyChange = (value: string | null) => {
-    if (value) {
-      setSelectedDifficulty(value);
-    }
-  };
-
-  // Handler for operations tier change - Only update UI state
-  const handleOperationsTierChange = (value: string | null) => {
-    if (value) {
-      setSelectedOperationsTier(value);
-    }
-  };
-
-  // Handler for starting a new game with selected settings
-  const handleStartNewGame = () => {
-    clearGameState(); // Clear any saved game state
-    hasLoadedSavedStateRef.current = false; // Reset the ref flag
-    setPuzzleSize(selectedSize);
-    setDifficulty(selectedDifficulty);
-    setOperationsTier(selectedOperationsTier);
-    updateURL(selectedSize, selectedDifficulty, selectedOperationsTier);
-    setIsTimerRunning(true);
-    setShowNewGameControls(false);
-    setCurrentCompletionTime(0);
-    completionTimeRef.current = 0;
-    // Clear checkpoint when starting new game
-    setCheckpointGridValues(null);
-    setCheckpointPencilMarks(null);
-    setHasCheckpoint(false);
-    setLastAchievement(null);
-    setResetKey(prev => prev + 1); // Reset the grid key as well
-    setPuzzleRefreshKey(prev => prev + 1); // Force new puzzle fetch even if settings are the same
-  };
-
   // Handler for reset button - resets current puzzle progress, timer, and solved state
   const handleReset = () => {
     // Clear initial values so grid starts fresh
@@ -696,9 +635,6 @@ function App() {
     setPuzzleSize(newSize);
     setDifficulty(newDifficulty);
     setOperationsTier(newOps);
-    setSelectedSize(newSize);
-    setSelectedDifficulty(newDifficulty);
-    setSelectedOperationsTier(newOps);
     updateURL(newSize, newDifficulty, newOps, index);
 
     // Puzzle data
@@ -713,8 +649,6 @@ function App() {
 
     // Game state reset
     setIsGameWon(false);
-    setShowNewGameControls(false);
-    setShowMobileSettings(false);
     setCurrentCompletionTime(0);
     completionTimeRef.current = 0;
     setCheckpointGridValues(null);
@@ -726,16 +660,6 @@ function App() {
     // Force the grid to remount so it picks up the new puzzle cleanly.
     setResetKey(prev => prev + 1);
   }, []);
-
-  // Handler for new game button - shows size/difficulty controls and resets selections
-  const handleNewGame = () => {
-    if (!showNewGameControls) {
-      // When opening the menu, reset selections to current values
-      setSelectedSize(puzzleSize);
-      setSelectedDifficulty(difficulty);
-    }
-    setShowNewGameControls(!showNewGameControls);
-  };
 
   // Handler for creating/updating checkpoint (always sets, even if one exists)
   const handleCreateCheckpoint = () => {
@@ -1035,11 +959,7 @@ function App() {
                     />
                   }
                   onReset={handleReset}
-                  onNewGame={() => {
-                    setSelectedSize(puzzleSize);
-                    setSelectedDifficulty(difficulty);
-                    setShowMobileSettings(true);
-                  }}
+                  onNewGame={() => setShowPuzzleGallery(true)}
                   onInstall={handleInstallClick}
                   onShowAchievements={() => setShowAchievementGallery(true)}
                 />
@@ -1197,16 +1117,14 @@ function App() {
                     Reset
                   </Button>
 
-                  {/* New Game Button */}
+                  {/* New Game - opens the puzzle gallery, the only picker */}
                   <Button
-                    onClick={handleNewGame}
+                    onClick={() => setShowPuzzleGallery(true)}
                     radius="xl"
                     size="sm"
                     variant="gradient"
                     gradient={{ from: 'teal', to: 'blue' }}
-                    leftSection={
-                      showNewGameControls ? <IconSettings size="1rem" /> : <IconPlus size="1rem" />
-                    }
+                    leftSection={<IconLayoutGrid size="1rem" />}
                     style={{
                       transition: 'all 200ms ease',
                       '&:hover': {
@@ -1214,7 +1132,7 @@ function App() {
                       },
                     }}
                   >
-                    {showNewGameControls ? 'Settings' : 'New Game'}
+                    New Game
                   </Button>
 
                   {/* Combined Size and Difficulty Pill */}
@@ -1263,170 +1181,12 @@ function App() {
                   </Tooltip>
                 </Group>
               )}
-
-              {/* Conditional Puzzle Settings - Only show when New Game is clicked */}
-              {showNewGameControls && (
-                <Group justify="center" gap="sm" wrap="wrap">
-                  {/* Size Selector */}
-                  <Stack align="center" gap={rem(4)}>
-                    <Text size="xs" fw={600} c="gray.6">
-                      Size
-                    </Text>
-                    <Select
-                      value={selectedSize.toString()}
-                      onChange={handleSizeChange}
-                      size="xs"
-                      data={[
-                        { value: '4', label: '4×4' },
-                        { value: '5', label: '5×5' },
-                        { value: '6', label: '6×6' },
-                        { value: '7', label: '7×7' },
-                      ]}
-                      styles={{
-                        input: {
-                          background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: rem(50),
-                          fontWeight: 600,
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          '&:focus': {
-                            boxShadow: '0 0 0 4px rgba(139, 92, 246, 0.3)',
-                          },
-                        },
-                      }}
-                    />
-                  </Stack>
-
-                  {/* Difficulty Selector */}
-                  <Stack align="center" gap={rem(4)}>
-                    <Text size="xs" fw={600} c="gray.6">
-                      Difficulty
-                    </Text>
-                    <Select
-                      value={selectedDifficulty}
-                      onChange={handleDifficultyChange}
-                      size="xs"
-                      data={[
-                        { value: 'easiest', label: 'Easiest' },
-                        { value: 'easy', label: 'Easy' },
-                        { value: 'medium', label: 'Medium' },
-                        { value: 'hard', label: 'Hard' },
-                        { value: 'expert', label: 'Expert' },
-                      ]}
-                      styles={{
-                        input: {
-                          background: 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: rem(50),
-                          fontWeight: 600,
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          textTransform: 'capitalize',
-                          '&:focus': {
-                            boxShadow: '0 0 0 4px rgba(236, 72, 153, 0.3)',
-                          },
-                        },
-                      }}
-                    />
-                  </Stack>
-
-                  {/* Operations Tier Selector */}
-                  <Stack align="center" gap={rem(4)}>
-                    <Text size="xs" fw={600} c="gray.6">
-                      Operations
-                    </Text>
-                    <Select
-                      value={selectedOperationsTier}
-                      onChange={handleOperationsTierChange}
-                      size="xs"
-                      data={OPERATION_TIERS.map(tier => ({
-                        value: tier,
-                        label: OPERATION_TIER_LABELS[tier],
-                      }))}
-                      styles={{
-                        input: {
-                          background: 'linear-gradient(135deg, #ec4899 0%, #f97316 100%)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: rem(50),
-                          fontWeight: 600,
-                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                          '&:focus': {
-                            boxShadow: '0 0 0 4px rgba(249, 115, 22, 0.3)',
-                          },
-                        },
-                      }}
-                    />
-                  </Stack>
-
-                  {/* Start New Game Button */}
-                  <Stack align="center" gap={rem(4)}>
-                    <Text size="xs" fw={600} c="gray.6">
-                      Action
-                    </Text>
-                    <Button
-                      onClick={handleStartNewGame}
-                      radius="xl"
-                      size="xs"
-                      variant="gradient"
-                      gradient={{ from: 'violet', to: 'cyan' }}
-                      leftSection={<IconSparkles size="0.9rem" />}
-                      style={{
-                        transition: 'all 200ms ease',
-                        fontWeight: 600,
-                        '&:hover': {
-                          transform: 'scale(1.05)',
-                        },
-                      }}
-                    >
-                      Start New Game
-                    </Button>
-                  </Stack>
-
-                  {/* Secondary: pick an exact puzzle instead of a random one */}
-                  <Stack align="center" gap={rem(4)}>
-                    <Text size="xs" fw={600} c="gray.6">
-                      Or browse
-                    </Text>
-                    <Button
-                      onClick={() => setShowPuzzleGallery(true)}
-                      radius="xl"
-                      size="xs"
-                      variant="light"
-                      color="gray"
-                      leftSection={<IconLayoutGrid size="0.9rem" />}
-                      style={{ fontWeight: 600 }}
-                    >
-                      Gallery
-                    </Button>
-                  </Stack>
-                </Group>
-              )}
             </Stack>
           </Paper>
         )}
       </Container>
 
-      {/* Mobile Settings Panel */}
-      {showMobileSettings && (
-        <MobileSettingsPanel
-          currentSize={puzzleSize}
-          currentDifficulty={difficulty}
-          currentOperationsTier={operationsTier}
-          selectedSize={selectedSize}
-          selectedDifficulty={selectedDifficulty}
-          selectedOperationsTier={selectedOperationsTier}
-          onSizeChange={setSelectedSize}
-          onDifficultyChange={setSelectedDifficulty}
-          onOperationsTierChange={setSelectedOperationsTier}
-          onStartGame={handleStartNewGame}
-          onBrowseGallery={() => setShowPuzzleGallery(true)}
-          onClose={() => setShowMobileSettings(false)}
-        />
-      )}
-
-      {/* Puzzle Gallery - secondary way to start a game */}
+      {/* Puzzle Gallery - the only way to start a game */}
       <PuzzleGallery
         opened={showPuzzleGallery}
         onClose={() => setShowPuzzleGallery(false)}
