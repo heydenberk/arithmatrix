@@ -367,6 +367,7 @@ function App() {
    * except when there is a saved game to resume, or the URL already names a
    * specific puzzle, in which case the player already has one.
    */
+  const [confirmNewGame, setConfirmNewGame] = useState<boolean>(false);
   const [showPuzzleGallery, setShowPuzzleGallery] = useState<boolean>(
     () => initialParams.puzzleIndex === null && !hasSavedGameState()
   );
@@ -660,6 +661,32 @@ function App() {
     // Force the grid to remount so it picks up the new puzzle cleanly.
     setResetKey(prev => prev + 1);
   }, []);
+
+  /**
+   * True when abandoning the current puzzle would actually lose something -
+   * any entered value or pencil mark, on a puzzle that isn't already finished.
+   */
+  const hasProgressToLose = (): boolean => {
+    if (isGameWon) return false;
+    const grid = latestGridValuesRef.current;
+    if (grid && hasUserProgress(grid)) return true;
+    const marks = latestPencilMarksRef.current;
+    return !!marks?.some(row => row.some(cell => cell.size > 0));
+  };
+
+  /**
+   * Opens the gallery, but confirms first if there is progress to lose. Picking
+   * a puzzle from the gallery discards the current game, so the warning belongs
+   * before the player goes browsing rather than at the moment of the tap that
+   * destroys it.
+   */
+  const requestNewGame = () => {
+    if (hasProgressToLose()) {
+      setConfirmNewGame(true);
+    } else {
+      setShowPuzzleGallery(true);
+    }
+  };
 
   // Handler for creating/updating checkpoint (always sets, even if one exists)
   const handleCreateCheckpoint = () => {
@@ -959,7 +986,7 @@ function App() {
                     />
                   }
                   onReset={handleReset}
-                  onNewGame={() => setShowPuzzleGallery(true)}
+                  onNewGame={requestNewGame}
                   onInstall={handleInstallClick}
                   onShowAchievements={() => setShowAchievementGallery(true)}
                 />
@@ -1119,7 +1146,7 @@ function App() {
 
                   {/* New Game - opens the puzzle gallery, the only picker */}
                   <Button
-                    onClick={() => setShowPuzzleGallery(true)}
+                    onClick={requestNewGame}
                     radius="xl"
                     size="sm"
                     variant="gradient"
@@ -1185,6 +1212,36 @@ function App() {
           </Paper>
         )}
       </Container>
+
+      {/* Discarding an in-progress puzzle is confirmed first */}
+      <Modal
+        opened={confirmNewGame}
+        onClose={() => setConfirmNewGame(false)}
+        title={<Text fw={700}>Start a new puzzle?</Text>}
+        centered
+        size="sm"
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            You have progress on this puzzle. Picking a new one will discard it.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="subtle" color="gray" onClick={() => setConfirmNewGame(false)}>
+              Keep playing
+            </Button>
+            <Button
+              variant="gradient"
+              gradient={{ from: 'teal', to: 'blue' }}
+              onClick={() => {
+                setConfirmNewGame(false);
+                setShowPuzzleGallery(true);
+              }}
+            >
+              Discard and browse
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
 
       {/* Puzzle Gallery - the only way to start a game */}
       <PuzzleGallery
