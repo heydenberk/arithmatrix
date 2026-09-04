@@ -91,22 +91,59 @@ const gather = async (): Promise<Report> => {
     report['Manifest'] = `error: ${error instanceof Error ? error.message : String(error)}`;
   }
 
-  // Any installed app the browser associates with this origin
+  /*
+   * Only reports *native* apps declared in the manifest's
+   * `related_applications`, which this app declares none of - so it is always
+   * 0 and says nothing about whether the PWA itself is installed. There is no
+   * web API for that; hence the label, and the verdict below.
+   */
   try {
     const related = (
       navigator as unknown as {
         getInstalledRelatedApps?: () => Promise<unknown[]>;
       }
     ).getInstalledRelatedApps;
-    report['Installed related apps'] = related
+    report['Related native apps'] = related
       ? String((await related.call(navigator)).length)
       : 'API unavailable';
   } catch {
-    report['Installed related apps'] = 'unavailable';
+    report['Related native apps'] = 'unavailable';
   }
 
   report['User agent'] = ua;
   return report;
+};
+
+/**
+ * Turns the report into the one sentence that matters. Ordered most-actionable
+ * first: a browser that cannot install at all, then already-installed, then the
+ * case where every requirement passes and the browser is still withholding.
+ */
+const verdict = (report: Report): string => {
+  if (report['beforeinstallprompt supported']?.startsWith('no')) {
+    return "This browser can't install web apps. Open the site in Chrome.";
+  }
+  if (report['Browser']?.includes('no install support')) {
+    return 'Pages opened inside another app cannot be installed. Open the site in Chrome directly.';
+  }
+  if (report['Display mode'] !== 'browser') {
+    return "You're already running the installed app.";
+  }
+  if (report['Install prompt offered'] === 'yes') {
+    return 'The browser has offered a prompt - use the Install button.';
+  }
+  const swOk = report['SW controlling page'] === 'yes';
+  const manifestOk = report['Manifest']?.startsWith('200');
+  if (swOk && manifestOk) {
+    return (
+      'Everything the browser requires checks out, so Chrome is withholding the ' +
+      'prompt rather than failing a check. The usual cause is that Arithmatrix ' +
+      'is already installed - look for it in your app drawer or in Android ' +
+      'Settings > Apps. Uninstalling it and reloading brings the prompt back.'
+    );
+  }
+  if (!manifestOk) return `The manifest could not be loaded (${report['Manifest']}).`;
+  return 'The service worker is not controlling this page yet - try reloading.';
 };
 
 const InstallDiagnostics: React.FC = () => {
@@ -143,9 +180,12 @@ const InstallDiagnostics: React.FC = () => {
 
   return (
     <Stack gap="xs">
+      <Text size="xs" c="gray.7" style={{ lineHeight: 1.5 }}>
+        {verdict(report)}
+      </Text>
       <Group justify="space-between" align="center">
         <Text size="xs" fw={700} c="dimmed">
-          Why install isn&apos;t being offered
+          Details
         </Text>
         <Button
           size="compact-xs"
