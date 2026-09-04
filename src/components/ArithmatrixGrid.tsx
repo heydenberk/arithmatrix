@@ -21,27 +21,27 @@ import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 import { isTouchDevice } from '../utils/touchUtils';
 import MobileNumberPad from './MobileNumberPad';
 
-// Column gap constants for consistent spacing across all breakpoints
-// NOTE: These values should be kept in sync with ArithmatrixGrid.css responsive breakpoints
-const COLUMN_GAP = {
-  DESKTOP: 2, // Desktop (>1024px)
-  TABLET: 3, // Tablets (769-1024px)
-  LARGE_PHONE: 1, // Large phones (481-768px) - hairline lattice
-  SMALL_PHONE: 1, // Small phones (≤480px) - hairline lattice
-  EMERGENCY: 1, // Emergency fallback for very small screens
-  DYNAMIC_MIN: 1, // Minimum for dynamic calculation
-  DYNAMIC_MAX: 2, // Maximum for dynamic calculation
-};
+/*
+ * Flat geometry, identical at every breakpoint: cells butt up against each
+ * other and are separated only by the 1px grid background showing through the
+ * gap, which forms the hairline lattice. The grid itself needs no padding.
+ * Kept in sync with ArithmatrixGrid.css.
+ */
+const LATTICE_GAP = 1;
+const GRID_PADDING = 0;
 
-// Mobile cells butt up against each other, separated only by the 1px grid
-// background showing through the gap, so the grid itself needs no padding.
-const MOBILE_GRID_PADDING = 0;
-const MOBILE_OUTER_MARGIN = 4;
+// Page margin outside the grid. Phones give up nearly all of it so a 7x7 still
+// clears the 44px touch-target floor on a 320px screen.
+const OUTER_MARGIN = { MOBILE: 4, DESKTOP: 32 };
+
+// Largest cell we draw, so the desktop grid doesn't sprawl
+const MAX_CELL_SIZE = 80;
 
 // Vertical space reserved at the top of every cell for the cage target badge.
 // Pencil marks start below this, and it is uniform across cells so the pencil
-// digits line up from cell to cell even though only one cell per cage has a badge.
-const CAGE_BADGE_INSET = { MOBILE: 12, DESKTOP: 26 };
+// digits line up from cell to cell even though only one cell per cage has a
+// badge. Tracks the .cage-info type scale in the stylesheet.
+const CAGE_BADGE_INSET = { MOBILE: 12, DESKTOP: 17 };
 
 // Type imports
 import { ArithmatrixGridProps } from '../types/ArithmatrixTypes';
@@ -352,59 +352,24 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // Compute a cell size that guarantees the grid fits within the viewport on mobile
     const computeFittingCellSize = (): number => {
       const viewportWidth = layout.width || window.innerWidth;
-      // Page horizontal padding/margins outside grid - minimal on mobile
-      const outerMargin = viewportWidth <= 768 ? MOBILE_OUTER_MARGIN : 32;
+      const outerMargin = viewportWidth <= 768 ? OUTER_MARGIN.MOBILE : OUTER_MARGIN.DESKTOP;
       const availableWidth = Math.max(0, viewportWidth - outerMargin);
-
-      // Match CSS gaps/padding per breakpoints - minimal on mobile
-      let columnGap =
-        viewportWidth <= 480
-          ? COLUMN_GAP.SMALL_PHONE
-          : viewportWidth <= 768
-            ? COLUMN_GAP.LARGE_PHONE
-            : viewportWidth <= 1024
-              ? COLUMN_GAP.TABLET
-              : COLUMN_GAP.DESKTOP;
-      let gridPadding = viewportWidth <= 768 ? MOBILE_GRID_PADDING : 12;
 
       // Minimum touch target size
       const minCell = layout.isTouchDevice ? 44 : 32;
-      // Maximum desktop size to match aesthetics
-      const maxCell = 80;
 
-      let sizeByWidth = Math.floor(
-        (availableWidth - (size - 1) * columnGap - gridPadding * 2) / size
+      const sizeByWidth = Math.floor(
+        (availableWidth - (size - 1) * LATTICE_GAP - GRID_PADDING * 2) / size
       );
 
-      // If we can't achieve the minimum touch target, progressively tighten spacing
-      if (sizeByWidth < minCell && viewportWidth <= 480) {
-        columnGap = COLUMN_GAP.EMERGENCY;
-        gridPadding = 0;
-        sizeByWidth = Math.floor(
-          (availableWidth - (size - 1) * columnGap - gridPadding * 2) / size
-        );
-      }
-
-      const clamped = Math.max(Math.min(sizeByWidth, maxCell), minCell);
-      return clamped;
+      return Math.max(Math.min(sizeByWidth, MAX_CELL_SIZE), minCell);
     };
 
     const cellSize = computeFittingCellSize();
     const viewportWidth = layout.width || window.innerWidth;
     const isMobileViewport = viewportWidth <= 768;
 
-    // Mobile keeps a uniform 1px lattice so cells read as one continuous grid;
-    // desktop keeps its airier gaps, scaled to the cell size.
-    const dynamicColumnGap = isMobileViewport
-      ? COLUMN_GAP.SMALL_PHONE
-      : Math.max(
-          COLUMN_GAP.DYNAMIC_MIN,
-          Math.min(COLUMN_GAP.DYNAMIC_MAX, Math.round(cellSize * 0.04))
-        );
-    const dynamicRowGap = isMobileViewport ? COLUMN_GAP.SMALL_PHONE : 2;
-    const dynamicPadding = isMobileViewport ? MOBILE_GRID_PADDING : 12;
-
-    // Cells are square at every breakpoint
+    // Cells are square, and separated by the same hairline, at every breakpoint
     const cellHeight = cellSize;
 
     // Scale fonts based on cell size - larger on mobile for readability
@@ -425,7 +390,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const pencilMarkHeight = (cellHeight - pencilTopInset - pencilGridPadding * 2) / pencilTracks;
     const pencilMarkWidth = (cellSize - pencilGridPadding * 2) / pencilTracks;
     const pencilFontMin = isMobileViewport ? 0.6 : 0.45;
-    const pencilFontMax = isMobileViewport ? 1.05 : 0.8;
+    const pencilFontMax = isMobileViewport ? 1.05 : 1.0;
     const pencilFontRem = Math.max(
       pencilFontMin,
       Math.min(
@@ -462,9 +427,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         style={{
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
           gridTemplateRows: `repeat(${size}, ${cellHeight}px)`,
-          columnGap: `${dynamicColumnGap}px`,
-          rowGap: `${dynamicRowGap}px`,
-          padding: `${dynamicPadding}px`,
+          columnGap: `${LATTICE_GAP}px`,
+          rowGap: `${LATTICE_GAP}px`,
+          padding: `${GRID_PADDING}px`,
           // Provide CSS variables so cells adopt the same size
           ['--cell-size']: `${cellSize}px`,
           ['--cell-height']: `${cellHeight}px`,

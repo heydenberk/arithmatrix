@@ -45,7 +45,13 @@ type Props = {
   onExit: () => void;
 };
 
-const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMarks, solution, onExit }: Props) => {
+const SolverPlayback = ({
+  puzzleDefinition,
+  initialGridValues,
+  initialPencilMarks,
+  solution,
+  onExit,
+}: Props) => {
   const size = puzzleDefinition.size;
 
   // Compute the trace once
@@ -105,11 +111,16 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
         onExit();
         return;
       }
-      if (e.key === 'ArrowRight') { e.preventDefault(); stepForward(); }
-      else if (e.key === 'ArrowLeft') { e.preventDefault(); stepBack(); }
-      else if (e.key === ' ') {
+      if (e.key === 'ArrowRight') {
         e.preventDefault();
-        if (isPlaying) pause(); else play();
+        stepForward();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        stepBack();
+      } else if (e.key === ' ') {
+        e.preventDefault();
+        if (isPlaying) pause();
+        else play();
       }
     };
     window.addEventListener('keydown', handler);
@@ -130,7 +141,9 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
     if (currentStep) return currentStep.candidates;
     return Array.from({ length: size }, (_, r) =>
       Array.from({ length: size }, (_, c) =>
-        startGrid[r][c] === 0 ? new Set<number>(Array.from({ length: size }, (_, i) => i + 1)) : new Set<number>()
+        startGrid[r][c] === 0
+          ? new Set<number>(Array.from({ length: size }, (_, i) => i + 1))
+          : new Set<number>()
       )
     );
   }, [currentStep, size, startGrid]);
@@ -159,9 +172,11 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
       ? 'Already solved'
       : `Ready — ${totalSteps} steps`;
 
-  const description = currentStep?.description ?? (totalSteps === 0
-    ? 'No solver steps needed — the puzzle is already in its final state.'
-    : 'Press Step or Play to start the solver.');
+  const description =
+    currentStep?.description ??
+    (totalSteps === 0
+      ? 'No solver steps needed — the puzzle is already in its final state.'
+      : 'Press Step or Play to start the solver.');
 
   return (
     <Box
@@ -179,10 +194,19 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
       }}
     >
       {/* Header */}
-      <Group justify="space-between" align="center" w="100%" style={{ maxWidth: 800, marginBottom: 12 }}>
+      <Group
+        justify="space-between"
+        align="center"
+        w="100%"
+        style={{ maxWidth: 800, marginBottom: 12 }}
+      >
         <Group gap="xs">
-          <Badge size="lg" color="violet" variant="filled">Solver</Badge>
-          <Text c="white" size="sm" fw={500}>{headerText}</Text>
+          <Badge size="lg" color="violet" variant="filled">
+            Solver
+          </Badge>
+          <Text c="white" size="sm" fw={500}>
+            {headerText}
+          </Text>
         </Group>
         <Tooltip label="Exit (Esc or `)" position="bottom">
           <ActionIcon variant="filled" color="gray" size="lg" radius="xl" onClick={onExit}>
@@ -219,7 +243,9 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
               <Badge color={techniqueColor(currentStep.technique)} variant="light">
                 {TECHNIQUE_LABELS[currentStep.technique]}
               </Badge>
-              <Text size="xs" c="dimmed">+{currentStep.scoreDelta} pts</Text>
+              <Text size="xs" c="dimmed">
+                +{currentStep.scoreDelta} pts
+              </Text>
             </Group>
           )}
           <Text size="sm">{description}</Text>
@@ -239,13 +265,23 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
       >
         <Group justify="space-between" align="center" wrap="wrap" gap="md">
           <Stack gap={2}>
-            <Text size="xs" c="dimmed" tt="uppercase">Difficulty score</Text>
+            <Text size="xs" c="dimmed" tt="uppercase">
+              Difficulty score
+            </Text>
             <Group gap="xs" align="baseline">
-              <Text size="xl" fw={700}>{normalized.toFixed(1)}</Text>
-              <Text size="xs" c="dimmed">/ 100</Text>
-              <Badge color={levelColor(level)} variant="filled">{level}</Badge>
+              <Text size="xl" fw={700}>
+                {normalized.toFixed(1)}
+              </Text>
+              <Text size="xs" c="dimmed">
+                / 100
+              </Text>
+              <Badge color={levelColor(level)} variant="filled">
+                {level}
+              </Badge>
             </Group>
-            <Text size="xs" c="dimmed">raw {cumulativeScore}</Text>
+            <Text size="xs" c="dimmed">
+              raw {cumulativeScore}
+            </Text>
           </Stack>
           <Group gap="xs" wrap="wrap">
             {TECHNIQUE_ORDER.map(t => (
@@ -264,27 +300,58 @@ const SolverPlayback = ({ puzzleDefinition, initialGridValues, initialPencilMark
 
       {/* Controls */}
       <Group gap="xs" mt={16} wrap="wrap" justify="center">
-        <Tooltip label="Jump to start"><ActionIcon variant="default" size="lg" radius="xl" onClick={jumpToStart}>
-          <IconPlayerSkipBack size={18} />
-        </ActionIcon></Tooltip>
-        <Tooltip label="Step back (←)"><ActionIcon variant="default" size="lg" radius="xl" onClick={stepBack} disabled={stepIndex < 0}>
-          <IconChevronLeft size={18} />
-        </ActionIcon></Tooltip>
+        <Tooltip label="Jump to start">
+          <ActionIcon variant="default" size="lg" radius="xl" onClick={jumpToStart}>
+            <IconPlayerSkipBack size={18} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Step back (←)">
+          <ActionIcon
+            variant="default"
+            size="lg"
+            radius="xl"
+            onClick={stepBack}
+            disabled={stepIndex < 0}
+          >
+            <IconChevronLeft size={18} />
+          </ActionIcon>
+        </Tooltip>
         {isPlaying ? (
-          <Tooltip label="Pause (Space)"><ActionIcon variant="filled" color="violet" size="xl" radius="xl" onClick={pause}>
-            <IconPlayerPause size={22} />
-          </ActionIcon></Tooltip>
+          <Tooltip label="Pause (Space)">
+            <ActionIcon variant="filled" color="violet" size="xl" radius="xl" onClick={pause}>
+              <IconPlayerPause size={22} />
+            </ActionIcon>
+          </Tooltip>
         ) : (
-          <Tooltip label="Play (Space)"><ActionIcon variant="filled" color="violet" size="xl" radius="xl" onClick={() => play()} disabled={isAtEnd}>
-            <IconPlayerPlay size={22} />
-          </ActionIcon></Tooltip>
+          <Tooltip label="Play (Space)">
+            <ActionIcon
+              variant="filled"
+              color="violet"
+              size="xl"
+              radius="xl"
+              onClick={() => play()}
+              disabled={isAtEnd}
+            >
+              <IconPlayerPlay size={22} />
+            </ActionIcon>
+          </Tooltip>
         )}
-        <Tooltip label="Step forward (→)"><ActionIcon variant="default" size="lg" radius="xl" onClick={stepForward} disabled={isAtEnd}>
-          <IconChevronRight size={18} />
-        </ActionIcon></Tooltip>
-        <Tooltip label="Jump to end"><ActionIcon variant="default" size="lg" radius="xl" onClick={jumpToEnd}>
-          <IconPlayerSkipForward size={18} />
-        </ActionIcon></Tooltip>
+        <Tooltip label="Step forward (→)">
+          <ActionIcon
+            variant="default"
+            size="lg"
+            radius="xl"
+            onClick={stepForward}
+            disabled={isAtEnd}
+          >
+            <IconChevronRight size={18} />
+          </ActionIcon>
+        </Tooltip>
+        <Tooltip label="Jump to end">
+          <ActionIcon variant="default" size="lg" radius="xl" onClick={jumpToEnd}>
+            <IconPlayerSkipForward size={18} />
+          </ActionIcon>
+        </Tooltip>
       </Group>
 
       {/* Speed picker */}
@@ -317,10 +384,20 @@ type SolverGridProps = {
   support: Set<string>;
 };
 
-const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highlight, support }: SolverGridProps) => {
+const SolverGrid = ({
+  puzzleDefinition,
+  grid,
+  candidates,
+  cageColorMap,
+  highlight,
+  support,
+}: SolverGridProps) => {
   const size = puzzleDefinition.size;
   // Pick a cell size that fits — keep it simple, no responsive math here
-  const cellSize = Math.max(36, Math.min(72, Math.floor((Math.min(window.innerWidth - 32, 720)) / size) - 4));
+  const cellSize = Math.max(
+    36,
+    Math.min(72, Math.floor(Math.min(window.innerWidth - 32, 720) / size) - 4)
+  );
   const pencilGridSizeClass = size <= 4 ? 'size-2x2' : 'size-3x3';
 
   return (
@@ -335,13 +412,18 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
         ['--cell-height' as never]: `${cellSize}px`,
         ['--cell-font-size' as never]: `${Math.max(1, cellSize / 32)}rem`,
         ['--pencil-font-size' as never]: `${Math.max(0.5, cellSize / 80)}rem`,
+        // Match the main grid's badge clearance, else the shared stylesheet's
+        // 1.75em fallback squeezes the pencil grid.
+        ['--pencil-top-inset' as never]: `${Math.max(12, Math.round(cellSize * 0.22))}px`,
         boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
       }}
     >
       {grid.map((row, r) =>
         row.map((value, c) => {
           const cellIndex = r * size + c;
-          const cageIndex = puzzleDefinition.cages.findIndex(cage => cage.cells.includes(cellIndex));
+          const cageIndex = puzzleDefinition.cages.findIndex(cage =>
+            cage.cells.includes(cellIndex)
+          );
           const colorClass = getCageColorClass(cageIndex, cageColorMap);
           const textColorClass = getCageTextColorClass(cageIndex, cageColorMap);
           const borderClasses = getBorderClasses(r, c, puzzleDefinition);
@@ -356,7 +438,9 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
             textColorClass,
             borderClasses,
             isHighlight ? 'selected-cell' : '',
-          ].filter(Boolean).join(' ');
+          ]
+            .filter(Boolean)
+            .join(' ');
           const supportStyle: React.CSSProperties = isSupport
             ? { boxShadow: 'inset 0 0 0 3px rgba(250, 176, 5, 0.85)', zIndex: 1 }
             : {};
@@ -364,14 +448,23 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
           return (
             <div key={`${r}-${c}`} className={cellClasses} style={supportStyle}>
               {cageInfo && (
-                <div className="cage-info" role="note">{cageInfo.text}</div>
+                <div className="cage-info" role="note">
+                  {cageInfo.text}
+                </div>
               )}
               <div className="cell-input-container">
                 {value !== 0 ? (
-                  <div className="cell-input" style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 'var(--cell-font-size)', fontWeight: 700, height: '100%',
-                  }}>
+                  <div
+                    className="cell-input"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 'var(--cell-font-size)',
+                      fontWeight: 700,
+                      height: '100%',
+                    }}
+                  >
                     {value}
                   </div>
                 ) : (
@@ -396,28 +489,45 @@ const SolverGrid = ({ puzzleDefinition, grid, candidates, cageColorMap, highligh
 
 function techniqueColor(t: TechniqueId): string {
   switch (t) {
-    case 'stipulated': return 'gray';
-    case 'naked_single': return 'teal';
-    case 'cage_impossible': return 'lime';
-    case 'hidden_single': return 'blue';
-    case 'cage_single': return 'grape';
-    case 'cage_locked': return 'cyan';
-    case 'cage_intersection': return 'indigo';
-    case 'cage_combinations': return 'violet';
-    case 'multi_cage_line_lock': return 'pink';
-    case 'summation': return 'yellow';
-    case 'cross_cage_feasibility': return 'orange';
-    case 'trial_and_error': return 'red';
+    case 'stipulated':
+      return 'gray';
+    case 'naked_single':
+      return 'teal';
+    case 'cage_impossible':
+      return 'lime';
+    case 'hidden_single':
+      return 'blue';
+    case 'cage_single':
+      return 'grape';
+    case 'cage_locked':
+      return 'cyan';
+    case 'cage_intersection':
+      return 'indigo';
+    case 'cage_combinations':
+      return 'violet';
+    case 'multi_cage_line_lock':
+      return 'pink';
+    case 'summation':
+      return 'yellow';
+    case 'cross_cage_feasibility':
+      return 'orange';
+    case 'trial_and_error':
+      return 'red';
   }
 }
 
 function levelColor(level: ReturnType<typeof difficultyLevel>): string {
   switch (level) {
-    case 'easiest': return 'green';
-    case 'easy': return 'teal';
-    case 'medium': return 'yellow';
-    case 'hard': return 'orange';
-    case 'expert': return 'red';
+    case 'easiest':
+      return 'green';
+    case 'easy':
+      return 'teal';
+    case 'medium':
+      return 'yellow';
+    case 'hard':
+      return 'orange';
+    case 'expert':
+      return 'red';
   }
 }
 

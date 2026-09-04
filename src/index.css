@@ -6,12 +6,13 @@
   box-sizing: border-box;
 }
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+    'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   /* Prevent scrolling and overscroll behaviors on mobile */
@@ -22,7 +23,8 @@ html, body {
 
 /* No scrolling on mobile */
 @media (max-width: 768px), (pointer: coarse) {
-  html, body {
+  html,
+  body {
     overflow: hidden;
     position: fixed;
     width: 100%;
@@ -69,7 +71,8 @@ html, body {
 
 /* Custom animations */
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -113,7 +116,9 @@ html, body {
   box-sizing: border-box;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0 !important;
   padding: 0 !important;
   height: 100%;
@@ -122,18 +127,26 @@ html, body, #root {
 
 /* Enhanced base styles */
 @layer base {
-  html, body {
+  html,
+  body {
     margin: 0;
     padding: 0;
   }
-  
+
   html {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  
+
   body {
     min-height: 100vh;
   }
@@ -145,16 +158,17 @@ html, body, #root {
 }
 
 @keyframes invalidFlash {
-  0%, 100% {
+  0%,
+  100% {
     transform: scale(1);
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(0, 0, 0, 0.1),
       0 4px 8px rgba(0, 0, 0, 0.1);
   }
   25% {
     transform: scale(1.05);
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(239, 68, 68, 0.2),
       0 0 0 4px rgba(239, 68, 68, 0.4),
@@ -162,7 +176,7 @@ html, body, #root {
   }
   50% {
     transform: scale(1.02);
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(239, 68, 68, 0.2),
       0 0 0 2px rgba(239, 68, 68, 0.3),
@@ -170,7 +184,7 @@ html, body, #root {
   }
   75% {
     transform: scale(1.01);
-    box-shadow: 
+    box-shadow:
       inset 0 2px 4px rgba(255, 255, 255, 0.6),
       inset 0 -2px 4px rgba(239, 68, 68, 0.1),
       0 0 0 1px rgba(239, 68, 68, 0.2),
@@ -189,7 +203,7 @@ html, body, #root {
     outline: none;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  
+
   .focus-modern:focus {
     outline: none;
     box-shadow: 0 0 0 4px rgba(199, 210, 254, 0.5);
@@ -243,7 +257,7 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
@@ -252,7 +266,7 @@ html, body, #root {
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -281,13 +295,15 @@ html, body, #root {
 
 /* Accessibility improvements */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-  
+
   .animate-pulse,
   .animate-bounce,
   .animate-spin {
@@ -297,16 +313,17 @@ html, body, #root {
 
 /* High contrast mode support */
 @media (prefers-contrast: high) {
+  /* An inset ring rather than a border, so the flat grid's cells keep their
+     full content box and stay flush with each other. */
   .arithmatrix-cell {
-    border: 2px solid #000 !important;
+    box-shadow: inset 0 0 0 2px #000 !important;
   }
-  
+
   .cage-info {
     background: #fff !important;
     color: #000 !important;
-    border: 1px solid #000 !important;
   }
-} 
+}
 .test-bg {
   @apply bg-green-500 text-white p-4 rounded;
 }
