@@ -5,14 +5,42 @@
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0"
+    />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Arithmatrix" />
     <meta name="theme-color" content="#667eea" />
-    <meta name="description" content="A challenging mathematical puzzle game with cage-based operations" />
+    <meta
+      name="description"
+      content="A challenging mathematical puzzle game with cage-based operations"
+    />
     <title>Arithmatrix</title>
+    <script>
+      /*
+       * Capture `beforeinstallprompt` here, before the app bundle loads.
+       * Chrome fires it once, shortly after load, and the app's own listener
+       * used to be registered inside a React effect - late enough (behind a
+       * large bundle and a 7MB puzzle fetch) to miss the event entirely, after
+       * which nothing could ever offer an install.
+       *
+       * preventDefault() suppresses Chrome's mini-infobar so the app can show
+       * its own CTA and call prompt() at a moment of its choosing.
+       */
+      window.__installPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (event) {
+        event.preventDefault();
+        window.__installPrompt = event;
+        window.dispatchEvent(new Event('installpromptchange'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__installPrompt = null;
+        window.dispatchEvent(new Event('installpromptchange'));
+      });
+    </script>
   </head>
   <body>
     <div id="root"></div>

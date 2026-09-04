@@ -28,6 +28,8 @@ import {
   IconTrophy,
   IconSparkles,
   IconLayoutGrid,
+  IconDownload,
+  IconX,
   IconRefresh,
   IconPlus,
   IconSettings,
@@ -131,50 +133,95 @@ const updateURL = (
  * `all_puzzles.jsonl` regardless of cage ordering. Each cage is rendered as
  * `value/op/sortedCells`, and the resulting list is sorted.
  */
-// Store the deferred install prompt globally so it persists across renders
-let deferredInstallPrompt: BeforeInstallPromptEvent | null = null;
-
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
+/**
+ * The install prompt is captured by an inline script in index.html, because
+ * Chrome fires `beforeinstallprompt` once and can do so before React mounts.
+ * See the comment there.
+ */
+const getInstallPrompt = (): BeforeInstallPromptEvent | null =>
+  (window as unknown as { __installPrompt?: BeforeInstallPromptEvent | null }).__installPrompt ??
+  null;
+
+const clearInstallPrompt = () => {
+  (window as unknown as { __installPrompt?: BeforeInstallPromptEvent | null }).__installPrompt =
+    null;
+};
+
+/** True when the app is already running as an installed PWA. */
+const isRunningInstalled = (): boolean =>
+  window.matchMedia?.('(display-mode: standalone)').matches ||
+  window.matchMedia?.('(display-mode: fullscreen)').matches ||
+  window.matchMedia?.('(display-mode: minimal-ui)').matches ||
+  (navigator as unknown as { standalone?: boolean }).standalone === true;
+
+const INSTALL_DISMISSED_KEY = 'arithmatrix_install_dismissed';
+
 function App() {
-  // Listen for the beforeinstallprompt event (Chrome/Edge) to capture native prompt
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      deferredInstallPrompt = e as BeforeInstallPromptEvent;
-    };
-
-    const handleAppInstalled = () => {
-      deferredInstallPrompt = null;
-    };
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    window.addEventListener('appinstalled', handleAppInstalled);
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.removeEventListener('appinstalled', handleAppInstalled);
-    };
-  }, []);
-
   // Install instructions modal state
   const [showInstallInstructions, setShowInstallInstructions] = useState(false);
 
+  // Whether Chrome has handed us a real install prompt to fire. Seeded from the
+  // window in case the event landed before React mounted.
+  const [canInstall, setCanInstall] = useState<boolean>(() => getInstallPrompt() !== null);
+  const [installed, setInstalled] = useState<boolean>(() => isRunningInstalled());
+  const [installDismissed, setInstallDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem(INSTALL_DISMISSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const syncInstallState = () => {
+      setCanInstall(getInstallPrompt() !== null);
+      setInstalled(isRunningInstalled());
+    };
+    window.addEventListener('installpromptchange', syncInstallState);
+    window.addEventListener('appinstalled', syncInstallState);
+    // The event may have fired between this component's first render and now.
+    syncInstallState();
+    return () => {
+      window.removeEventListener('installpromptchange', syncInstallState);
+      window.removeEventListener('appinstalled', syncInstallState);
+    };
+  }, []);
+
   // Handler to trigger the install prompt
   const handleInstallClick = async () => {
-    if (deferredInstallPrompt) {
-      await deferredInstallPrompt.prompt();
-      const { outcome } = await deferredInstallPrompt.userChoice;
-      if (outcome === 'accepted') {
-        deferredInstallPrompt = null;
-      }
-    } else {
+    const prompt = getInstallPrompt();
+    if (!prompt) {
+      // No native prompt available (iOS Safari, or Chrome hasn't offered one) -
+      // fall back to telling the user where to find it.
       setShowInstallInstructions(true);
+      return;
+    }
+    await prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === 'accepted') {
+      clearInstallPrompt();
+      setCanInstall(false);
+      setInstalled(true);
     }
   };
+
+  const dismissInstallBanner = () => {
+    setInstallDismissed(true);
+    try {
+      localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
+    } catch {
+      // A failed write just means the banner can come back next session.
+    }
+  };
+
+  // Only promote installing when Chrome has actually offered a prompt, the app
+  // isn't already installed, and the player hasn't waved it away.
+  const showInstallBanner = canInstall && !installed && !installDismissed;
 
   // Initialize puzzle stats system
   useEffect(() => {
@@ -842,6 +889,57 @@ function App() {
         }}
       >
         <Stack gap={isMobile ? 'xs' : 'md'}>
+          {/* Install prompt - only shown when Chrome has offered a real one */}
+          {showInstallBanner && (
+            <Paper
+              radius="lg"
+              p={isMobile ? 'xs' : 'sm'}
+              style={{
+                background: 'rgba(255, 255, 255, 0.92)',
+                boxShadow: '0 8px 20px -8px rgba(0, 0, 0, 0.25)',
+                marginLeft: isMobile ? rem(6) : undefined,
+                marginRight: isMobile ? rem(6) : undefined,
+              }}
+            >
+              <Group gap="xs" wrap="nowrap" justify="space-between">
+                <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
+                  <ThemeIcon
+                    size={isMobile ? 'md' : 'lg'}
+                    radius="xl"
+                    variant="gradient"
+                    gradient={{ from: 'indigo', to: 'violet' }}
+                  >
+                    <IconDownload size="1rem" />
+                  </ThemeIcon>
+                  <Text size="sm" fw={600} c="gray.8" style={{ minWidth: 0 }}>
+                    Add Arithmatrix to your home screen
+                  </Text>
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                  <Button
+                    size="xs"
+                    radius="xl"
+                    variant="gradient"
+                    gradient={{ from: 'indigo', to: 'violet' }}
+                    onClick={handleInstallClick}
+                  >
+                    Install
+                  </Button>
+                  <ActionIcon
+                    size="md"
+                    radius="xl"
+                    variant="subtle"
+                    color="gray"
+                    onClick={dismissInstallBanner}
+                    aria-label="Dismiss install prompt"
+                  >
+                    <IconX size="1rem" />
+                  </ActionIcon>
+                </Group>
+              </Group>
+            </Paper>
+          )}
+
           {/* Loading state with elegant spinner */}
           {loading && (
             <Paper
