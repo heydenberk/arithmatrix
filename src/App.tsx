@@ -48,12 +48,15 @@ import AchievementGallery from './components/AchievementGallery';
 import SolverPlayback from './components/SolverPlayback';
 import DevPanel from './components/DevPanel';
 import {
-  saveGameState,
-  loadGameState,
-  clearGameState,
-  hasSavedGameState,
-  hasUserProgress,
+  saveGame,
+  loadGameForPuzzle,
+  deleteGameForPuzzle,
+  hasSavedGames,
+  deleteGame,
+  mostRecentSavedGame,
+  hasAnyProgress,
   deserializePencilMarks,
+  SavedGame,
 } from './utils/gameStatePersistence';
 
 // Define the structure of a cage and the puzzle definition
@@ -229,7 +232,7 @@ function App() {
   // restarting.
   useEffect(() => {
     const pinned = initialParams.puzzleIndex;
-    if (pinned === null || hasSavedGameState()) return;
+    if (pinned === null || hasSavedGames()) return;
     let cancelled = false;
     setLoading(true);
     loadCatalog()
@@ -254,59 +257,20 @@ function App() {
 
   // Separate effect to handle saved state loading on app initialization
   useEffect(() => {
-    const loadSavedStateOnStartup = async () => {
-      console.log('🎯 App startup effect running...');
-      console.log('🔍 hasSavedGameState():', hasSavedGameState());
-      console.log('🗂️ localStorage item:', localStorage.getItem('arithmatrix_current_game_state'));
-
-      if (hasSavedGameState()) {
-        try {
-          console.log('🔄 App startup: Checking for saved state...');
-          const savedState = loadGameState();
-          if (savedState) {
-            console.log('🚀 App startup: Loading saved game state...', savedState);
-
-            // Restore puzzle and solution
-            setPuzzleDefinition(savedState.puzzleDefinition);
-            setSolutionGrid(savedState.solutionGrid);
-
-            // Restore puzzle settings
-            setPuzzleSize(savedState.puzzleSettings.size);
-            setDifficulty(savedState.puzzleSettings.difficulty);
-            setOperationsTier(savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
-            // Update URL to match restored settings
-            updateURL(
-              savedState.puzzleSettings.size,
-              savedState.puzzleSettings.difficulty,
-              savedState.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER
-            );
-
-            // Prepare initial state for ArithmatrixGrid
-            setInitialGridValues(savedState.gridValues);
-            setInitialPencilMarks(deserializePencilMarks(savedState.pencilMarks));
-
-            // Restore game timing
-            setGameStartTime(savedState.metadata.startedAt);
-            setCurrentCompletionTime(savedState.metadata.elapsedTime);
-            completionTimeRef.current = savedState.metadata.elapsedTime;
-
-            hasLoadedSavedStateRef.current = true;
-            setLoading(false);
-            console.log('✅ Saved state loaded successfully');
-            return true; // Indicate that saved state was loaded
-          }
-        } catch (error) {
-          console.error('❌ Failed to load saved game state:', error);
-          clearGameState();
-        }
-      } else {
-        console.log('📭 No saved state found during startup');
-      }
-      return false; // No saved state was loaded
-    };
-
-    loadSavedStateOnStartup();
-  }, []); // Run only once on app startup
+    // Drop the player back into whichever puzzle they were last playing.
+    const savedState = mostRecentSavedGame();
+    if (!savedState) return;
+    try {
+      restoreSavedGame(savedState);
+      hasLoadedSavedStateRef.current = true;
+      setLoading(false);
+    } catch (error) {
+      console.error('Failed to restore saved game:', error);
+      deleteGame(savedState.cagesSig);
+    }
+    // Runs once on startup; restoreSavedGame is stable and intentionally omitted.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Initialize state from URL parameters
   const initialParams = getURLParams();
@@ -367,9 +331,8 @@ function App() {
    * except when there is a saved game to resume, or the URL already names a
    * specific puzzle, in which case the player already has one.
    */
-  const [confirmNewGame, setConfirmNewGame] = useState<boolean>(false);
   const [showPuzzleGallery, setShowPuzzleGallery] = useState<boolean>(
-    () => initialParams.puzzleIndex === null && !hasSavedGameState()
+    () => initialParams.puzzleIndex === null && !hasSavedGames()
   );
   // When the dev panel forces a specific puzzle, suppress the auto-reload
   // that would otherwise fire from puzzleSize/difficulty/ops state changes.
@@ -572,20 +535,37 @@ function App() {
     completionTimeRef.current = seconds;
   }, []);
 
+  /*
+   * The clock stops while the gallery is open. Time spent choosing a puzzle
+   * would otherwise be charged to whichever game you were about to leave, and
+   * that game's saved elapsed time is what the gallery reports back.
+   * isTimerRunning also hides the board, which is the existing pause behaviour
+   * and is invisible behind the modal.
+   */
+  useEffect(() => {
+    setIsTimerRunning(!showPuzzleGallery && !isGameWon);
+  }, [showPuzzleGallery, isGameWon]);
+
   // Handler for game state changes - save to localStorage
   const handleGameStateChange = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
     latestGridValuesRef.current = gridValues;
     latestPencilMarksRef.current = pencilMarks;
-    if (puzzleDefinition && solutionGrid && hasUserProgress(gridValues)) {
-      saveGameState(
+    if (!puzzleDefinition || !solutionGrid) return;
+
+    if (hasAnyProgress(gridValues, pencilMarks)) {
+      saveGame(
         puzzleDefinition,
         solutionGrid,
         gridValues,
         pencilMarks,
         { size: puzzleSize, difficulty, operationsTier },
         completionTimeRef.current,
-        gameStartTime
+        gameStartTime,
+        currentPuzzleIndex
       );
+    } else {
+      // Board cleared back to empty - it is no longer a game in progress
+      deleteGameForPuzzle(puzzleDefinition);
     }
   };
 
@@ -606,10 +586,41 @@ function App() {
     setCheckpointGridValues(null);
     setCheckpointPencilMarks(null);
     setHasCheckpoint(false);
-    // Clear persisted game state
-    clearGameState();
+    // Clear this puzzle's saved progress; other games in progress are untouched
+    if (puzzleDefinition) deleteGameForPuzzle(puzzleDefinition);
     console.log('Puzzle reset');
   };
+
+  /**
+   * Puts a saved game back on the board: its puzzle, its grid and pencil marks,
+   * and its accumulated time. Used both on startup and when resuming a paused
+   * puzzle from the gallery.
+   */
+  const restoreSavedGame = useCallback((saved: SavedGame) => {
+    setPuzzleDefinition(saved.puzzleDefinition);
+    setSolutionGrid(saved.solutionGrid);
+    setCurrentPuzzleIndex(saved.puzzleIndex);
+
+    setPuzzleSize(saved.puzzleSettings.size);
+    setDifficulty(saved.puzzleSettings.difficulty);
+    setOperationsTier(saved.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
+    updateURL(
+      saved.puzzleSettings.size,
+      saved.puzzleSettings.difficulty,
+      saved.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER,
+      saved.puzzleIndex
+    );
+
+    setInitialGridValues(saved.gridValues);
+    setInitialPencilMarks(deserializePencilMarks(saved.pencilMarks));
+
+    // Resume the clock where it stopped
+    setGameStartTime(new Date(saved.startedAt));
+    setCurrentCompletionTime(saved.elapsedTime);
+    completionTimeRef.current = saved.elapsedTime;
+    setIsTimerRunning(true);
+    setIsGameWon(false);
+  }, []);
 
   /**
    * Loads one specific puzzle, identified by its line index in the puzzle
@@ -617,7 +628,13 @@ function App() {
    * bucket. Shared by the puzzle gallery and the dev panel.
    */
   const loadPuzzleRecord = useCallback((record: RawPuzzleRecord, index: number) => {
-    clearGameState(); // Starting this puzzle fresh, so drop any saved progress
+    // Selecting a puzzle you already started resumes it rather than wiping it.
+    const inProgress = loadGameForPuzzle({
+      size: record.puzzle.size,
+      cages: record.puzzle.cages,
+      difficulty_operations: record.puzzle.difficulty_operations,
+    });
+
     setCurrentPuzzleIndex(index);
     // Tell the loadPuzzle effect to skip the random-from-bucket
     // fetch — we're pinning a specific puzzle here.
@@ -645,48 +662,22 @@ function App() {
       difficulty_operations: record.puzzle.difficulty_operations,
     });
     setSolutionGrid(record.puzzle.solution);
-    setInitialGridValues(undefined);
-    setInitialPencilMarks(undefined);
+    setInitialGridValues(inProgress?.gridValues);
+    setInitialPencilMarks(inProgress ? deserializePencilMarks(inProgress.pencilMarks) : undefined);
 
-    // Game state reset
+    // Game state: pick up where a paused puzzle left off, else start clean
     setIsGameWon(false);
-    setCurrentCompletionTime(0);
-    completionTimeRef.current = 0;
+    setCurrentCompletionTime(inProgress?.elapsedTime ?? 0);
+    completionTimeRef.current = inProgress?.elapsedTime ?? 0;
     setCheckpointGridValues(null);
     setCheckpointPencilMarks(null);
     setHasCheckpoint(false);
     setLastAchievement(null);
-    setGameStartTime(new Date());
+    setGameStartTime(inProgress ? new Date(inProgress.startedAt) : new Date());
     setIsTimerRunning(true);
     // Force the grid to remount so it picks up the new puzzle cleanly.
     setResetKey(prev => prev + 1);
   }, []);
-
-  /**
-   * True when abandoning the current puzzle would actually lose something -
-   * any entered value or pencil mark, on a puzzle that isn't already finished.
-   */
-  const hasProgressToLose = (): boolean => {
-    if (isGameWon) return false;
-    const grid = latestGridValuesRef.current;
-    if (grid && hasUserProgress(grid)) return true;
-    const marks = latestPencilMarksRef.current;
-    return !!marks?.some(row => row.some(cell => cell.size > 0));
-  };
-
-  /**
-   * Opens the gallery, but confirms first if there is progress to lose. Picking
-   * a puzzle from the gallery discards the current game, so the warning belongs
-   * before the player goes browsing rather than at the moment of the tap that
-   * destroys it.
-   */
-  const requestNewGame = () => {
-    if (hasProgressToLose()) {
-      setConfirmNewGame(true);
-    } else {
-      setShowPuzzleGallery(true);
-    }
-  };
 
   // Handler for creating/updating checkpoint (always sets, even if one exists)
   const handleCreateCheckpoint = () => {
@@ -763,8 +754,8 @@ function App() {
       setLastAchievement(null);
     }
 
-    // Clear saved game state since puzzle is completed
-    clearGameState();
+    // A finished puzzle is no longer in progress
+    if (puzzleDefinition) deleteGameForPuzzle(puzzleDefinition);
   };
 
   return (
@@ -986,7 +977,7 @@ function App() {
                     />
                   }
                   onReset={handleReset}
-                  onNewGame={requestNewGame}
+                  onNewGame={() => setShowPuzzleGallery(true)}
                   onInstall={handleInstallClick}
                   onShowAchievements={() => setShowAchievementGallery(true)}
                 />
@@ -1146,7 +1137,7 @@ function App() {
 
                   {/* New Game - opens the puzzle gallery, the only picker */}
                   <Button
-                    onClick={requestNewGame}
+                    onClick={() => setShowPuzzleGallery(true)}
                     radius="xl"
                     size="sm"
                     variant="gradient"
@@ -1212,36 +1203,6 @@ function App() {
           </Paper>
         )}
       </Container>
-
-      {/* Discarding an in-progress puzzle is confirmed first */}
-      <Modal
-        opened={confirmNewGame}
-        onClose={() => setConfirmNewGame(false)}
-        title={<Text fw={700}>Start a new puzzle?</Text>}
-        centered
-        size="sm"
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            You have progress on this puzzle. Picking a new one will discard it.
-          </Text>
-          <Group justify="flex-end" gap="sm">
-            <Button variant="subtle" color="gray" onClick={() => setConfirmNewGame(false)}>
-              Keep playing
-            </Button>
-            <Button
-              variant="gradient"
-              gradient={{ from: 'teal', to: 'blue' }}
-              onClick={() => {
-                setConfirmNewGame(false);
-                setShowPuzzleGallery(true);
-              }}
-            >
-              Discard and browse
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
 
       {/* Puzzle Gallery - the only way to start a game */}
       <PuzzleGallery

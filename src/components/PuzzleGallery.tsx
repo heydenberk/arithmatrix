@@ -26,7 +26,7 @@ import {
   Text,
   UnstyledButton,
 } from '@mantine/core';
-import { IconCircleCheckFilled } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconPlayerPauseFilled } from '@tabler/icons-react';
 import {
   CatalogEntry,
   RawPuzzleRecord,
@@ -36,6 +36,8 @@ import {
 } from '../utils/puzzleCatalog';
 import { OPERATION_TIERS, OPERATION_TIER_LABELS, VALID_SIZES } from '../constants/gameConstants';
 import { triggerHapticFeedback } from '../utils/touchUtils';
+import { SavedGameSummary, savedGameSummaries } from '../utils/gameStatePersistence';
+import { formatCompletionTime } from '../utils/puzzleStats';
 import PuzzleThumbnail from './PuzzleThumbnail';
 
 interface PuzzleGalleryProps {
@@ -75,6 +77,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   const [operationsTier, setOperationsTier] = useState<string>(initialOperationsTier);
   const [hideCompleted, setHideCompleted] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(() => new Set());
+  const [inProgress, setInProgress] = useState<Map<string, SavedGameSummary>>(() => new Map());
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
@@ -102,6 +105,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   useEffect(() => {
     if (opened) {
       setSolved(completedSignatures());
+      setInProgress(savedGameSummaries());
       setSize(initialSize);
       setOperationsTier(initialOperationsTier);
     }
@@ -117,6 +121,15 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     );
     return groupByScoreBand(matching);
   }, [catalog, size, operationsTier, hideCompleted, solved]);
+
+  const pausedEntries = useMemo(() => {
+    if (!catalog || inProgress.size === 0) return [];
+    const bySig = new Map(catalog.map(entry => [entry.cagesSig, entry]));
+    return [...inProgress.entries()]
+      .sort((a, b) => b[1].savedAt.localeCompare(a[1].savedAt))
+      .map(([sig]) => bySig.get(sig))
+      .filter((entry): entry is CatalogEntry => entry !== undefined);
+  }, [catalog, inProgress]);
 
   const totalShown = useMemo(
     () => bands.reduce((sum, band) => sum + band.entries.length, 0),
@@ -137,6 +150,72 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     }
     return { filterTotal: total, solvedCount: done };
   }, [catalog, size, operationsTier, solved]);
+
+  const renderTile = (entry: CatalogEntry) => {
+    const isSolved = solved.has(entry.cagesSig);
+    const paused = inProgress.get(entry.cagesSig);
+    const isCurrent = entry.index === currentPuzzleIndex;
+    const border = isCurrent
+      ? 'var(--mantine-color-indigo-5)'
+      : paused
+        ? 'var(--mantine-color-yellow-5)'
+        : isSolved
+          ? 'var(--mantine-color-green-3)'
+          : 'transparent';
+
+    return (
+      <UnstyledButton
+        key={entry.index}
+        onClick={() => handleSelect(entry)}
+        aria-label={
+          `${paused ? 'Resume' : 'Play'} ${entry.size}×${entry.size} puzzle, ` +
+          `difficulty ${entry.score.toFixed(1)}` +
+          (paused ? `, paused at ${formatCompletionTime(paused.elapsedTime)}` : '') +
+          (isSolved ? ', completed' : '')
+        }
+        style={{
+          borderRadius: 8,
+          padding: 4,
+          border: `2px solid ${border}`,
+          background: 'rgba(148, 163, 184, 0.12)',
+        }}
+      >
+        <Box style={{ position: 'relative' }}>
+          <PuzzleThumbnail size={entry.size} cages={entry.record.puzzle.cages} />
+          {(paused || isSolved) && (
+            <Box
+              style={{
+                position: 'absolute',
+                top: -4,
+                right: -4,
+                color: paused ? 'var(--mantine-color-yellow-7)' : 'var(--mantine-color-green-6)',
+                background: '#fff',
+                borderRadius: '50%',
+                lineHeight: 0,
+              }}
+            >
+              {paused ? <IconPlayerPauseFilled size={16} /> : <IconCircleCheckFilled size={16} />}
+            </Box>
+          )}
+        </Box>
+        <Text size="xs" fw={700} ta="center" mt={2} c="gray.7">
+          {entry.score.toFixed(1)}
+        </Text>
+        {paused ? (
+          <Text size="10px" ta="center" c="yellow.8" fw={600} lh={1.1}>
+            {formatCompletionTime(paused.elapsedTime)}
+          </Text>
+        ) : (
+          /* Only worth showing when tiles can differ in operations */
+          operationsTier === ANY_OPS && (
+            <Text size="10px" ta="center" c="dimmed" lh={1.1}>
+              {OPERATION_TIER_LABELS[entry.operationsTier]}
+            </Text>
+          )
+        )}
+      </UnstyledButton>
+    );
+  };
 
   const handleSelect = (entry: CatalogEntry) => {
     triggerHapticFeedback('medium');
@@ -245,6 +324,25 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
           </Text>
         )}
 
+        {/* Games in progress, shown regardless of the filters - these are what
+            the player came back for, so they should not be filtered away. */}
+        {pausedEntries.length > 0 && (
+          <Stack key="in-progress" gap="xs">
+            <Group gap="xs" align="center">
+              <IconPlayerPauseFilled size={14} color="var(--mantine-color-yellow-7)" />
+              <Text size="sm" fw={700}>
+                In progress
+              </Text>
+              <Text size="xs" c="dimmed">
+                {pausedEntries.length}
+              </Text>
+            </Group>
+            <SimpleGrid cols={{ base: 4, xs: 5, sm: 6, md: 7 }} spacing="xs">
+              {pausedEntries.map(renderTile)}
+            </SimpleGrid>
+          </Stack>
+        )}
+
         {/* One section per 10-point band of numeric difficulty */}
         {bands.map(band => (
           <Stack key={band.start} gap="xs">
@@ -261,57 +359,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
             </Group>
 
             <SimpleGrid cols={{ base: 4, xs: 5, sm: 6, md: 7 }} spacing="xs">
-              {band.entries.map(entry => {
-                const isSolved = solved.has(entry.cagesSig);
-                const isCurrent = entry.index === currentPuzzleIndex;
-                return (
-                  <UnstyledButton
-                    key={entry.index}
-                    onClick={() => handleSelect(entry)}
-                    aria-label={`Play ${entry.size}×${entry.size} puzzle, difficulty ${entry.score.toFixed(1)}${isSolved ? ', completed' : ''}`}
-                    style={{
-                      borderRadius: 8,
-                      padding: 4,
-                      border: `2px solid ${
-                        isCurrent
-                          ? 'var(--mantine-color-indigo-5)'
-                          : isSolved
-                            ? 'var(--mantine-color-green-3)'
-                            : 'transparent'
-                      }`,
-                      background: 'rgba(148, 163, 184, 0.12)',
-                    }}
-                  >
-                    <Box style={{ position: 'relative' }}>
-                      <PuzzleThumbnail size={entry.size} cages={entry.record.puzzle.cages} />
-                      {isSolved && (
-                        <Box
-                          style={{
-                            position: 'absolute',
-                            top: -4,
-                            right: -4,
-                            color: 'var(--mantine-color-green-6)',
-                            background: '#fff',
-                            borderRadius: '50%',
-                            lineHeight: 0,
-                          }}
-                        >
-                          <IconCircleCheckFilled size={16} />
-                        </Box>
-                      )}
-                    </Box>
-                    <Text size="xs" fw={700} ta="center" mt={2} c="gray.7">
-                      {entry.score.toFixed(1)}
-                    </Text>
-                    {/* Only worth showing when tiles can differ in operations */}
-                    {operationsTier === ANY_OPS && (
-                      <Text size="10px" ta="center" c="dimmed" lh={1.1}>
-                        {OPERATION_TIER_LABELS[entry.operationsTier]}
-                      </Text>
-                    )}
-                  </UnstyledButton>
-                );
-              })}
+              {band.entries.map(renderTile)}
             </SimpleGrid>
           </Stack>
         ))}

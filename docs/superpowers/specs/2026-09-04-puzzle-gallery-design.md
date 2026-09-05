@@ -110,6 +110,27 @@ skipped.
 Tiles show their operations tier only when the filter is "Any", since that is
 the only time the value differs between visible tiles.
 
+## Addendum: games in progress
+
+Every puzzle you start is kept until you finish it or clear its board, so
+switching puzzles loses nothing. The gallery lists them under an "In progress"
+heading at the top - shown regardless of the size/operations filters, since a
+game you are returning to should not be filtered away - and marks them in place
+in their difficulty band too. Selecting one resumes its grid, pencil marks and
+elapsed time.
+
+Games are keyed by canonical cage signature rather than database index, so a
+save works before the catalog has loaded and survives the database being
+regenerated with different line numbers. A game saved under the previous
+single-slot key is migrated on first read. The store keeps the 40 most recent.
+
+The clock stops while the gallery is open: time spent choosing would otherwise
+be charged to whichever game was about to be left, and that game's saved
+elapsed time is exactly what the gallery reports back.
+
+This removes the "discard progress?" confirmation on New Game, which now has
+nothing to protect.
+
 ## Out of scope
 
 Search, sort options, pagination controls.
