@@ -18,7 +18,6 @@
 import React, { useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Box, Stack } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
-import { isTouchDevice } from '../utils/touchUtils';
 import MobileNumberPad from './MobileNumberPad';
 
 /*
@@ -123,7 +122,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           gameState.revertToState(gridValues, pencilMarks);
         },
       }),
-      [gameState.gridValues, gameState.pencilMarks, onCheckpointRequested, gameState.revertToState]
+      [gameState, onCheckpointRequested]
     );
 
     // Memoized cage color assignment
@@ -234,8 +233,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           event.preventDefault();
           gameState.handleRedo();
         }
-        // Secret shortcut: Shift + ` (backtick/tilde) to solve all but one square
-        else if (event.shiftKey && event.key === '`') {
+        // Development only: Shift + ` solves all but one square. Never shipped -
+        // it would hand players the answer.
+        else if (import.meta.env.DEV && event.shiftKey && event.key === '`') {
           event.preventDefault();
           gameState.handleSecretShortcut();
         }

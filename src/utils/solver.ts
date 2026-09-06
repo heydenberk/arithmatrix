@@ -124,7 +124,6 @@ const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
 const cellLabel = (row: number, col: number) => `${colLetter(col)}${row + 1}`;
-const cellList = (cells: CellRef[]) => cells.map(c => cellLabel(c.row, c.col)).join(', ');
 
 function interp(x: number, x0: number, x1: number, y0: number, y1: number): number {
   if (x1 <= x0) return y0;
@@ -423,7 +422,11 @@ class Solver {
     for (let r = 0; r < this.size; r++) {
       for (let num = 1; num <= this.size; num++) {
         let alreadyPlaced = false;
-        for (let c = 0; c < this.size; c++) if (this.grid[r][c] === num) { alreadyPlaced = true; break; }
+        for (let c = 0; c < this.size; c++)
+          if (this.grid[r][c] === num) {
+            alreadyPlaced = true;
+            break;
+          }
         if (alreadyPlaced) continue;
         const possible: number[] = [];
         for (let c = 0; c < this.size; c++) {
@@ -445,7 +448,11 @@ class Solver {
     for (let c = 0; c < this.size; c++) {
       for (let num = 1; num <= this.size; num++) {
         let alreadyPlaced = false;
-        for (let r = 0; r < this.size; r++) if (this.grid[r][c] === num) { alreadyPlaced = true; break; }
+        for (let r = 0; r < this.size; r++)
+          if (this.grid[r][c] === num) {
+            alreadyPlaced = true;
+            break;
+          }
         if (alreadyPlaced) continue;
         const possible: number[] = [];
         for (let r = 0; r < this.size; r++) {
@@ -694,7 +701,8 @@ class Solver {
                 }
               }
               if (eliminations.length > 0) {
-                const where = orientation === 'row' ? `row ${line + 1}` : `column ${colLetter(line)}`;
+                const where =
+                  orientation === 'row' ? `row ${line + 1}` : `column ${colLetter(line)}`;
                 const cellList = eliminations.map(e => cellLabel(e.row, e.col)).join(', ');
                 this.recordStep(
                   'multi_cage_line_lock',
@@ -745,7 +753,11 @@ class Solver {
   private applySummation(): boolean {
     const perLineTarget = (this.size * (this.size + 1)) / 2;
 
-    const cageKnownSubsetSum = (cageIdx: number, subset: Set<number>, orientation: 'row' | 'col'): number | null => {
+    const cageKnownSubsetSum = (
+      cageIdx: number,
+      subset: Set<number>,
+      orientation: 'row' | 'col'
+    ): number | null => {
       const cage = this.cages[cageIdx];
       const inSubset = (cell: CellRef) =>
         orientation === 'row' ? subset.has(cell.row) : subset.has(cell.col);
@@ -793,7 +805,7 @@ class Solver {
           const subsetCells: CellRef[] = [];
           for (let r = 0; r < this.size; r++) {
             for (let c = 0; c < this.size; c++) {
-              if ((orientation === 'row' ? subset.has(r) : subset.has(c))) {
+              if (orientation === 'row' ? subset.has(r) : subset.has(c)) {
                 subsetCells.push({ row: r, col: c });
               }
             }
@@ -830,7 +842,12 @@ class Solver {
               this.place(row, col, residual);
               this.recordStep(
                 'summation',
-                `Summation: rows/cols ${[...subset].sort().map(i => i + 1).join(',')} (${orientation}) sum to ${target}; cage totals cover ${knownSum + placedUncoveredSum}, so ${cellLabel(row, col)} must be ${residual}.`,
+                `Summation: rows/cols ${[...subset]
+                  .sort()
+                  .map(i => i + 1)
+                  .join(
+                    ','
+                  )} (${orientation}) sum to ${target}; cage totals cover ${knownSum + placedUncoveredSum}, so ${cellLabel(row, col)} must be ${residual}.`,
                 [{ row, col }]
               );
               return true;
@@ -856,7 +873,12 @@ class Solver {
               this.candidates[b.row][b.col] = new2;
               this.recordStep(
                 'summation',
-                `Summation: rows/cols ${[...subset].sort().map(i => i + 1).join(',')} (${orientation}) need ${residual} across ${cellLabel(a.row, a.col)} and ${cellLabel(b.row, b.col)}.`,
+                `Summation: rows/cols ${[...subset]
+                  .sort()
+                  .map(i => i + 1)
+                  .join(
+                    ','
+                  )} (${orientation}) need ${residual} across ${cellLabel(a.row, a.col)} and ${cellLabel(b.row, b.col)}.`,
                 [a, b]
               );
               return true;
@@ -1228,9 +1250,7 @@ class Solver {
    * positional analysis when there are multiple multisets.
    */
   private applyCageLockedAcrossCages(): boolean {
-    const ordered = [...this.cages].sort(
-      (a, b) => a.combinations.length - b.combinations.length
-    );
+    const ordered = [...this.cages].sort((a, b) => a.combinations.length - b.combinations.length);
     for (const cage of ordered) {
       if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) continue;
       const filtered = this.survivingCombos(cage);
@@ -1289,9 +1309,7 @@ class Solver {
    * processed first.
    */
   private applyCageImpossibleAcrossCages(): boolean {
-    const ordered = [...this.cages].sort(
-      (a, b) => a.combinations.length - b.combinations.length
-    );
+    const ordered = [...this.cages].sort((a, b) => a.combinations.length - b.combinations.length);
     for (const cage of ordered) {
       if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) continue;
       for (let pos = 0; pos < cage.cells.length; pos++) {
@@ -1529,11 +1547,7 @@ function combinationsOfRange(n: number, k: number): number[][] {
   return out;
 }
 
-function enumerateWithReplacement(
-  size: number,
-  k: number,
-  cb: (combo: number[]) => void
-) {
+function enumerateWithReplacement(size: number, k: number, cb: (combo: number[]) => void) {
   const combo: number[] = [];
   const recurse = (start: number) => {
     if (combo.length === k) {

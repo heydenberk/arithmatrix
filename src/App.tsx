@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react';
 
 import { APP_VERSION } from './version';
 import {
@@ -40,13 +40,18 @@ import {
   OPERATION_TIER_LABELS,
 } from './constants/gameConstants';
 import { RawPuzzleRecord, canonicalCagesSig, loadCatalog } from './utils/puzzleCatalog';
-import { isTouchDevice } from './utils/touchUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
 import AchievementNotification from './components/AchievementNotification';
 import AchievementGallery from './components/AchievementGallery';
-import SolverPlayback from './components/SolverPlayback';
-import DevPanel from './components/DevPanel';
+/*
+ * Development tools, loaded on demand so they leave the production bundle
+ * entirely. Neither can be opened in a production build - their keyboard
+ * triggers are compiled out - and together they are ~900 lines that would
+ * otherwise ship, including code that reveals solutions.
+ */
+const SolverPlayback = lazy(() => import('./components/SolverPlayback'));
+const DevPanel = lazy(() => import('./components/DevPanel'));
 import {
   saveGame,
   loadGameForPuzzle,
@@ -345,6 +350,7 @@ function App() {
 
   // Secret keyboard shortcut: Esc to show version
   const handleSecretVersionShortcut = useCallback((event: KeyboardEvent) => {
+    if (!import.meta.env.DEV) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       setShowVersion(true);
@@ -513,14 +519,17 @@ function App() {
 
   // Backtick (without shift) toggles the solver playback overlay.
   // Shift+backtick is already used elsewhere as the "solve all but one" cheat.
+  // Development tools: backtick replays the solver, Cmd/Ctrl+G opens the dev
+  // panel. Both are stripped from production builds - they can load arbitrary
+  // puzzles and reveal solutions.
   useEffect(() => {
+    if (!import.meta.env.DEV) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === '`' && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
         if (!puzzleDefinition) return;
         e.preventDefault();
         setSolverActive(prev => !prev);
       }
-      // Cmd/Ctrl+G toggles the dev panel
       if ((e.metaKey || e.ctrlKey) && e.key === 'g' && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         setDevPanelOpen(prev => !prev);
@@ -1231,10 +1240,10 @@ function App() {
                   Tap the <b>Share</b> button (square with arrow) at the bottom of Safari
                 </List.Item>
                 <List.Item>
-                  Scroll down and tap <b>"Add to Home Screen"</b>
+                  Scroll down and tap <b>&ldquo;Add to Home Screen&rdquo;</b>
                 </List.Item>
                 <List.Item>
-                  Tap <b>"Add"</b> to confirm
+                  Tap <b>&ldquo;Add&rdquo;</b> to confirm
                 </List.Item>
               </List>
             </>
@@ -1246,7 +1255,8 @@ function App() {
                   Tap the <b>browser menu</b> (three dots) in the top-right of Chrome
                 </List.Item>
                 <List.Item>
-                  Look for <b>"Install app"</b> or <b>"Add to Home Screen"</b>
+                  Look for <b>&ldquo;Install app&rdquo;</b> or{' '}
+                  <b>&ldquo;Add to Home Screen&rdquo;</b>
                 </List.Item>
                 <List.Item>
                   If neither appears, the details below say why — copy them and send them over
@@ -1269,18 +1279,22 @@ function App() {
 
       {/* Solver playback overlay - triggered by backtick */}
       {solverActive && puzzleDefinition && (
-        <SolverPlayback
-          puzzleDefinition={puzzleDefinition}
-          initialGridValues={latestGridValuesRef.current ?? initialGridValues}
-          initialPencilMarks={latestPencilMarksRef.current ?? initialPencilMarks}
-          solution={solutionGrid ?? undefined}
-          onExit={() => setSolverActive(false)}
-        />
+        <Suspense fallback={null}>
+          <SolverPlayback
+            puzzleDefinition={puzzleDefinition}
+            initialGridValues={latestGridValuesRef.current ?? initialGridValues}
+            initialPencilMarks={latestPencilMarksRef.current ?? initialPencilMarks}
+            solution={solutionGrid ?? undefined}
+            onExit={() => setSolverActive(false)}
+          />
+        </Suspense>
       )}
 
       {/* Dev panel - triggered by Cmd/Ctrl+G */}
       {devPanelOpen && (
-        <DevPanel onClose={() => setDevPanelOpen(false)} onLoadPuzzleByIndex={loadPuzzleRecord} />
+        <Suspense fallback={null}>
+          <DevPanel onClose={() => setDevPanelOpen(false)} onLoadPuzzleByIndex={loadPuzzleRecord} />
+        </Suspense>
       )}
 
       {/* Secret version overlay - triggered by Esc */}

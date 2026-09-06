@@ -6,11 +6,30 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig({
   // Project page served at /arithmatrix/
   base: '/arithmatrix/',
+  esbuild: {
+    /*
+     * Strip debug logging from production. console.error survives so genuine
+     * failures still reach the console (and the local error log); the ~48
+     * console.log calls are development narration and should not ship.
+     */
+    drop: ['debugger'],
+    pure: ['console.log', 'console.debug', 'console.info'],
+  },
   plugins: [
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png', 'icon.svg', 'pwa-64x64.png', 'pwa-192x192.png', 'pwa-512x512.png', 'maskable-icon-512x512.png', 'screenshot-narrow.png', 'screenshot-wide.png'],
+      includeAssets: [
+        'favicon.ico',
+        'apple-touch-icon-180x180.png',
+        'icon.svg',
+        'pwa-64x64.png',
+        'pwa-192x192.png',
+        'pwa-512x512.png',
+        'maskable-icon-512x512.png',
+        'screenshot-narrow.png',
+        'screenshot-wide.png',
+      ],
       manifest: {
         id: '/arithmatrix/',
         name: 'Arithmatrix',
