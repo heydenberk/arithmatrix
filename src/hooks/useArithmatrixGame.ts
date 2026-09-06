@@ -349,6 +349,50 @@ export const useArithmatrixGame = ({
     }
   };
 
+  /**
+   * Pencils every candidate into cells that have none yet.
+   *
+   * A candidate is included unless a filled cell rules it out - the same
+   * row/column test used to flag conflicts. Cage arithmetic is deliberately not
+   * considered: this is the mechanical bookkeeping pass, not a solver, and the
+   * player should still be the one spotting what a cage forbids.
+   *
+   * Cells that already carry marks are left alone, so this never overwrites
+   * deductions the player has made.
+   */
+  const handleFillAllCandidates = () => {
+    const { size } = puzzleDefinition;
+    const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
+    let anyUpdated = false;
+
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        // Only empty cells that the player has not already marked up
+        if (gridValues[r][c] !== '' || nextPencilMarks[r][c].size > 0) continue;
+
+        const candidates = new Set<string>();
+        for (let n = 1; n <= size; n++) {
+          const value = String(n);
+          if (findConflictingCells(r, c, value, gridValues, size).length === 0) {
+            candidates.add(value);
+          }
+        }
+
+        if (candidates.size > 0) {
+          nextPencilMarks[r][c] = candidates;
+          anyUpdated = true;
+        }
+      }
+    }
+
+    if (anyUpdated) {
+      setHistory(prevHistory => [...prevHistory, [gridValues, pencilMarks]]);
+      setRedoStack([]);
+      setPencilMarks(nextPencilMarks);
+      clearErrors();
+    }
+  };
+
   // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
   const handleAutofillSingles = () => {
     const { size, cages } = puzzleDefinition;
@@ -816,6 +860,7 @@ export const useArithmatrixGame = ({
     handleCheckCell,
     handleCheckPuzzle,
     handleAutofillSingles,
+    handleFillAllCandidates,
     handleSecretShortcut,
     revertToState,
     clearErrors,

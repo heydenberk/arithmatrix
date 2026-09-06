@@ -165,6 +165,8 @@ export type ArithmatrixControlsProps = {
   onCheckPuzzle: () => void;
   /** Handler for autofilling singles (single-cell cages and single-note cells) */
   onAutofillSingles?: () => void;
+  /** Handler for pencilling every candidate into unmarked cells (zap long-press) */
+  onFillAllCandidates?: () => void;
   /** Whether a checkpoint exists */
   hasCheckpoint?: boolean;
   /** Handler for creating/clearing checkpoint */

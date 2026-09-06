@@ -21,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
+import { useLongPress } from '../hooks/useLongPress';
 import { isTouchDevice, triggerHapticFeedback } from '../utils/touchUtils';
 
 const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
@@ -32,6 +33,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   onRedo,
   onCheckPuzzle,
   onAutofillSingles,
+  onFillAllCandidates,
   hasCheckpoint,
   onCreateCheckpoint,
   onRevertToCheckpoint,
@@ -60,6 +62,11 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   };
 
   // Mobile layout: Check on left, timer in center, reset/new game on right
+  const zapLongPress = useLongPress({
+    onClick: () => onAutofillSingles?.(),
+    onLongPress: () => onFillAllCandidates?.(),
+  });
+
   if (layout.isMobile) {
     return (
       <Box
@@ -173,11 +180,15 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
         </ActionIcon>
       </Tooltip>
 
-      {/* Autofill Singles (Zap) */}
+      {/* Autofill Singles (Zap). Hold to pencil in every candidate. */}
       {onAutofillSingles && (
-        <Tooltip label="Autofill cells with only one possibility" position="bottom">
+        <Tooltip
+          label="Autofill cells with only one possibility — hold to pencil in all candidates"
+          position="bottom"
+        >
           <ActionIcon
-            onClick={onAutofillSingles}
+            {...zapLongPress}
+            aria-label="Autofill singles; hold to pencil in all candidates"
             size={rem(40)}
             radius="xl"
             variant="gradient"

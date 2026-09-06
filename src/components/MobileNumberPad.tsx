@@ -21,6 +21,7 @@ import {
   IconTrophy,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
+import { useLongPress } from '../hooks/useLongPress';
 import { APP_VERSION } from '../version';
 import './MobileNumberPad.css';
 
@@ -33,6 +34,8 @@ interface MobileNumberPadProps {
   onUndo: () => void;
   onRedo: () => void;
   onAutofillSingles?: () => void;
+  /** Long-press the zap: pencil in every candidate for unmarked cells. */
+  onFillAllCandidates?: () => void;
   canUndo: boolean;
   canRedo: boolean;
   hasCheckpoint?: boolean;
@@ -51,6 +54,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   onUndo,
   onRedo,
   onAutofillSingles,
+  onFillAllCandidates,
   canUndo,
   canRedo,
   hasCheckpoint,
@@ -74,6 +78,11 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
     triggerHapticFeedback('light');
     callback();
   };
+
+  const zapLongPress = useLongPress({
+    onClick: () => onAutofillSingles && handleButtonPress(onAutofillSingles),
+    onLongPress: () => onFillAllCandidates?.(),
+  });
 
   // Generate number buttons based on grid size
   const numberButtons = Array.from({ length: gridSize }, (_, i) => i + 1);
@@ -124,7 +133,10 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
             color="violet"
             style={{ opacity: !canRedo ? 0.5 : 1, borderColor: !canRedo ? '#d1d5db' : undefined }}
           >
-            <IconArrowForwardUp size={iconSize} style={{ color: !canRedo ? '#9ca3af' : undefined }} />
+            <IconArrowForwardUp
+              size={iconSize}
+              style={{ color: !canRedo ? '#9ca3af' : undefined }}
+            />
           </ActionIcon>
         </Group>
 
@@ -156,14 +168,15 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
           )}
         </Box>
 
-        {/* Center-right: Zap */}
+        {/* Center-right: Zap. Tap autofills singles, hold pencils in candidates. */}
         {onAutofillSingles && (
           <ActionIcon
-            onClick={() => handleButtonPress(onAutofillSingles)}
+            {...zapLongPress}
             size={buttonSize}
             radius="xl"
             variant="light"
             color="yellow"
+            aria-label="Autofill singles; hold to pencil in all candidates"
           >
             <IconBoltFilled size={iconSize} />
           </ActionIcon>
