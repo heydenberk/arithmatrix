@@ -421,10 +421,21 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       />
     );
 
+    /*
+     * The single tabbable cell: wherever the player last was, else the top-left
+     * corner. Tab therefore enters the grid once and arrow keys move within it.
+     */
+    const firstSelected = [...gameState.selectedCells][0];
+    const tabStopKey = firstSelected ?? '0-0';
+
     // The grid element (shared between mobile and desktop)
     const gridElement = (
       <Box
         className="arithmatrix-grid"
+        role="grid"
+        aria-label={`${size} by ${size} Arithmatrix puzzle`}
+        aria-rowcount={size}
+        aria-colcount={size}
         style={{
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
           gridTemplateRows: `repeat(${size}, ${cellHeight}px)`,
@@ -440,46 +451,55 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
         }}
       >
-        {gameState.gridValues.map((row, rowIndex) =>
-          row.map((cellValue, colIndex) => {
-            const cellIndex = rowIndex * size + colIndex;
-            const cellKey = `${rowIndex}-${colIndex}`;
+        {gameState.gridValues.map((row, rowIndex) => (
+          <div
+            key={`row-${rowIndex}`}
+            role="row"
+            aria-rowindex={rowIndex + 1}
+            // Generates no box, so cells stay direct children of the CSS grid
+            style={{ display: 'contents' }}
+          >
+            {row.map((cellValue, colIndex) => {
+              const cellIndex = rowIndex * size + colIndex;
+              const cellKey = `${rowIndex}-${colIndex}`;
 
-            // Find the cage this cell belongs to for color assignment
-            const cageIndex = puzzleDefinition.cages.findIndex(c => c.cells.includes(cellIndex));
+              // Find the cage this cell belongs to for color assignment
+              const cageIndex = puzzleDefinition.cages.findIndex(c => c.cells.includes(cellIndex));
 
-            return (
-              <ArithmatrixCell
-                key={cellKey}
-                rowIndex={rowIndex}
-                colIndex={colIndex}
-                cellValue={cellValue}
-                pencilMarks={gameState.pencilMarks[rowIndex]?.[colIndex] ?? new Set()}
-                gridSize={size}
-                isSelected={gameState.selectedCells.has(cellKey)}
-                isFlashing={gameState.flashingCells.has(cellKey)}
-                hasError={gameState.errorCells.has(cellIndex)}
-                cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
-                cageTextColorClass={getCageTextColorClass(cageIndex, cageColorMap)}
-                borderClasses={getBorderClasses(rowIndex, colIndex, puzzleDefinition)}
-                cageInfo={getCageInfo(rowIndex, colIndex, puzzleDefinition)}
-                isTimerRunning={isTimerRunning}
-                isGameWon={isGameWon}
-                inputRef={el => {
-                  if (!gameState.inputRefs.current[rowIndex]) {
-                    gameState.inputRefs.current[rowIndex] = [];
-                  }
-                  gameState.inputRefs.current[rowIndex][colIndex] = el;
-                }}
-                onValueChange={value => gameState.handleInputChange(rowIndex, colIndex, value)}
-                onFocus={handleCellFocus}
-                onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
-                onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
-                onCageInfoClick={e => handleCageInfoClick(e, cellIndex)}
-              />
-            );
-          })
-        )}
+              return (
+                <ArithmatrixCell
+                  key={cellKey}
+                  rowIndex={rowIndex}
+                  colIndex={colIndex}
+                  cellValue={cellValue}
+                  pencilMarks={gameState.pencilMarks[rowIndex]?.[colIndex] ?? new Set()}
+                  gridSize={size}
+                  isSelected={gameState.selectedCells.has(cellKey)}
+                  isFlashing={gameState.flashingCells.has(cellKey)}
+                  hasError={gameState.errorCells.has(cellIndex)}
+                  cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
+                  cageTextColorClass={getCageTextColorClass(cageIndex, cageColorMap)}
+                  borderClasses={getBorderClasses(rowIndex, colIndex, puzzleDefinition)}
+                  cageInfo={getCageInfo(rowIndex, colIndex, puzzleDefinition)}
+                  isTimerRunning={isTimerRunning}
+                  isGameWon={isGameWon}
+                  inputRef={el => {
+                    if (!gameState.inputRefs.current[rowIndex]) {
+                      gameState.inputRefs.current[rowIndex] = [];
+                    }
+                    gameState.inputRefs.current[rowIndex][colIndex] = el;
+                  }}
+                  onValueChange={value => gameState.handleInputChange(rowIndex, colIndex, value)}
+                  onFocus={handleCellFocus}
+                  onKeyDown={e => handleKeyDown(e, rowIndex, colIndex)}
+                  onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
+                  onCageInfoClick={e => handleCageInfoClick(e, cellIndex)}
+                  isTabStop={cellKey === tabStopKey}
+                />
+              );
+            })}
+          </div>
+        ))}
       </Box>
     );
 

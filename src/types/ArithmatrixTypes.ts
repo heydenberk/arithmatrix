@@ -96,6 +96,8 @@ export type CellCoord = {
  * Contains all the data and handlers needed to render and interact with a single cell.
  */
 export type ArithmatrixCellProps = {
+  /** True for the single cell that carries the grid's tab stop. */
+  isTabStop?: boolean;
   /** Zero-based row index of this cell */
   rowIndex: number;
   /** Zero-based column index of this cell */

@@ -33,6 +33,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   isTimerRunning,
   isGameWon,
   isPencilMode,
+  isTabStop = false,
   inputRef,
   onValueChange,
   onFocus,
@@ -130,7 +131,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
       aria-label={`Cell ${rowIndex + 1}, ${colIndex + 1}${cageInfo ? `, ${cageInfo.text}` : ''}${hasValue ? `, value ${cellValue}` : ', empty'}`}
       aria-selected={isSelected}
       aria-invalid={hasError}
-      tabIndex={-1}
+      aria-colindex={colIndex + 1}
     >
       {/* Cage Information Display */}
       {cageInfo && (
@@ -165,7 +166,13 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
           maxLength={1}
           data-row={rowIndex}
           data-col={colIndex}
-          tabIndex={-1}
+          /*
+           * Roving tabindex: exactly one cell in the grid is tabbable, so Tab
+           * moves into the grid once and arrow keys take over from there,
+           * rather than stepping through every cell. Without this the grid was
+           * unreachable by keyboard at all - every cell was tabIndex -1.
+           */
+          tabIndex={isTabStop ? 0 : -1}
           disabled={!shouldShowContent} // Disable input when timer is paused
           aria-label={`Enter number for cell ${rowIndex + 1}, ${colIndex + 1}`}
           autoComplete="off"
