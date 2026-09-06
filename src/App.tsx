@@ -44,6 +44,7 @@ import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
 import AchievementNotification from './components/AchievementNotification';
 import AchievementGallery from './components/AchievementGallery';
+import { useInstallPrompt } from './hooks/useInstallPrompt';
 /*
  * Development tools, loaded on demand so they leave the production bundle
  * entirely. Neither can be opened in a production build - their keyboard
@@ -137,95 +138,15 @@ const updateURL = (
  * `all_puzzles.jsonl` regardless of cage ordering. Each cage is rendered as
  * `value/op/sortedCells`, and the resulting list is sorted.
  */
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
-/**
- * The install prompt is captured by an inline script in index.html, because
- * Chrome fires `beforeinstallprompt` once and can do so before React mounts.
- * See the comment there.
- */
-const getInstallPrompt = (): BeforeInstallPromptEvent | null =>
-  (window as unknown as { __installPrompt?: BeforeInstallPromptEvent | null }).__installPrompt ??
-  null;
-
-const clearInstallPrompt = () => {
-  (window as unknown as { __installPrompt?: BeforeInstallPromptEvent | null }).__installPrompt =
-    null;
-};
-
-/** True when the app is already running as an installed PWA. */
-const isRunningInstalled = (): boolean =>
-  window.matchMedia?.('(display-mode: standalone)').matches ||
-  window.matchMedia?.('(display-mode: fullscreen)').matches ||
-  window.matchMedia?.('(display-mode: minimal-ui)').matches ||
-  (navigator as unknown as { standalone?: boolean }).standalone === true;
-
-const INSTALL_DISMISSED_KEY = 'arithmatrix_install_dismissed';
 
 function App() {
-  // Install instructions modal state
-  const [showInstallInstructions, setShowInstallInstructions] = useState(false);
-
-  // Whether Chrome has handed us a real install prompt to fire. Seeded from the
-  // window in case the event landed before React mounted.
-  const [canInstall, setCanInstall] = useState<boolean>(() => getInstallPrompt() !== null);
-  const [installed, setInstalled] = useState<boolean>(() => isRunningInstalled());
-  const [installDismissed, setInstallDismissed] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem(INSTALL_DISMISSED_KEY) === '1';
-    } catch {
-      return false;
-    }
-  });
-
-  useEffect(() => {
-    const syncInstallState = () => {
-      setCanInstall(getInstallPrompt() !== null);
-      setInstalled(isRunningInstalled());
-    };
-    window.addEventListener('installpromptchange', syncInstallState);
-    window.addEventListener('appinstalled', syncInstallState);
-    // The event may have fired between this component's first render and now.
-    syncInstallState();
-    return () => {
-      window.removeEventListener('installpromptchange', syncInstallState);
-      window.removeEventListener('appinstalled', syncInstallState);
-    };
-  }, []);
-
-  // Handler to trigger the install prompt
-  const handleInstallClick = async () => {
-    const prompt = getInstallPrompt();
-    if (!prompt) {
-      // No native prompt available (iOS Safari, or Chrome hasn't offered one) -
-      // fall back to telling the user where to find it.
-      setShowInstallInstructions(true);
-      return;
-    }
-    await prompt.prompt();
-    const { outcome } = await prompt.userChoice;
-    if (outcome === 'accepted') {
-      clearInstallPrompt();
-      setCanInstall(false);
-      setInstalled(true);
-    }
-  };
-
-  const dismissInstallBanner = () => {
-    setInstallDismissed(true);
-    try {
-      localStorage.setItem(INSTALL_DISMISSED_KEY, '1');
-    } catch {
-      // A failed write just means the banner can come back next session.
-    }
-  };
-
-  // Only promote installing when Chrome has actually offered a prompt, the app
-  // isn't already installed, and the player hasn't waved it away.
-  const showInstallBanner = canInstall && !installed && !installDismissed;
+  const {
+    showBanner: showInstallBanner,
+    promptToInstall: handleInstallClick,
+    dismissBanner: dismissInstallBanner,
+    needsManualInstructions: showInstallInstructions,
+    clearManualInstructions,
+  } = useInstallPrompt();
 
   // Initialize puzzle stats system
   useEffect(() => {
@@ -1226,7 +1147,7 @@ function App() {
       {/* Install Instructions Modal */}
       <Modal
         opened={showInstallInstructions}
-        onClose={() => setShowInstallInstructions(false)}
+        onClose={clearManualInstructions}
         title={<Text fw={700}>Install Arithmatrix</Text>}
         centered
         size="sm"
