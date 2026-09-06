@@ -31,3 +31,10 @@ public/all_puzzles_pre_depth.jsonl
 public/all_puzzles_pre_summation.jsonl
 public/all_puzzles_pre_singlecap.jsonl
 public/all_puzzles_pre_bottleneck.jsonl
+
+# Generated/duplicate puzzle corpora - the shipped one is public/all_puzzles.jsonl
+/all_puzzles.jsonl
+/all_puzzles.jsonl.gz
+/test_*.jsonl
+/compressed_puzzles.jsonl
+/ultra_compressed_puzzles.jsonl

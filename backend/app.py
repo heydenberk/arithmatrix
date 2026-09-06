@@ -21,7 +21,10 @@ else:
     app.logger.info("Flask logger configured for DEBUG level.")
 # -------------------------------------
 
-PUZZLES_FILE = "all_puzzles.jsonl"
+# The corpus the frontend ships. There used to be a second, older copy at the
+# repo root - from a previous difficulty system, without difficulty_score or
+# operations_tier - and this served that one.
+PUZZLES_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "public", "all_puzzles.jsonl")
 
 ALL_PUZZLES = []
 if os.path.exists(PUZZLES_FILE):
