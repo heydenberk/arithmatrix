@@ -24,11 +24,22 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
+
+      # Quality gates run before the build, so a lint or type error fails the
+      # deploy instead of shipping quietly.
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build

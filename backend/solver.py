@@ -250,6 +250,7 @@ class ArithmatrixSolver:
     """Technique-based solver matching src/utils/solver.ts."""
 
     def __init__(self, puzzle: dict):
+        self.puzzle: dict = puzzle
         self.size: int = puzzle["size"]
         self.cages: List[dict] = puzzle["cages"]
 
@@ -896,9 +897,18 @@ class ArithmatrixSolver:
             self.stats.record(Technique.TRIAL_AND_ERROR)
         return found
 
-    def solve(self, max_solutions: int = 1) -> SolveStats:
-        """Solve, returning stats. Stops at the first solution found by default
-        (matches the TS solver's behavior for UI playback)."""
+    def solve(self, verify_uniqueness: bool = True) -> SolveStats:
+        """Solve, returning stats.
+
+        `verify_uniqueness` decides whether `solution_count` / `is_valid` mean
+        anything. This used to take a `max_solutions` argument defaulting to 1,
+        so backtracking returned as soon as it found the *first* solution and
+        `is_valid = solution_count == 1` reported "uniquely solvable" having
+        only established "solvable at all". Generation accepted puzzles on that
+        signal, which is how 45% of the shipped corpus ended up with more than
+        one solution. Uniqueness is now answered by `count_solutions`,
+        independently of the deduction trace.
+        """
         self.stats = SolveStats(size=self.size)
         self.grid = [[0] * self.size for _ in range(self.size)]
         self.candidates = [
@@ -908,20 +918,98 @@ class ArithmatrixSolver:
         self._place_stipulated_cages()
         self._run_logic_loop()
 
-        solution_count = 0
-        if self._is_complete():
-            solution_count = 1 if self._verify_solution() else 0
-        elif self._is_valid():
-            solution_count = self._backtrack(max_solutions)
+        # Finish the grid for the trace when deduction alone stalls; one branch
+        # only, since the trace should end at the first solution.
+        if not self._is_complete() and self._is_valid():
+            self._backtrack(1)
 
+        solution_count = count_solutions(self.puzzle, 2) if verify_uniqueness else 0
         self.stats.solution_count = solution_count
-        self.stats.is_valid = solution_count == 1
+        self.stats.is_valid = verify_uniqueness and solution_count == 1
         return self.stats
 
 
 # --------------------------------------------------------------------------- #
 # Convenience API (preserved for callers)                                     #
 # --------------------------------------------------------------------------- #
+
+
+def count_solutions(puzzle: dict, cap: int = 2) -> int:
+    """Count a puzzle's solutions, stopping at `cap`.
+
+    Deliberately independent of the traced solver: plain backtracking over
+    row/column and cage feasibility, no techniques involved. Uniqueness is what
+    makes a puzzle fair, and it should not rest on every deduction in the
+    technique set being provably sound. Mirrors countSolutions in
+    src/utils/solver.ts.
+    """
+    size = puzzle["size"]
+    cages = puzzle["cages"]
+    cage_of = {}
+    for cage in cages:
+        for cell in cage["cells"]:
+            cage_of[cell] = cage
+
+    grid = [[0] * size for _ in range(size)]
+    row_mask = [0] * size
+    col_mask = [0] * size
+    found = 0
+
+    def cage_satisfied(cage) -> bool:
+        values = [grid[c // size][c % size] for c in cage["cells"]]
+        values = [v for v in values if v]
+        complete = len(values) == len(cage["cells"])
+        op = cage["operation"]
+        target = cage["value"]
+
+        if len(cage["cells"]) == 1 or op in ("=", ""):
+            return not complete or values[0] == target
+        if op == "+":
+            total = sum(values)
+            # every remaining cell contributes at least 1
+            return total == target if complete else total < target
+        if op == "*":
+            product = 1
+            for v in values:
+                product *= v
+            return product == target if complete else target % product == 0
+        if op == "-":
+            return not complete or (len(values) == 2 and abs(values[0] - values[1]) == target)
+        if op == "/":
+            if not complete:
+                return True
+            if len(values) != 2:
+                return False
+            hi, lo = max(values), min(values)
+            return lo != 0 and hi == target * lo
+        return not complete or values[0] == target
+
+    def recurse(pos: int) -> None:
+        nonlocal found
+        if found >= cap:
+            return
+        if pos == size * size:
+            found += 1
+            return
+        row, col = divmod(pos, size)
+        cage = cage_of.get(pos)
+        for value in range(1, size + 1):
+            bit = 1 << value
+            if row_mask[row] & bit or col_mask[col] & bit:
+                continue
+            grid[row][col] = value
+            row_mask[row] |= bit
+            col_mask[col] |= bit
+            if cage is None or cage_satisfied(cage):
+                recurse(pos + 1)
+            grid[row][col] = 0
+            row_mask[row] &= ~bit
+            col_mask[col] &= ~bit
+            if found >= cap:
+                return
+
+    recurse(0)
+    return found
 
 
 def solve_puzzle(puzzle: dict) -> SolveStats:

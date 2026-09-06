@@ -8,7 +8,7 @@
  * by the UI at user-controlled speed.
  */
 
-import type { PuzzleDefinition } from '../types/ArithmatrixTypes';
+import type { Cage, PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 export type TechniqueId =
   | 'stipulated'
@@ -190,8 +190,11 @@ class Solver {
   counts: Record<TechniqueId, number>;
   rawScore: number;
   solution: number[][] | null;
+  /** The puzzle as handed in, for the independent uniqueness count. */
+  puzzle: PuzzleDefinition;
 
   constructor(puzzle: PuzzleDefinition, options: SolveOptions = {}) {
+    this.puzzle = puzzle;
     const startGrid = options.startGrid;
     const startCandidates = options.startCandidates;
     this.solution = options.solution ?? null;
@@ -1188,11 +1191,17 @@ class Solver {
   // ---------- Main solve ----------
 
   /**
-   * Solve the puzzle and produce the trace. For UI playback we want the trace
-   * to end as soon as the first solution is found — past that point we'd just
-   * be exploring dead-end branches looking for a second solution.
+   * Solve the puzzle and produce the trace.
+   *
+   * `verifyUniqueness` decides whether the result's solutionCount/isValid mean
+   * anything. It used to default to a cap of 1, so backtracking returned as
+   * soon as it found the *first* solution and `isValid = solutionCount === 1`
+   * reported "uniquely solvable" having only established "solvable at all".
+   * That is how 45% of the shipped puzzle set ended up with more than one
+   * solution. Uniqueness is now answered by countSolutions, independently of
+   * the trace.
    */
-  solve(maxSolutions = 1): SolverResult {
+  solve(verifyUniqueness = true): SolverResult {
     // Before anything else: if the user handed us invalid pencil marks or a
     // wrong placement, fix it and tell them what we changed. Without this the
     // logic loop would dead-end immediately.
@@ -1206,12 +1215,17 @@ class Solver {
     // Run logic loop, then fall through to backtracking if stuck
     this.runLogicLoop();
 
-    let solutionCount = 0;
-    if (this.isComplete()) {
-      solutionCount = this.verifySolution() ? 1 : 0;
-    } else if (this.isValid()) {
-      solutionCount = this.backtrack(maxSolutions);
+    // Finish the grid for the trace when deduction alone stalls. This explores
+    // one branch only - the trace should end at the first solution rather than
+    // wander dead ends looking for a second.
+    if (!this.isComplete() && this.isValid()) {
+      this.backtrack(1);
     }
+
+    // Uniqueness is a separate question from "did we reach a solution", and the
+    // trace above may have guessed to get there. Count independently, capped
+    // at 2, which is all it takes to answer it.
+    const solutionCount = verifyUniqueness ? countSolutions(this.puzzle, 2) : 0;
 
     return {
       steps: this.steps,
@@ -1219,7 +1233,8 @@ class Solver {
       techniqueCounts: { ...this.counts },
       rawScore: bottleneckRaw(this.counts),
       solutionCount,
-      isValid: solutionCount === 1,
+      // Only meaningful when uniqueness was actually verified
+      isValid: verifyUniqueness && solutionCount === 1,
     };
   }
 
@@ -1582,6 +1597,95 @@ function permutations<T>(arr: T[]): T[][] {
 }
 
 // ---------- Public entry point ----------
+
+/**
+ * Counts a puzzle's solutions, stopping at `cap`.
+ *
+ * Deliberately independent of the traced solver: plain backtracking over
+ * row/column and cage feasibility, with no techniques involved. Uniqueness is
+ * the property that makes a puzzle fair, and it should not depend on every
+ * deduction in the technique set being provably sound.
+ *
+ * Pass cap = 2 to answer "is this unique?" - the only question worth asking.
+ */
+export function countSolutions(puzzle: PuzzleDefinition, cap = 2): number {
+  const size = puzzle.size;
+  const cageOf = new Map<number, Cage>();
+  for (const cage of puzzle.cages) {
+    for (const cell of cage.cells) cageOf.set(cell, cage);
+  }
+
+  const grid: number[][] = Array.from({ length: size }, () => Array(size).fill(0));
+  const rowMask = new Array(size).fill(0);
+  const colMask = new Array(size).fill(0);
+  let found = 0;
+
+  /** Checks a cage given what is filled so far; partial cages prune, not fail. */
+  const cageSatisfied = (cage: Cage): boolean => {
+    const values: number[] = [];
+    for (const cell of cage.cells) {
+      const v = grid[Math.floor(cell / size)][cell % size];
+      if (v !== 0) values.push(v);
+    }
+    const complete = values.length === cage.cells.length;
+
+    if (cage.cells.length === 1 || cage.operation === '=' || cage.operation === '') {
+      return !complete || values[0] === cage.value;
+    }
+    switch (cage.operation) {
+      case '+': {
+        const sum = values.reduce((a, b) => a + b, 0);
+        // Every remaining cell adds at least 1
+        return complete ? sum === cage.value : sum < cage.value;
+      }
+      case '*': {
+        const product = values.reduce((a, b) => a * b, 1);
+        return complete ? product === cage.value : cage.value % product === 0;
+      }
+      case '-':
+        return !complete || (values.length === 2 && Math.abs(values[0] - values[1]) === cage.value);
+      case '/': {
+        if (!complete) return true;
+        if (values.length !== 2) return false;
+        const hi = Math.max(values[0], values[1]);
+        const lo = Math.min(values[0], values[1]);
+        return lo !== 0 && hi === cage.value * lo;
+      }
+      default:
+        return !complete || values[0] === cage.value;
+    }
+  };
+
+  const recurse = (pos: number): void => {
+    if (found >= cap) return;
+    if (pos === size * size) {
+      found += 1;
+      return;
+    }
+    const row = Math.floor(pos / size);
+    const col = pos % size;
+    const cage = cageOf.get(pos);
+
+    for (let value = 1; value <= size; value++) {
+      const bit = 1 << value;
+      if (rowMask[row] & bit || colMask[col] & bit) continue;
+
+      grid[row][col] = value;
+      rowMask[row] |= bit;
+      colMask[col] |= bit;
+
+      if (!cage || cageSatisfied(cage)) recurse(pos + 1);
+
+      grid[row][col] = 0;
+      rowMask[row] &= ~bit;
+      colMask[col] &= ~bit;
+      if (found >= cap) return;
+    }
+  };
+
+  recurse(0);
+  return found;
+}
 
 export function solveWithTrace(
   puzzle: PuzzleDefinition,

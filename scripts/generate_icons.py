@@ -229,7 +229,41 @@ def svg(extent=0.70, size=512):
     return "\n".join(parts)
 
 
+def social_card(width=1200, height=630):
+    """Link-preview card: the grid motif beside the wordmark."""
+    img = Image.new("RGB", (width, height))
+    draw = ImageDraw.Draw(img)
+    for y in range(height):
+        t = y / max(1, height - 1)
+        draw.line(
+            [(0, y), (width, y)],
+            fill=(
+                round(BG_TOP[0] + (BG_BOTTOM[0] - BG_TOP[0]) * t),
+                round(BG_TOP[1] + (BG_BOTTOM[1] - BG_TOP[1]) * t),
+                round(BG_TOP[2] + (BG_BOTTOM[2] - BG_TOP[2]) * t),
+            ),
+        )
+
+    # Grid on the left, drawn by reusing the icon artwork
+    art = build(420, 0.86, digits=True)
+    img.paste(art, (90, (height - 420) // 2))
+
+    title = load_font(96)
+    body = load_font(36)
+    text_x = 90 + 420 + 80
+    draw.text((text_x, height // 2 - 70), "Arithmatrix", font=title, fill=(255, 255, 255))
+    draw.text(
+        (text_x, height // 2 + 46),
+        "A cage-based arithmetic puzzle",
+        font=body,
+        fill=(226, 232, 240),
+    )
+    return img
+
+
+social_card().save(f"{OUT}/social-card.png")
+
 with open(f"{OUT}/icon.svg", "w") as handle:
     handle.write(svg())
 
-print("Wrote pwa-64/192/512, maskable-512, apple-touch-180, favicon.ico, icon.svg")
+print("Wrote pwa-64/192/512, maskable-512, apple-touch-180, favicon.ico, icon.svg, social-card.png")

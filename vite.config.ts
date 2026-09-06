@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/// <reference types="vitest" />
+
 // https://vitejs.dev/config/
 export default defineConfig({
   // Project page served at /arithmatrix/
@@ -121,6 +123,13 @@ export default defineConfig({
       },
     }),
   ],
+  test: {
+    // The suites cover pure logic - solver, validation, catalog, persistence -
+    // so most need no DOM at all; jsdom is here for the ones touching
+    // localStorage.
+    environment: 'jsdom',
+    include: ['src/**/*.test.ts'],
+  },
   server: {
     proxy: {
       '/api': {
