@@ -23,7 +23,12 @@ import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 type Record_ = {
   puzzle: { size: number; cages: PuzzleDefinition['cages']; solution: number[][] };
-  metadata: { size: number; actual_difficulty: string; operations_tier?: string };
+  metadata: {
+    size: number;
+    actual_difficulty: string;
+    operations_tier?: string;
+    difficulty_score?: number;
+  };
 };
 
 /**
@@ -70,6 +75,31 @@ describe('solveWithTrace on the real puzzle database', () => {
         puzzle
       )
     ).toBe(true);
+  });
+
+  it('ships only uniquely-solvable puzzles', () => {
+    /*
+     * The property that makes a puzzle fair. 1823 of 4000 shipped puzzles once
+     * failed this, because solve() defaulted to stopping at the first solution
+     * and then called that uniqueness. This is the guard against it returning.
+     */
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      expect(
+        countSolutions(puzzle, 2),
+        `${record.metadata.size}x${record.metadata.size} ${record.metadata.actual_difficulty} is not unique`
+      ).toBe(1);
+    }
+  });
+
+  it('labels each puzzle with the tier its score falls in', () => {
+    // A tier that does not match its own score means the corpus and the
+    // scoring anchors have drifted apart.
+    for (const record of RECORDS) {
+      const score = record.metadata.difficulty_score;
+      if (score === undefined) continue;
+      expect(difficultyLevel(score)).toBe(record.metadata.actual_difficulty);
+    }
   });
 
   it('matches the stored solution whenever the puzzle is uniquely solvable', () => {

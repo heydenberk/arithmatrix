@@ -38,12 +38,14 @@ def main() -> int:
     lines = Path(args.path).read_text().strip().split("\n")
     totals: collections.Counter = collections.Counter()
     bad: collections.Counter = collections.Counter()
+    by_tier: dict = collections.defaultdict(list)
     keep = []
 
     for index, line in enumerate(lines):
         record = json.loads(line)
         key = (record["metadata"]["size"], record["metadata"]["actual_difficulty"])
         totals[key] += 1
+        by_tier[key].append(record["metadata"].get("difficulty_score", 0.0))
         count = count_solutions(record["puzzle"], 2)
         if count == 1:
             keep.append(line)
@@ -58,6 +60,27 @@ def main() -> int:
     total_bad = sum(bad.values())
     total = sum(totals.values())
     print(f"\n{total_bad} of {total} puzzles are not uniquely solvable ({100 * total_bad / total:.1f}%)")
+
+    # Tier health: a tier is only meaningful if its scores sit in its own band
+    # and above the tier below it.
+    print("\nsize  difficulty   n     score min/median/max")
+    order = ["easiest", "easy", "medium", "hard", "expert"]
+    for size in sorted({k[0] for k in totals}):
+        previous_median = None
+        for difficulty in order:
+            scores = sorted(by_tier.get((size, difficulty), []))
+            if not scores:
+                print(f"  {size}x{size} {difficulty:8s}  {0:4d}   (none)")
+                continue
+            median = scores[len(scores) // 2]
+            flag = ""
+            if previous_median is not None and median < previous_median:
+                flag = "  <- out of order"
+            previous_median = median
+            print(
+                f"  {size}x{size} {difficulty:8s}  {len(scores):4d}   "
+                f"{scores[0]:5.1f} / {median:5.1f} / {scores[-1]:5.1f}{flag}"
+            )
 
     if args.write_clean:
         Path(args.write_clean).write_text("\n".join(keep) + "\n")

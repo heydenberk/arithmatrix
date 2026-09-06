@@ -49,7 +49,7 @@ def generate_one_puzzle(args):
 
     # Import inside worker to avoid pickling issues
     from backend.arithmatrix import generate_arithmatrix_puzzle
-    from backend.solver import solve_puzzle
+    from backend.solver import count_solutions
 
     start = time.time()
     try:
@@ -62,6 +62,15 @@ def generate_one_puzzle(args):
         )
 
         if puzzle is None:
+            return None
+
+        # Belt and braces: a puzzle with more than one solution must never
+        # reach the corpus. generate_arithmatrix_puzzle already rejects them,
+        # but it has a last-resort path that returns a puzzle unvalidated, and
+        # 45% of the previous corpus got in through a uniqueness check that
+        # only ever proved "solvable at all".
+        if count_solutions(puzzle, 2) != 1:
+            logger.debug(f"Discarded non-unique {size}x{size} {difficulty} puzzle")
             return None
 
         elapsed = time.time() - start

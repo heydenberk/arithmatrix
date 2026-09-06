@@ -116,10 +116,10 @@ export function bottleneckRaw(counts: Record<TechniqueId, number>): number {
 // thresholds would leave "medium" nearly empty. Mirrors SIZE_QUANTILES in
 // backend/solver.py; recompute with scripts/calibrate-quantiles.py.
 const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
-  4: [5.9, 7.8, 21.7, 36.8],
-  5: [7.9, 8.7, 19.1, 33.0],
-  6: [25.1, 40.0, 59.2, 109.6],
-  7: [14.0, 29.6, 82.1, 205.8],
+  4: [5.4, 5.7, 6.1, 6.6],
+  5: [7.5, 8.0, 8.4, 9.2],
+  6: [10.2, 11.3, 12.4, 33.2],
+  7: [13.6, 22.6, 73.5, 183.1],
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
