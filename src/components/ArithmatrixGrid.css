@@ -191,6 +191,46 @@
   z-index: 20;
 }
 
+/*
+ * Hint highlighting. Two weights: the cells a deduction follows from, and the
+ * cell it settles. Both are inset rings so they neither resize the cell nor
+ * spill over its neighbours, matching selection and errors.
+ */
+.arithmatrix-cell.hint-support {
+  box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.75) !important;
+  z-index: 18;
+}
+
+.arithmatrix-cell.hint-target {
+  box-shadow:
+    inset 0 0 0 3px #f59e0b,
+    inset 0 0 0 6px rgba(245, 158, 11, 0.28) !important;
+  z-index: 19;
+  animation: hintPulse 1.2s ease-out 2;
+}
+
+@keyframes hintPulse {
+  0%,
+  100% {
+    box-shadow:
+      inset 0 0 0 3px #f59e0b,
+      inset 0 0 0 6px rgba(245, 158, 11, 0.28);
+  }
+  50% {
+    box-shadow:
+      inset 0 0 0 3px #f59e0b,
+      inset 0 0 0 10px rgba(245, 158, 11, 0.45);
+  }
+}
+
+/* A hinted cell the player also has selected should still read as hinted */
+.arithmatrix-cell.selected-cell.hint-target,
+.arithmatrix-cell.selected-cell.hint-support {
+  box-shadow:
+    inset 0 0 0 3px #f59e0b,
+    inset 0 0 0 6px rgba(79, 70, 229, 0.5) !important;
+}
+
 .arithmatrix-cell.error-cell {
   background: linear-gradient(145deg, #fef2f2, #fee2e2) !important;
   box-shadow: inset 0 0 0 3px rgba(220, 38, 38, 0.85) !important;

@@ -15,6 +15,7 @@ import {
   IconRefresh,
   IconPlus,
   IconBoltFilled,
+  IconBulbFilled,
   IconFlag,
   IconFlagFilled,
   IconRestore,
@@ -34,6 +35,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   onCheckPuzzle,
   onAutofillSingles,
   onFillAllCandidates,
+  onHint,
   hasCheckpoint,
   onCreateCheckpoint,
   onRevertToCheckpoint,
@@ -179,6 +181,26 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           <IconCheck size="1.2rem" />
         </ActionIcon>
       </Tooltip>
+
+      {/* Hint */}
+      {onHint && (
+        <Tooltip label="Hint — nudges first, the answer last" position="bottom">
+          <ActionIcon
+            onClick={onHint}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'yellow', to: 'orange' }}
+            aria-label="Hint"
+            style={{
+              transition: 'all 300ms ease',
+              boxShadow: '0 15px 30px -8px rgba(250, 204, 21, 0.4)',
+            }}
+          >
+            <IconBulbFilled size="1.2rem" />
+          </ActionIcon>
+        </Tooltip>
+      )}
 
       {/* Autofill Singles (Zap). Hold to pencil in every candidate. */}
       {onAutofillSingles && (

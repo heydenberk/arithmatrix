@@ -34,6 +34,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   isGameWon,
   isPencilMode,
   isTabStop = false,
+  hintRole,
   inputRef,
   onValueChange,
   onFocus,
@@ -118,6 +119,8 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
     borderClasses,
     isSelected ? 'selected-cell' : '',
     hasError ? 'error-cell' : '',
+    hintRole === 'target' ? 'hint-target' : '',
+    hintRole === 'support' ? 'hint-support' : '',
   ]
     .filter(Boolean)
     .join(' ');

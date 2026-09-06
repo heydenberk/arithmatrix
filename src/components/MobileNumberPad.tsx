@@ -14,6 +14,7 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconBoltFilled,
+  IconBulbFilled,
   IconDotsVertical,
   IconBookmark,
   IconTrash,
@@ -36,6 +37,8 @@ interface MobileNumberPadProps {
   onAutofillSingles?: () => void;
   /** Long-press the zap: pencil in every candidate for unmarked cells. */
   onFillAllCandidates?: () => void;
+  /** Asks for the next hint. */
+  onHint?: () => void;
   canUndo: boolean;
   canRedo: boolean;
   hasCheckpoint?: boolean;
@@ -55,6 +58,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   onRedo,
   onAutofillSingles,
   onFillAllCandidates,
+  onHint,
   canUndo,
   canRedo,
   hasCheckpoint,
@@ -167,6 +171,20 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
             />
           )}
         </Box>
+
+        {/* Hint */}
+        {onHint && (
+          <ActionIcon
+            onClick={() => handleButtonPress(onHint)}
+            size={buttonSize}
+            radius="xl"
+            variant="light"
+            color="orange"
+            aria-label="Hint"
+          >
+            <IconBulbFilled size={iconSize} />
+          </ActionIcon>
+        )}
 
         {/* Center-right: Zap. Tap autofills singles, hold pencils in candidates. */}
         {onAutofillSingles && (

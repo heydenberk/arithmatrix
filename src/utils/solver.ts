@@ -1608,7 +1608,7 @@ function permutations<T>(arr: T[]): T[][] {
  *
  * Pass cap = 2 to answer "is this unique?" - the only question worth asking.
  */
-export function countSolutions(puzzle: PuzzleDefinition, cap = 2): number {
+export function countSolutions(puzzle: PuzzleDefinition, cap = 2, startGrid?: number[][]): number {
   const size = puzzle.size;
   const cageOf = new Map<number, Cage>();
   for (const cage of puzzle.cages) {
@@ -1621,7 +1621,7 @@ export function countSolutions(puzzle: PuzzleDefinition, cap = 2): number {
   let found = 0;
 
   /** Checks a cage given what is filled so far; partial cages prune, not fail. */
-  const cageSatisfied = (cage: Cage): boolean => {
+  const cageSatisfiedFor = (cage: Cage): boolean => {
     const values: number[] = [];
     for (const cell of cage.cells) {
       const v = grid[Math.floor(cell / size)][cell % size];
@@ -1656,6 +1656,28 @@ export function countSolutions(puzzle: PuzzleDefinition, cap = 2): number {
     }
   };
 
+  /*
+   * Seed the player's placements. A value that already conflicts with another
+   * placement makes the position unreachable, which is exactly the answer a
+   * caller wants: zero solutions from here.
+   */
+  if (startGrid) {
+    for (let row = 0; row < size; row++) {
+      for (let col = 0; col < size; col++) {
+        const value = startGrid[row]?.[col] ?? 0;
+        if (!value) continue;
+        const bit = 1 << value;
+        if (rowMask[row] & bit || colMask[col] & bit) return 0;
+        grid[row][col] = value;
+        rowMask[row] |= bit;
+        colMask[col] |= bit;
+      }
+    }
+    for (const cage of puzzle.cages) {
+      if (!cageSatisfiedFor(cage)) return 0;
+    }
+  }
+
   const recurse = (pos: number): void => {
     if (found >= cap) return;
     if (pos === size * size) {
@@ -1664,6 +1686,11 @@ export function countSolutions(puzzle: PuzzleDefinition, cap = 2): number {
     }
     const row = Math.floor(pos / size);
     const col = pos % size;
+    // Cells the caller placed are fixed; step over them
+    if (grid[row][col] !== 0) {
+      recurse(pos + 1);
+      return;
+    }
     const cage = cageOf.get(pos);
 
     for (let value = 1; value <= size; value++) {
@@ -1674,7 +1701,7 @@ export function countSolutions(puzzle: PuzzleDefinition, cap = 2): number {
       rowMask[row] |= bit;
       colMask[col] |= bit;
 
-      if (!cage || cageSatisfied(cage)) recurse(pos + 1);
+      if (!cage || cageSatisfiedFor(cage)) recurse(pos + 1);
 
       grid[row][col] = 0;
       rowMask[row] &= ~bit;

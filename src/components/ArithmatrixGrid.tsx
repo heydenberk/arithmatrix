@@ -15,10 +15,12 @@
  * - Multi-cell selection and pencil mark support
  */
 
-import React, { useEffect, useMemo, useImperativeHandle, forwardRef } from 'react';
+import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react';
 import { Box, Stack } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 import MobileNumberPad from './MobileNumberPad';
+import HintPanel from './HintPanel';
+import { Hint, computeHint } from '../utils/hints';
 
 /*
  * Flat geometry, identical at every breakpoint: cells butt up against each
@@ -129,6 +131,37 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const cageColorMap = useMemo(() => {
       return generateCageColorMap(puzzleDefinition);
     }, [puzzleDefinition]);
+
+    /*
+     * Hints are held here rather than in the game hook: they are a view of the
+     * position, not part of it, and they must not land in the undo history.
+     */
+    const [hint, setHint] = useState<Hint | null>(null);
+    const [hintLevel, setHintLevel] = useState(0);
+
+    const requestHint = () => {
+      if (hint) {
+        // Already showing one - asking again means "tell me more"
+        setHintLevel(level => Math.min(level + 1, hint.levels.length - 1));
+        return;
+      }
+      setHint(computeHint(puzzleDefinition, gameState.gridValues));
+      setHintLevel(0);
+    };
+
+    // A hint describes one position; once the board moves on, it is stale.
+    useEffect(() => {
+      setHint(null);
+      setHintLevel(0);
+    }, [gameState.gridValues]);
+
+    const hintLevelCells = hint?.levels[Math.min(hintLevel, hint.levels.length - 1)];
+    const hintTargets = new Set(
+      (hintLevelCells?.targetCells ?? []).map(cell => `${cell.row}-${cell.col}`)
+    );
+    const hintSupport = new Set(
+      (hintLevelCells?.supportCells ?? []).map(cell => `${cell.row}-${cell.col}`)
+    );
 
     // Handlers for mobile number pad
     const handleMobileNumberSelect = (num: number) => {
@@ -412,6 +445,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         onCheckPuzzle={gameState.handleCheckPuzzle}
         onAutofillSingles={gameState.handleAutofillSingles}
         onFillAllCandidates={gameState.handleFillAllCandidates}
+        onHint={requestHint}
         hasCheckpoint={hasCheckpoint}
         onCreateCheckpoint={onCreateCheckpoint}
         onRevertToCheckpoint={onRevertToCheckpoint}
@@ -495,6 +529,13 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
                   onClick={e => handleMobileCellClick(e, rowIndex, colIndex)}
                   onCageInfoClick={e => handleCageInfoClick(e, cellIndex)}
                   isTabStop={cellKey === tabStopKey}
+                  hintRole={
+                    hintTargets.has(cellKey)
+                      ? 'target'
+                      : hintSupport.has(cellKey)
+                        ? 'support'
+                        : undefined
+                  }
                 />
               );
             })}
@@ -503,10 +544,26 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       </Box>
     );
 
+    const hintPanel = hint ? (
+      <Box style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0 6px' }}>
+        <HintPanel
+          hint={hint}
+          level={hintLevel}
+          compact={isMobile}
+          onMore={() => setHintLevel(level => Math.min(level + 1, hint.levels.length - 1))}
+          onClose={() => setHint(null)}
+        />
+      </Box>
+    ) : null;
+
     return (
       <Stack align="center" gap={isMobile ? 0 : 'xl'} w="100%">
         {/* Controls at top on mobile - stays pinned at top */}
         {isMobile && controlsElement}
+
+        {/* Above the grid: the later levels highlight cells, so the panel must
+            never sit on top of the board. */}
+        {hintPanel}
 
         {/* Grid with vertical centering on mobile */}
         {isMobile ? (
@@ -541,6 +598,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onRedo={gameState.handleRedo}
             onAutofillSingles={gameState.handleAutofillSingles}
             onFillAllCandidates={gameState.handleFillAllCandidates}
+            onHint={requestHint}
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}

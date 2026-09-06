@@ -96,6 +96,8 @@ export type CellCoord = {
  * Contains all the data and handlers needed to render and interact with a single cell.
  */
 export type ArithmatrixCellProps = {
+  /** How this cell figures in the hint currently on screen, if at all. */
+  hintRole?: 'target' | 'support';
   /** True for the single cell that carries the grid's tab stop. */
   isTabStop?: boolean;
   /** Zero-based row index of this cell */
@@ -149,6 +151,8 @@ export type ArithmatrixCellProps = {
  * Contains all the control state and handlers for the bottom control panel.
  */
 export type ArithmatrixControlsProps = {
+  /** Asks for the next hint. */
+  onHint?: () => void;
   /** Whether pencil mode is currently active */
   isPencilMode: boolean;
   /** Handler to toggle pencil mode */
