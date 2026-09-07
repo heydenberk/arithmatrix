@@ -8,6 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeHint } from './hints';
+import { solveWithTrace } from './solver';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 type Record_ = {
@@ -99,6 +100,114 @@ describe('progressive disclosure', () => {
       seenSupport = level.supportCells.length;
       seenTarget = level.targetCells.length;
     }
+  });
+});
+
+describe('does not repeat work the player has already done', () => {
+  const record = RECORDS.find(r => r.metadata.size === 5)!;
+  const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+
+  /**
+   * Replays the solver's own trace to build the board a player would have if
+   * they had followed it for `steps` moves: their placements, and pencil marks
+   * matching the candidates that remain.
+   */
+  const boardAfter = (steps: number) => {
+    const trace = solveWithTrace(puzzle);
+    const step = trace.steps[steps - 1];
+    const size = puzzle.size;
+    const grid = Array.from({ length: size }, (_, r) =>
+      Array.from({ length: size }, (_, c) => (step.grid[r][c] === 0 ? '' : String(step.grid[r][c])))
+    );
+    const marks = Array.from({ length: size }, (_, r) =>
+      Array.from({ length: size }, (_, c) =>
+        step.grid[r][c] === 0 ? new Set([...step.candidates[r][c]].map(String)) : new Set<string>()
+      )
+    );
+    return { grid, marks, trace };
+  };
+
+  it('does not re-suggest an elimination already recorded in pencil marks', () => {
+    const { grid, marks, trace } = boardAfter(3);
+    const hint = computeHint(puzzle, grid, marks, record.puzzle.solution)!;
+
+    expect(hint.kind).toBe('deduction');
+    // The first three steps are already reflected on the board, so the hint
+    // must be something later in the chain
+    const alreadyDone = trace.steps.slice(0, 3).map(s => s.description);
+    expect(alreadyDone).not.toContain(hint.levels[hint.levels.length - 1].body);
+  });
+
+  it('never targets a cell the player has already filled', () => {
+    for (const steps of [1, 3, 6, 10]) {
+      const { grid, marks } = boardAfter(steps);
+      const hint = computeHint(puzzle, grid, marks, record.puzzle.solution);
+      if (!hint || hint.kind !== 'deduction') continue;
+      const targets = hint.levels[hint.levels.length - 1].targetCells;
+      for (const cell of targets) {
+        expect(
+          grid[cell.row][cell.col],
+          `hint targeted already-filled cell ${cell.row},${cell.col}`
+        ).toBe('');
+      }
+    }
+  });
+
+  it('advances as the player advances', () => {
+    // Hints from two different positions should not be the same move
+    const early = boardAfter(2);
+    const later = boardAfter(8);
+    const a = computeHint(puzzle, early.grid, early.marks, record.puzzle.solution)!;
+    const b = computeHint(puzzle, later.grid, later.marks, record.puzzle.solution)!;
+    if (a.kind === 'deduction' && b.kind === 'deduction') {
+      expect(a.levels[a.levels.length - 1].body).not.toBe(b.levels[b.levels.length - 1].body);
+    }
+  });
+
+  it('flags pencil marks that rule out the answer', () => {
+    const size = puzzle.size;
+    const grid = emptyGrid(size);
+    const marks = Array.from({ length: size }, () =>
+      Array.from({ length: size }, () => new Set<string>())
+    );
+    // Cross off the one value that actually belongs in this cell
+    const answer = record.puzzle.solution[2][2];
+    marks[2][2] = new Set(
+      Array.from({ length: size }, (_, i) => String(i + 1)).filter(v => v !== String(answer))
+    );
+
+    const hint = computeHint(puzzle, grid, marks, record.puzzle.solution)!;
+    expect(hint.kind).toBe('stale-marks');
+    expect(hint.levels[0].targetCells).toEqual([{ row: 2, col: 2 }]);
+  });
+
+  it('blames the marks, not a placement, when the cell is empty', () => {
+    const size = puzzle.size;
+    const marks = Array.from({ length: size }, () =>
+      Array.from({ length: size }, () => new Set<string>())
+    );
+    const answer = record.puzzle.solution[0][0];
+    marks[0][0] = new Set(
+      Array.from({ length: size }, (_, i) => String(i + 1)).filter(v => v !== String(answer))
+    );
+
+    const hint = computeHint(puzzle, emptyGrid(size), marks, record.puzzle.solution)!;
+    expect(hint.kind).toBe('stale-marks');
+    // The cell is empty, so this is about the notes - not a placed value
+    expect(hint.levels[0].title).toBe('Your notes rule out the answer');
+    expect(hint.levels[0].body).toMatch(/crossed off/);
+  });
+
+  it('treats an unmarked cell as unknown, not as having no candidates', () => {
+    // Only one cell marked; the rest empty. Must still find a deduction rather
+    // than concluding the puzzle is broken.
+    const size = puzzle.size;
+    const marks = Array.from({ length: size }, () =>
+      Array.from({ length: size }, () => new Set<string>())
+    );
+    marks[0][0] = new Set(['1', '2']);
+    const hint = computeHint(puzzle, emptyGrid(size), marks, record.puzzle.solution)!;
+    expect(['deduction', 'stale-marks']).toContain(hint.kind);
   });
 });
 

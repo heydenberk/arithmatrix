@@ -19,9 +19,15 @@
  * - Only deductive steps are offered. `trial_and_error` is a guess, and on a
  *   puzzle with more than one solution a guess would point at one arbitrary
  *   answer. If the position needs a guess, the hint says so instead.
- * - The player's pencil marks are ignored. They are notes, not constraints;
- *   deducing from them would make hints depend on the player's bookkeeping and
- *   could dead-end on a stray mark.
+ * - The player's pencil marks are part of the position. Ignoring them - which
+ *   this originally did, on the grounds that marks are notes rather than
+ *   constraints - meant the solver restarted from full candidate sets and its
+ *   first deduction was usually an elimination the player had already made and
+ *   written down. A hint that tells you what you already know is not a hint.
+ *
+ * An unmarked cell means "not thought about yet", not "no candidates", so those
+ * start from the full set. Marks that rule out a cell's actual answer are
+ * reported rather than reasoned from.
  */
 
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
@@ -45,7 +51,7 @@ export type HintLevel = {
 };
 
 export type Hint = {
-  kind: 'deduction' | 'contradiction' | 'guess-required' | 'solved';
+  kind: 'deduction' | 'contradiction' | 'stale-marks' | 'guess-required' | 'solved';
   technique?: TechniqueId;
   techniqueLabel?: string;
   levels: HintLevel[];
@@ -102,9 +108,50 @@ const listCells = (cells: CellRef[]) => cells.map(cellName).join(', ');
 const toNumericGrid = (gridValues: string[][]): number[][] =>
   gridValues.map(row => row.map(cell => (cell === '' ? 0 : parseInt(cell, 10) || 0)));
 
-/** The first step worth showing: a real deduction, not a guess. */
-const firstDeductiveStep = (steps: SolverStep[]): SolverStep | null =>
-  steps.find(step => step.technique !== 'trial_and_error') ?? null;
+/**
+ * Turns the player's pencil marks into solver candidate sets.
+ *
+ * A cell the player has marked is taken at their word: those are the values
+ * they still consider possible, so the solver should not re-derive eliminations
+ * they have already made. A cell with no marks is untouched thinking, not an
+ * empty candidate set, so it starts from the full range.
+ */
+const toStartCandidates = (
+  size: number,
+  gridValues: string[][],
+  pencilMarks: Set<string>[][]
+): Set<number>[][] =>
+  Array.from({ length: size }, (_, row) =>
+    Array.from({ length: size }, (_, col) => {
+      const full = new Set(Array.from({ length: size }, (_, i) => i + 1));
+      if (gridValues[row]?.[col]) return full;
+      const marks = pencilMarks[row]?.[col];
+      if (!marks || marks.size === 0) return full;
+      const parsed = new Set<number>();
+      for (const mark of marks) {
+        const value = parseInt(mark, 10);
+        if (value >= 1 && value <= size) parsed.add(value);
+      }
+      // Marks we could not read at all are worth less than no marks
+      return parsed.size > 0 ? parsed : full;
+    })
+  );
+
+/** The solver labels its pencil-mark and placement fixes with this prefix. */
+const isRepairStep = (step: SolverStep) => step.description.startsWith('Repair:');
+
+/**
+ * The first step worth showing: a real deduction, not a guess, and not aimed at
+ * a cell the player has already filled.
+ */
+const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverStep | null =>
+  steps.find(
+    step =>
+      step.technique !== 'trial_and_error' &&
+      !isRepairStep(step) &&
+      // Nothing to say about a cell that already has a value in it
+      step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
+  ) ?? null;
 
 const buildLevels = (step: SolverStep): HintLevel[] => {
   const target = step.highlight;
@@ -156,11 +203,17 @@ const buildLevels = (step: SolverStep): HintLevel[] => {
  * Works out the next hint for a position.
  *
  * `gridValues` is the player's board as the UI holds it; empty strings are
- * empty cells. Returns null only if the puzzle itself is missing.
+ * empty cells. `pencilMarks` are their notes, which the hint reasons from so it
+ * never repeats an elimination they have already made. `solution` lets marks
+ * that rule out a cell's answer be reported rather than reasoned from.
+ *
+ * Returns null only if the puzzle itself is missing.
  */
 export const computeHint = (
   puzzleDefinition: PuzzleDefinition,
-  gridValues: string[][]
+  gridValues: string[][],
+  pencilMarks?: Set<string>[][],
+  solution?: number[][]
 ): Hint | null => {
   if (!puzzleDefinition || gridValues.length === 0) return null;
 
@@ -201,8 +254,45 @@ export const computeHint = (
     };
   }
 
-  const result = solveWithTrace(puzzleDefinition, { startGrid });
-  const step = firstDeductiveStep(result.steps);
+  const startCandidates = pencilMarks
+    ? toStartCandidates(puzzleDefinition.size, gridValues, pencilMarks)
+    : undefined;
+
+  const result = solveWithTrace(puzzleDefinition, { startGrid, startCandidates, solution });
+
+  /*
+   * The solver repairs a position it cannot reason from - a pencil mark that
+   * rules out a cell's answer - and says so. That is worth surfacing directly:
+   * it is the difference between "here is your next move" and "your notes have
+   * a mistake in them".
+   */
+  const repair = result.steps.find(isRepairStep);
+  if (repair) {
+    const cell = repair.highlight[0];
+    /*
+     * Which kind of repair it was, read off the player's own board rather than
+     * the solver's wording: a cell that holds a value had a bad placement, an
+     * empty one had its answer crossed off in the marks. Both of the solver's
+     * repair messages contain the word "had", so matching on the text got this
+     * backwards.
+     */
+    const misplaced = startGrid[cell.row]?.[cell.col] !== 0;
+    return {
+      kind: 'stale-marks',
+      levels: [
+        {
+          title: misplaced ? 'A value looks wrong' : 'Your notes rule out the answer',
+          body: misplaced
+            ? `The value in ${cellName(cell)} cannot be right. Clearing it will let the rest fall into place.`
+            : `${cellName(cell)} has its answer crossed off in your pencil marks, so nothing can be deduced from there. Worth re-checking that cell.`,
+          supportCells: [],
+          targetCells: [cell],
+        },
+      ],
+    };
+  }
+
+  const step = firstDeductiveStep(result.steps, startGrid);
 
   if (!step) {
     return {

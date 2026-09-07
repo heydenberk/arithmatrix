@@ -145,15 +145,18 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         setHintLevel(level => Math.min(level + 1, hint.levels.length - 1));
         return;
       }
-      setHint(computeHint(puzzleDefinition, gameState.gridValues));
+      // The player's marks are part of the position: without them the hint
+      // would re-suggest eliminations they have already made and written down.
+      setHint(computeHint(puzzleDefinition, gameState.gridValues, gameState.pencilMarks, solution));
       setHintLevel(0);
     };
 
-    // A hint describes one position; once the board moves on, it is stale.
+    // A hint describes one position; once the board moves on - values or marks
+    // - it is stale.
     useEffect(() => {
       setHint(null);
       setHintLevel(0);
-    }, [gameState.gridValues]);
+    }, [gameState.gridValues, gameState.pencilMarks]);
 
     const hintLevelCells = hint?.levels[Math.min(hintLevel, hint.levels.length - 1)];
     const hintTargets = new Set(
