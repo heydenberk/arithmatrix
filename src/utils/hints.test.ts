@@ -211,6 +211,106 @@ describe('does not repeat work the player has already done', () => {
   });
 });
 
+describe('hint wording', () => {
+  /** Every deduction hint reachable by walking a few puzzles' traces. */
+  const collectHints = (limit = 60) => {
+    const lines = readFileSync('public/all_puzzles.jsonl', 'utf8').trim().split('\n');
+    const out: { technique: string; first: string; last: string }[] = [];
+    for (const line of lines.slice(0, 120)) {
+      const r = JSON.parse(line) as Record_;
+      const puzzle: PuzzleDefinition = { size: r.puzzle.size, cages: r.puzzle.cages };
+      const trace = solveWithTrace(puzzle);
+      for (let i = 0; i < Math.min(trace.steps.length, 10); i++) {
+        const step = trace.steps[i];
+        const size = puzzle.size;
+        const grid = Array.from({ length: size }, (_, rr) =>
+          Array.from({ length: size }, (_, cc) =>
+            step.grid[rr][cc] === 0 ? '' : String(step.grid[rr][cc])
+          )
+        );
+        const marks = Array.from({ length: size }, (_, rr) =>
+          Array.from({ length: size }, (_, cc) =>
+            step.grid[rr][cc] === 0
+              ? new Set([...step.candidates[rr][cc]].map(String))
+              : new Set<string>()
+          )
+        );
+        const hint = computeHint(puzzle, grid, marks, r.puzzle.solution);
+        if (!hint || hint.kind !== 'deduction' || !hint.technique) continue;
+        out.push({
+          technique: hint.technique,
+          first: hint.levels[0].body,
+          last: hint.levels[hint.levels.length - 1].body,
+        });
+        if (out.length >= limit) return out;
+      }
+    }
+    return out;
+  };
+
+  const HINTS = collectHints();
+  const REGION = /\b(row \d+|column [A-G])\b/;
+
+  it('collects a range of techniques to check', () => {
+    expect(HINTS.length).toBeGreaterThan(20);
+    expect(new Set(HINTS.map(h => h.technique)).size).toBeGreaterThan(3);
+  });
+
+  it('never names a region in the nudge that the actual move contradicts', () => {
+    for (const hint of HINTS) {
+      const claimed = hint.first.match(REGION);
+      if (!claimed) continue;
+      expect(hint.last, `nudge said "${claimed[0]}" but the move was: ${hint.last}`).toContain(
+        claimed[0]
+      );
+    }
+  });
+
+  it('does not claim a row or column for a cell-based deduction', () => {
+    // A naked single is a fact about one cell, not about a line. Saying "in
+    // row 4" points the player at the wrong kind of search.
+    for (const hint of HINTS.filter(h => h.technique === 'naked_single')) {
+      expect(hint.first).not.toMatch(REGION);
+    }
+  });
+
+  it('does not claim a row or column for a cage-based deduction', () => {
+    const cageOnly = ['cage_impossible', 'cage_single', 'cage_combinations', 'stipulated'];
+    for (const hint of HINTS.filter(h => cageOnly.includes(h.technique))) {
+      expect(hint.first, `${hint.technique}: ${hint.first}`).not.toMatch(REGION);
+    }
+  });
+
+  it('distinguishes a cell with one value from a value with one cell', () => {
+    // The two singles are opposite readings of the board and the wording has to
+    // make that unmistakable.
+    const naked = HINTS.find(h => h.technique === 'naked_single');
+    const hidden = HINTS.find(h => h.technique === 'hidden_single');
+    if (naked) expect(naked.first).toMatch(/cell/i);
+    if (hidden) expect(hidden.first).toMatch(/value|number/i);
+    if (naked && hidden) expect(naked.first).not.toBe(hidden.first);
+  });
+
+  it('reads naturally where a region is named', () => {
+    // "a single line in row 4" - the region has to replace the generic phrase,
+    // not sit after it.
+    for (const hint of HINTS) {
+      // Catches every shape of doubled preposition: "to in row 4", "of in
+      // column D", "a single line in row 4".
+      expect(hint.first, hint.first).not.toMatch(/\b(to|of|in|inside)\s+in\s+(row|column)\b/);
+      expect(hint.first, hint.first).not.toMatch(/\bline in (row|column)\b/);
+      expect(hint.first, hint.first).not.toMatch(/\b(row|column) in (row|column)\b/);
+      expect(hint.first, hint.first).not.toMatch(/\s{2,}/);
+    }
+  });
+
+  it('keeps the nudge free of cell names and values', () => {
+    for (const hint of HINTS) {
+      expect(hint.first, hint.first).not.toMatch(/\b[A-G][1-7]\b/);
+    }
+  });
+});
+
 describe('computeHint mid-game', () => {
   const record = RECORDS.find(r => r.metadata.size === 4)!;
   const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };

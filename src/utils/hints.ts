@@ -59,47 +59,64 @@ export type Hint = {
 
 /**
  * How each technique works, in the player's terms and without naming a cell or
- * a value. This is the whole point of the feature: enough to know what kind of
- * look to take, not enough to skip the thinking.
+ * a value.
+ *
+ * The two "singles" are opposite readings of the same board and were the source
+ * of real confusion, so they are worded as a deliberate pair: a naked single is
+ * a *cell with one value left*, a hidden single is a *value with one cell left*.
+ *
+ * Each takes the region the solver named, which is empty for deductions that
+ * are not about a line. Inferring a region from cell geometry - as this used to
+ * - produced "in row 1" for a fact about a single cell, and could even
+ * contradict the move itself, since a lone cell sits in a row and a column
+ * equally.
  */
-const TECHNIQUE_NUDGES: Record<TechniqueId, string> = {
-  stipulated: 'A cage covering a single cell states that cell’s value outright.',
-  naked_single:
-    'One empty cell has just a single candidate left once its row and column are taken into account.',
-  hidden_single:
-    'Somewhere in a row or column, one value has only a single square left that can hold it.',
-  cage_impossible:
-    'A cage’s target rules some values out of it entirely — no combination that reaches the target uses them.',
-  cage_single: 'A cage’s target leaves only one possible value for one of its cells.',
-  cage_locked:
-    'A cage’s cells must together hold one particular set of values, which narrows each of them.',
-  cage_combinations:
-    'Writing out the combinations that reach a cage’s target rules a value out of one of its cells.',
-  cage_intersection:
-    'A cage confines a value to a single row or column, so that value can be eliminated from the rest of that line.',
-  multi_cage_line_lock:
-    'Several cages taken together confine a set of values inside one line, freeing up the rest.',
-  summation:
-    'Compare the total of a row or column against the cage targets covering it; the difference pins a cell down.',
-  cross_cage_feasibility:
+const TECHNIQUE_NUDGES: Record<TechniqueId, (region: string) => string> = {
+  stipulated: () => 'A cage covering a single cell states that cell’s value outright.',
+  naked_single: () =>
+    'Somewhere there is a cell with only one value left that can go in it — its row and ' +
+    'column between them rule out all the others.',
+  hidden_single: region =>
+    `Somewhere${region ? ` in ${region}` : ''} there is a value with only one square left ` +
+    'that can hold it. Rather than asking what fits a cell, ask where a number can still go.',
+  cage_impossible: () =>
+    'A cage’s target rules a value out of it completely — no combination reaching that total ' +
+    'uses the value at all.',
+  cage_single: () => 'A cage’s target leaves only one possible value for one of its cells.',
+  cage_locked: () =>
+    'A cage’s cells must hold one particular set of values between them, which narrows every ' +
+    'cell in it.',
+  cage_combinations: () =>
+    'Listing the combinations that reach a cage’s target rules a value out of one of its cells.',
+  cage_intersection: region =>
+    `A cage confines a value to ${region || 'a single row or column'}, so that value can be ` +
+    'ruled out of the rest of that line.',
+  multi_cage_line_lock: region =>
+    `Several cages together confine a set of values to ${region || 'one line'}, which frees ` +
+    'up the squares outside them.',
+  summation: region =>
+    `Compare the total of ${region || 'a row or column'} against the cage targets covering ` +
+    'it; the difference pins a cell down.',
+  cross_cage_feasibility: () =>
     'Checking neighbouring cages against each other shows a candidate cannot work.',
-  trial_and_error: 'No forced move is available — this position needs a guess.',
+  trial_and_error: () => 'No forced move is available — this position needs a guess.',
 };
 
 const columnLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
 const cellName = (cell: CellRef) => `${columnLetter(cell.col)}${cell.row + 1}`;
 
 /**
- * Names the region a deduction lives in without naming its cells, so level one
- * can say "in row 4" while still keeping the target hidden.
+ * The line a deduction is about, read out of the solver's own description.
+ *
+ * The solver states it there ("Hidden single in column D: ...") and that is the
+ * only authoritative source: deriving it from the highlighted cells gave a
+ * region for deductions that have none, and could disagree with the move.
  */
-const describeRegion = (cells: CellRef[]): string => {
-  if (cells.length === 0) return '';
-  const rows = new Set(cells.map(c => c.row));
-  const cols = new Set(cells.map(c => c.col));
-  if (rows.size === 1) return ` in row ${[...rows][0] + 1}`;
-  if (cols.size === 1) return ` in column ${columnLetter([...cols][0])}`;
-  return '';
+const describeRegion = (step: SolverStep): string => {
+  const match = step.description.match(/\bin (row \d+|column [A-Z])\b/);
+  // Bare name, no preposition: each nudge reads differently ("in row 4" versus
+  // "to row 4"), so the sentence supplies its own.
+  return match ? match[1] : '';
 };
 
 const listCells = (cells: CellRef[]) => cells.map(cellName).join(', ');
@@ -156,13 +173,14 @@ const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverS
 const buildLevels = (step: SolverStep): HintLevel[] => {
   const target = step.highlight;
   const support = step.supportCells ?? [];
-  const label = TECHNIQUE_LABELS[step.technique];
-  const region = describeRegion(support.length > 0 ? support : target);
+  const region = describeRegion(step);
 
   const levels: HintLevel[] = [
     {
       title: 'Where to look',
-      body: `${label}${region}. ${TECHNIQUE_NUDGES[step.technique]}`,
+      // The plain description leads; the technique's name is surfaced by the
+      // panel as a label, so the sentence does not open with solver jargon.
+      body: TECHNIQUE_NUDGES[step.technique](region),
       supportCells: [],
       targetCells: [],
     },
@@ -300,7 +318,7 @@ export const computeHint = (
       levels: [
         {
           title: 'No forced move',
-          body: TECHNIQUE_NUDGES.trial_and_error,
+          body: TECHNIQUE_NUDGES.trial_and_error(''),
           supportCells: [],
           targetCells: [],
         },

@@ -49,6 +49,13 @@ const HintPanel: React.FC<HintPanelProps> = ({ hint, level, onMore, onClose, com
                 {Math.min(level, hint.levels.length - 1) + 1}/{hint.levels.length}
               </Badge>
             )}
+            {/* The technique's name, kept out of the sentence itself so the
+                explanation leads rather than the solver's jargon. */}
+            {hint.techniqueLabel && (
+              <Badge size="xs" variant="transparent" color="gray" px={2} tt="none">
+                {hint.techniqueLabel}
+              </Badge>
+            )}
           </Group>
           <ActionIcon
             size="sm"
