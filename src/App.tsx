@@ -40,6 +40,7 @@ import {
   OPERATION_TIER_LABELS,
 } from './constants/gameConstants';
 import { RawPuzzleRecord, canonicalCagesSig, loadCatalog } from './utils/puzzleCatalog';
+import { checkWinCondition } from './utils/arithmatrixUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
 import AchievementNotification from './components/AchievementNotification';
@@ -481,6 +482,20 @@ function App() {
     latestGridValuesRef.current = gridValues;
     latestPencilMarksRef.current = pencilMarks;
     if (!puzzleDefinition || !solutionGrid) return;
+
+    /*
+     * A finished puzzle is not a game in progress.
+     *
+     * This runs from an effect, so it fires *after* the win handler has already
+     * removed the puzzle from the saved list - without this the completed board
+     * was written straight back in, and the gallery then showed it as paused
+     * rather than solved. The win check is repeated here rather than trusting
+     * isGameWon alone, so it does not depend on which state update lands first.
+     */
+    if (isGameWon || checkWinCondition(gridValues, puzzleDefinition)) {
+      deleteGameForPuzzle(puzzleDefinition);
+      return;
+    }
 
     if (hasAnyProgress(gridValues, pencilMarks)) {
       saveGame(

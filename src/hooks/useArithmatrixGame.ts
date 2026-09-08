@@ -110,24 +110,26 @@ export const useArithmatrixGame = ({
     }
   }, [puzzleDefinition, size, initialGridValues, initialPencilMarks]);
 
-  // Effect to check win condition whenever gridValues changes
+  /*
+   * The single place a win is announced.
+   *
+   * Individual handlers used to call onWin() themselves as well as this effect
+   * firing, so completing a puzzle recorded it three times over. Watching
+   * gridValues covers every route to a full grid - typing, autofill, undo/redo -
+   * and the ref makes it an edge: it fires on the transition into a solved
+   * board, and re-arms if the player takes a value back out.
+   */
+  const hasAnnouncedWinRef = useRef(false);
   useEffect(() => {
-    console.log('Win detection effect triggered, gridValues changed:', gridValues);
-    if (gridValues.length > 0 && gridValues.every(row => row.every(cell => cell !== ''))) {
-      console.log('Grid is completely filled, checking win condition...');
-      if (checkWinCondition(gridValues, puzzleDefinition)) {
-        console.log('Win condition met! Calling onWin()');
-        onWin();
-      } else {
-        console.log('Grid is full but win condition not met');
-      }
-    } else {
-      const emptyCells = gridValues.reduce(
-        (count, row, _r) =>
-          count + row.reduce((rowCount, cell, _c) => rowCount + (cell === '' ? 1 : 0), 0),
-        0
-      );
-      console.log(`Grid not complete yet, ${emptyCells} empty cells remaining`);
+    const complete =
+      gridValues.length > 0 && gridValues.every(row => row.every(cell => cell !== ''));
+    const won = complete && checkWinCondition(gridValues, puzzleDefinition);
+
+    if (won && !hasAnnouncedWinRef.current) {
+      hasAnnouncedWinRef.current = true;
+      onWin();
+    } else if (!won) {
+      hasAnnouncedWinRef.current = false;
     }
   }, [gridValues, puzzleDefinition, onWin]);
 
@@ -198,10 +200,6 @@ export const useArithmatrixGame = ({
 
       // Manual win check as fallback - check the new grid state
       console.log('Manual input completed, checking win condition manually...');
-      if (checkWinCondition(newGridValues, puzzleDefinition)) {
-        console.log('Win condition met via manual check! Calling onWin()');
-        onWin();
-      }
     } else if (value !== '' && value !== currentVal) {
       // Revert invalid input
       const input = inputRefs.current?.[rowIndex]?.[colIndex];
@@ -477,10 +475,6 @@ export const useArithmatrixGame = ({
       setPencilMarks(nextPencilMarks);
       clearErrors();
       setHasEnteredValueSinceSelection(true);
-
-      if (checkWinCondition(nextGridValues, puzzleDefinition)) {
-        onWin();
-      }
     }
   };
 
@@ -522,10 +516,6 @@ export const useArithmatrixGame = ({
 
     // Manual win check as fallback - check the new grid state
     console.log('Direct number input completed, checking win condition manually...');
-    if (checkWinCondition(newGridValues, puzzleDefinition)) {
-      console.log('Win condition met via direct input check! Calling onWin()');
-      onWin();
-    }
   };
 
   // Navigation with arrow keys

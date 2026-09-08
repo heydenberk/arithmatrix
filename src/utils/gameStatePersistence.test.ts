@@ -274,6 +274,98 @@ describe('migration from the old single-slot key', () => {
   });
 });
 
+describe('a finished board is not a game in progress', () => {
+  /*
+   * Completed puzzles used to end up back in this store - the win handler
+   * removed one, then the grid's state-change effect fired and saved it again -
+   * and the gallery then showed the finished puzzle as paused rather than
+   * solved.
+   */
+  const SOLUTION = [
+    [1, 2],
+    [2, 1],
+  ];
+
+  const saveWithGrid = (grid: string[][]) =>
+    saveGame(
+      PUZZLE_A,
+      SOLUTION,
+      grid,
+      emptyMarks(2),
+      { size: 2, difficulty: 'easy', operationsTier: 'all' },
+      10,
+      new Date('2026-01-01T00:00:00Z'),
+      1
+    );
+
+  it('drops a saved game whose board already matches the solution', () => {
+    saveWithGrid([
+      ['1', '2'],
+      ['2', '1'],
+    ]);
+    expect(listSavedGames()).toHaveLength(0);
+    expect(loadGameForPuzzle(PUZZLE_A)).toBeNull();
+    expect(hasSavedGames()).toBe(false);
+  });
+
+  it('keeps a full board that is wrong - that is still a game in progress', () => {
+    saveWithGrid([
+      ['2', '1'],
+      ['1', '2'],
+    ]);
+    expect(listSavedGames()).toHaveLength(1);
+  });
+
+  it('keeps a partly filled board', () => {
+    saveWithGrid([
+      ['1', ''],
+      ['', ''],
+    ]);
+    expect(listSavedGames()).toHaveLength(1);
+  });
+
+  it('heals a completed record that leaked in before the fix', () => {
+    // Written straight to storage, the way the old save-after-delete race left it
+    localStorage.setItem(
+      'arithmatrix_saved_games',
+      JSON.stringify({
+        stale: {
+          cagesSig: 'stale',
+          puzzleIndex: 1,
+          puzzleDefinition: PUZZLE_A,
+          solutionGrid: SOLUTION,
+          gridValues: [
+            ['1', '2'],
+            ['2', '1'],
+          ],
+          pencilMarks: [
+            ['', ''],
+            ['', ''],
+          ],
+          puzzleSettings: { size: 2, difficulty: 'easy' },
+          elapsedTime: 5,
+          startedAt: '2026-01-01T00:00:00Z',
+          savedAt: '2026-01-01T00:00:00Z',
+        },
+      })
+    );
+
+    expect(listSavedGames()).toHaveLength(0);
+    // and the cleanup is persisted, not just filtered on the way out
+    expect(Object.keys(JSON.parse(localStorage.getItem('arithmatrix_saved_games')!))).toHaveLength(
+      0
+    );
+  });
+
+  it('does not report a finished puzzle in the gallery summaries', () => {
+    saveWithGrid([
+      ['1', '2'],
+      ['2', '1'],
+    ]);
+    expect(savedGameSummaries().size).toBe(0);
+  });
+});
+
 describe('progress predicates', () => {
   it('sees a value as progress', () => {
     expect(

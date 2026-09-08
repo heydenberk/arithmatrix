@@ -86,8 +86,31 @@ const readAll = (): SavedGameMap => {
     localStorage.removeItem(LEGACY_SINGLE_GAME_KEY);
   }
 
+  // Drop anything already solved rather than handing it back as in progress
+  let dropped = false;
+  for (const [sig, game] of Object.entries(games)) {
+    if (isFinished(game)) {
+      delete games[sig];
+      dropped = true;
+    }
+  }
+  if (dropped) writeAll(games);
+
   return games;
 };
+
+/**
+ * A board that already matches its solution is finished, not in progress.
+ *
+ * Completed puzzles used to end up back in this store: the win handler removed
+ * one, then the grid's state-change effect fired straight afterwards and saved
+ * it again. Filtering on read heals the records that already leaked in, and a
+ * filled-but-wrong board is still correctly a game in progress.
+ */
+const isFinished = (game: SavedGame): boolean =>
+  game.gridValues.every((row, r) =>
+    row.every((cell, c) => cell !== '' && Number(cell) === game.solutionGrid?.[r]?.[c])
+  );
 
 const writeAll = (games: SavedGameMap): void => {
   try {
