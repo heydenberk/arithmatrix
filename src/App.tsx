@@ -11,7 +11,6 @@ import {
   Alert,
   Stack,
   Group,
-  Card,
   Badge,
   ThemeIcon,
   Center,
@@ -43,8 +42,8 @@ import { RawPuzzleRecord, canonicalCagesSig, loadCatalog } from './utils/puzzleC
 import { checkWinCondition } from './utils/arithmatrixUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
 import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
-import AchievementNotification from './components/AchievementNotification';
 import AchievementGallery from './components/AchievementGallery';
+import WinModal from './components/WinModal';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
 /*
  * Development tools, loaded on demand so they leave the production bundle
@@ -214,6 +213,14 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const [isTimerRunning, setIsTimerRunning] = useState<boolean>(true); // Add state for timer
   const [isGameWon, setIsGameWon] = useState<boolean>(false); // State for win condition
+  /*
+   * The celebration is an overlay, so it needs its own visibility: dismissing it
+   * must not un-win the puzzle (isGameWon still keeps the timer stopped and the
+   * board read as finished). winTime freezes the clock at the moment of the
+   * solve, since the ref carries on being whatever the timer last wrote.
+   */
+  const [showWinModal, setShowWinModal] = useState<boolean>(false);
+  const [winTime, setWinTime] = useState<number>(0);
   const [resetKey, setResetKey] = useState<number>(0); // Key to force ArithmatrixGrid re-render for reset
   const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time (used for initial restore)
   const completionTimeRef = useRef<number>(0); // Ref to avoid re-rendering App every second
@@ -392,6 +399,7 @@ function App() {
     // Only reset state for new puzzles, not when loading saved state
     if (!hasLoadedSavedStateRef.current) {
       setIsGameWon(false); // Reset win state when puzzle settings change
+      setShowWinModal(false);
       setCurrentCompletionTime(0);
       completionTimeRef.current = 0;
       console.log('🔄 Resetting game state for new puzzle');
@@ -526,6 +534,7 @@ function App() {
     setResetKey(prev => prev + 1);
     setIsTimerRunning(true); // Start timer fresh
     setIsGameWon(false); // Reset win state
+    setShowWinModal(false);
     setLastAchievement(null);
     // Clear checkpoint when resetting
     setCheckpointGridValues(null);
@@ -565,6 +574,7 @@ function App() {
     completionTimeRef.current = saved.elapsedTime;
     setIsTimerRunning(true);
     setIsGameWon(false);
+    setShowWinModal(false);
   }, []);
 
   /**
@@ -612,6 +622,7 @@ function App() {
 
     // Game state: pick up where a paused puzzle left off, else start clean
     setIsGameWon(false);
+    setShowWinModal(false);
     setCurrentCompletionTime(inProgress?.elapsedTime ?? 0);
     completionTimeRef.current = inProgress?.elapsedTime ?? 0;
     setCheckpointGridValues(null);
@@ -667,6 +678,8 @@ function App() {
     console.log('Puzzle solved!');
     setIsTimerRunning(false); // Pause the timer
     setIsGameWon(true); // Set the win state
+    setWinTime(completionTimeRef.current);
+    setShowWinModal(true);
 
     // Save puzzle stats to localStorage
     if (puzzleDefinition) {
@@ -956,83 +969,6 @@ function App() {
               </Center>
             </Paper>
           )}
-
-          {/* Win celebration with enhanced styling */}
-          {isGameWon && (
-            <Card
-              radius="xl"
-              p="xl"
-              style={{
-                background: 'linear-gradient(135deg, #34d399 0%, #10b981 100%)',
-                color: 'white',
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Celebration particles */}
-              <Box style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-                <Box
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: '25%',
-                    width: rem(16),
-                    height: rem(16),
-                    backgroundColor: '#fde047',
-                    borderRadius: '50%',
-                    animation: 'bounce 1s infinite 0.1s',
-                  }}
-                />
-                <Box
-                  style={{
-                    position: 'absolute',
-                    top: rem(16),
-                    right: '25%',
-                    width: rem(12),
-                    height: rem(12),
-                    backgroundColor: '#fef3c7',
-                    borderRadius: '50%',
-                    animation: 'bounce 1s infinite 0.3s',
-                  }}
-                />
-                <Box
-                  style={{
-                    position: 'absolute',
-                    bottom: rem(16),
-                    left: '33%',
-                    width: rem(8),
-                    height: rem(8),
-                    backgroundColor: '#facc15',
-                    borderRadius: '50%',
-                    animation: 'bounce 1s infinite 0.5s',
-                  }}
-                />
-              </Box>
-
-              <Center>
-                <Stack align="center" gap="md" style={{ position: 'relative', zIndex: 10 }}>
-                  <ThemeIcon
-                    size={80}
-                    radius="xl"
-                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.2)' }}
-                  >
-                    <IconTrophy size="2.5rem" />
-                  </ThemeIcon>
-                  <Title order={1}>🎉 Congratulations! 🎉</Title>
-                  <Text size="xl" style={{ opacity: 0.9 }}>
-                    You solved the puzzle!
-                  </Text>
-                  {lastAchievement && (
-                    <AchievementNotification
-                      result={lastAchievement}
-                      size={puzzleSize}
-                      difficulty={difficulty}
-                    />
-                  )}
-                </Stack>
-              </Center>
-            </Card>
-          )}
         </Stack>
 
         {/* Controls Section - Desktop only (mobile controls are in ArithmatrixControls) */}
@@ -1148,6 +1084,21 @@ function App() {
           </Paper>
         )}
       </Container>
+
+      {/* Solve celebration - an overlay, so it is reachable on the scroll-locked
+          mobile layout as well as on desktop */}
+      <WinModal
+        opened={showWinModal}
+        onClose={() => setShowWinModal(false)}
+        onNewPuzzle={() => {
+          setShowWinModal(false);
+          setShowPuzzleGallery(true);
+        }}
+        elapsedSeconds={winTime}
+        achievement={lastAchievement}
+        size={puzzleSize}
+        difficulty={difficulty}
+      />
 
       {/* Puzzle Gallery - the only way to start a game */}
       <PuzzleGallery

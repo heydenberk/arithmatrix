@@ -20,10 +20,12 @@ import {
   IconTrash,
   IconDownload,
   IconTrophy,
+  IconRefresh,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { useLongPress } from '../hooks/useLongPress';
 import { APP_VERSION } from '../version';
+import { reloadApp } from '../utils/reloadApp';
 import './MobileNumberPad.css';
 
 interface MobileNumberPadProps {
@@ -281,6 +283,17 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
                 </>
               )}
               <Menu.Divider />
+              {/* The scroll-locked layout has no pull-to-refresh, and installed
+                  there is no browser reload button either */}
+              <Menu.Item
+                leftSection={<IconRefresh size="1rem" />}
+                onClick={() => {
+                  setMenuOpened(false);
+                  void reloadApp();
+                }}
+              >
+                Reload App
+              </Menu.Item>
               <Menu.Label style={{ textAlign: 'center', fontSize: 11, opacity: 0.6 }}>
                 v{APP_VERSION}
               </Menu.Label>
