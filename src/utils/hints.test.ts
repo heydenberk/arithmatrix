@@ -403,11 +403,93 @@ describe('a position the solver can only finish by guessing', () => {
     expect(POSITIONS.length).toBeGreaterThan(0);
   });
 
-  it('says a guess is needed instead of reporting what the guess implies', () => {
+  it('never dresses a consequence of the guess up as a deduction', () => {
     for (const position of POSITIONS) {
       const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution);
       const last = hint!.levels[hint!.levels.length - 1].body;
-      expect(hint!.kind, `${position.key} offered: ${last}`).toBe('guess-required');
+      // Either honest advice on where to branch, or a cell that search can
+      // settle - but never a technique, because there is no technique left
+      expect(
+        ['guess-required', 'forced-by-contradiction'],
+        `${position.key} offered: ${last}`
+      ).toContain(hint!.kind);
+    }
+  });
+
+  it('points at a cell that is actually still empty', () => {
+    for (const position of POSITIONS) {
+      const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution)!;
+      const last = hint.levels[hint.levels.length - 1];
+      for (const cell of last.targetCells) {
+        expect(position.grid[cell.row][cell.col], `${position.key} pointed at a filled cell`).toBe(
+          ''
+        );
+      }
+    }
+  });
+
+  it('is right whenever it claims a cell is fixed', () => {
+    // The whole value of the forced-by-contradiction case is that it is sound:
+    // it comes from an exhaustive check, so a wrong answer here would be worse
+    // than no hint at all.
+    let checked = 0;
+    for (const position of POSITIONS) {
+      const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution)!;
+      if (hint.kind !== 'forced-by-contradiction') continue;
+      const last = hint.levels[hint.levels.length - 1];
+      const claimed = last.body.match(/must be (\d)/);
+      expect(claimed, `no value named in: ${last.body}`).toBeTruthy();
+      const cell = last.targetCells[0];
+      expect(Number(claimed![1]), `${position.key} at ${cell.row},${cell.col}`).toBe(
+        position.solution[cell.row][cell.col]
+      );
+      checked++;
+    }
+    expect(checked, 'no forced-by-contradiction hints to check').toBeGreaterThan(0);
+  });
+
+  it('advises on where to branch rather than just saying to guess', () => {
+    for (const position of POSITIONS) {
+      const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution)!;
+      if (hint.kind !== 'guess-required') continue;
+      // A bare "you need to guess" is the thing this replaced
+      const named = hint.levels.some(level => level.targetCells.length > 0);
+      expect(named, `no branch point offered: ${hint.levels.map(l => l.body).join(' ')}`).toBe(
+        true
+      );
+    }
+  });
+
+  it('withholds the cell and the value at the first level, like every other hint', () => {
+    // The stall hints are built by hand rather than by buildLevels, so the
+    // disclosure rules have to be checked here too
+    for (const position of POSITIONS) {
+      const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution)!;
+      const first = hint.levels[0];
+      expect(first.targetCells).toEqual([]);
+      expect(first.supportCells).toEqual([]);
+      expect(first.body, first.body).not.toMatch(/\b[A-G][1-7]\b/);
+      expect(first.body, first.body).not.toMatch(/must be \d/);
+    }
+  });
+
+  it('names the branch cell before it names the answer', () => {
+    for (const position of POSITIONS) {
+      const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution)!;
+      if (hint.kind !== 'forced-by-contradiction') continue;
+      const answerAt = hint.levels.findIndex(level => /must be \d/.test(level.body));
+      const branchAt = hint.levels.findIndex(level => level.targetCells.length > 0);
+      expect(answerAt).toBeGreaterThan(0);
+      expect(branchAt).toBeLessThan(answerAt);
+    }
+  });
+
+  it('answers fast enough to sit behind a button', () => {
+    for (const position of POSITIONS) {
+      const started = Date.now();
+      computeHint(position.puzzle, position.grid, position.marks, position.solution);
+      const elapsed = Date.now() - started;
+      expect(elapsed, `${position.key} took ${elapsed}ms`).toBeLessThan(2000);
     }
   });
 });

@@ -75,6 +75,40 @@ export type SolverStep = {
   cumulativeCounts: Record<TechniqueId, number>;
 };
 
+/** One value a cell could take, and what assuming it leads to. */
+export type BranchOption = {
+  value: number;
+  /**
+   * Propagation alone emptied a cell, so this value is wrong and a player
+   * would find that out by ordinary reasoning rather than by search.
+   */
+  refutedByLogic: boolean;
+  /**
+   * Inferences the assumption survived before it broke down or stalled again.
+   * For a refuted value that is how far you would have to unwind; for a
+   * surviving one it is how much forced progress the branch buys you.
+   */
+  depth: number;
+};
+
+/** A cell you could branch on, with the cost of doing so. */
+export type BranchPoint = {
+  cell: CellRef;
+  options: BranchOption[];
+  /** The one value left standing when logic refuted every other: a proof. */
+  forced?: number;
+  /** Cheapest refutation among the options - how fast a wrong turn shows up. */
+  shallowestRefutation?: number;
+};
+
+/*
+ * Candidate-values worth trying. Each trial is a full logic loop and this runs
+ * while somebody waits for a hint, so it is deliberately small: cells are
+ * tried fewest-options-first, so a handful covers the narrowest cells on the
+ * board, which are both the cheapest to analyse and the best to recommend.
+ */
+const BRANCH_TRIAL_BUDGET = 8;
+
 export type SolverResult = {
   steps: SolverStep[];
   finalGrid: number[][];
@@ -192,6 +226,9 @@ class Solver {
   solution: number[][] | null;
   /** The puzzle as handed in, for the independent uniqueness count. */
   puzzle: PuzzleDefinition;
+  /** Set while exploring a hypothetical branch; see recordStep. */
+  private muted = false;
+  private mutedSteps = 0;
 
   constructor(puzzle: PuzzleDefinition, options: SolveOptions = {}) {
     this.puzzle = puzzle;
@@ -357,20 +394,32 @@ class Solver {
     highlight: CellRef[],
     supportCells?: CellRef[]
   ) {
-    const delta = TECHNIQUE_WEIGHTS[technique];
-    this.counts[technique] += 1;
-    this.rawScore = bottleneckRaw(this.counts);
-    this.steps.push({
-      technique,
-      description,
-      highlight,
-      supportCells,
-      grid: this.snapshotGrid(),
-      candidates: this.snapshotCandidates(),
-      scoreDelta: delta,
-      cumulativeScore: this.rawScore,
-      cumulativeCounts: { ...this.counts },
-    });
+    /*
+     * Lookahead runs the same techniques as the real solve, so it comes
+     * through here too. While muted the step is counted but not built: it must
+     * not land in the trace, must not move the difficulty score, and must not
+     * pay for two grid snapshots. The count is the useful part - it is the
+     * depth the branch reached, which is what "how far would I have to unwind"
+     * means. The cascade below still runs, or propagation would stop short.
+     */
+    if (this.muted) {
+      this.mutedSteps += 1;
+    } else {
+      const delta = TECHNIQUE_WEIGHTS[technique];
+      this.counts[technique] += 1;
+      this.rawScore = bottleneckRaw(this.counts);
+      this.steps.push({
+        technique,
+        description,
+        highlight,
+        supportCells,
+        grid: this.snapshotGrid(),
+        candidates: this.snapshotCandidates(),
+        scoreDelta: delta,
+        cumulativeScore: this.rawScore,
+        cumulativeCounts: { ...this.counts },
+      });
+    }
 
     // Whenever a complex deduction narrows things, the cheapest follow-up
     // techniques (naked + hidden singles) should fire immediately as the next
@@ -1277,6 +1326,17 @@ class Solver {
    * solution. Uniqueness is now answered by countSolutions, independently of
    * the trace.
    */
+  /**
+   * Everything solve() does up to the point where deduction stops, and none of
+   * the backtracking that follows. Used by the stall analysis, which needs the
+   * stuck position itself rather than a completed grid.
+   */
+  runToStall(): void {
+    this.repairFromSolution();
+    this.placeStipulatedCages();
+    this.runLogicLoop();
+  }
+
   solve(verifyUniqueness = true): SolverResult {
     // Before anything else: if the user handed us invalid pencil marks or a
     // wrong placement, fix it and tell them what we changed. Without this the
@@ -1449,6 +1509,95 @@ class Solver {
       if (this.applyCrossCageFeasibility()) continue outer;
       break;
     }
+  }
+
+  /**
+   * What it would cost to branch, cell by cell.
+   *
+   * When deduction stalls the position is not uniform: some cells are a
+   * two-way choice that collapses in three moves, others are a five-way choice
+   * that runs for twenty. Telling a player "guess" without saying where sends
+   * them to the worst of those as often as the best.
+   *
+   * For each candidate cell this assumes each of its values in turn and runs
+   * the ordinary logic loop - no nested guessing, so the work is bounded. A
+   * value is *refuted* when propagation empties some cell's candidate set,
+   * which is a sound elimination, and the depth is how many inferences that
+   * took: exactly how far the player would have to unwind. When every value
+   * but one is refuted, the survivor is not a guess at all but a proof, and
+   * the caller can say so.
+   *
+   * Cells are tried cheapest-first and the whole analysis is capped, because
+   * this runs on demand while somebody waits for a hint.
+   */
+  analyseBranchPoints(budget = BRANCH_TRIAL_BUDGET): BranchPoint[] {
+    const cells: { row: number; col: number; n: number }[] = [];
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (this.grid[r][c] === 0) cells.push({ row: r, col: c, n: this.candidates[r][c].size });
+      }
+    }
+    // Fewest options first: the cheapest branch to take is also the cheapest
+    // to analyse, so the budget is spent where the answer is most likely to be
+    cells.sort((a, b) => a.n - b.n);
+
+    const points: BranchPoint[] = [];
+    let spent = 0;
+
+    for (const { row, col, n } of cells) {
+      if (n < 2 || spent + n > budget) continue;
+      spent += n;
+
+      const options: BranchOption[] = [];
+      for (const value of [...this.candidates[row][col]].sort((a, b) => a - b)) {
+        options.push({ value, ...this.tryValue(row, col, value) });
+      }
+
+      const survivors = options.filter(option => !option.refutedByLogic);
+      const refutations = options
+        .filter(option => option.refutedByLogic)
+        .map(option => option.depth);
+      points.push({
+        cell: { row, col },
+        options,
+        forced: survivors.length === 1 ? survivors[0].value : undefined,
+        shallowestRefutation: refutations.length > 0 ? Math.min(...refutations) : undefined,
+      });
+
+      // A proof beats anything a deeper search could offer, so stop here
+      if (survivors.length === 1) break;
+    }
+
+    return points;
+  }
+
+  /**
+   * Assume `value` at a cell and let the logic loop run. Reports whether the
+   * assumption breaks down and how many inferences it survived. Grid and
+   * candidates are restored either way; the trace is untouched.
+   */
+  private tryValue(
+    row: number,
+    col: number,
+    value: number
+  ): { refutedByLogic: boolean; depth: number } {
+    const savedGrid = this.snapshotGrid();
+    const savedCandidates = this.snapshotCandidates();
+    const wasMuted = this.muted;
+    const before = this.mutedSteps;
+
+    this.muted = true;
+    this.place(row, col, value);
+    this.runLogicLoop();
+    // A cell with no candidates left and no value in it cannot be filled, so
+    // the assumption that led here was wrong
+    const refutedByLogic = !this.isValid();
+    const depth = this.mutedSteps - before;
+
+    this.muted = wasMuted;
+    this.grid = savedGrid;
+    this.candidates = savedCandidates;
+    return { refutedByLogic, depth };
   }
 
   private backtrack(remaining: number): number {
@@ -1788,6 +1937,45 @@ export function countSolutions(puzzle: PuzzleDefinition, cap = 2, startGrid?: nu
 
   recurse(0);
   return found;
+}
+
+/**
+ * Where to branch, for a position that deduction cannot finish.
+ *
+ * Runs the same logic loop as a real solve but stops at the stall instead of
+ * backtracking through it, then costs out each candidate branch. Comes back
+ * empty when the position is already solved or still has forced moves in it -
+ * callers should reach for this only once they know deduction is exhausted.
+ */
+export type StallAnalysis = {
+  /** Every deduction found, in order. Contains no guesses: none are made. */
+  steps: SolverStep[];
+  /** The position deduction stopped at. */
+  grid: number[][];
+  /**
+   * Costed branch points, cheapest first. A thunk because working them out
+   * runs a logic loop per candidate value, and a caller that finds a real
+   * deduction in `steps` never needs them.
+   */
+  branchPoints: () => BranchPoint[];
+};
+
+/**
+ * A solve taken as far as deduction reaches, and no further.
+ *
+ * solve() follows the stall with a backtracking search, purely to complete the
+ * grid for the trace. Hints discard all of it - they must never present a
+ * conclusion drawn inside a branch - so stopping here saves the search and
+ * makes the guarantee structural rather than a filter applied afterwards.
+ */
+export function solveToStall(puzzle: PuzzleDefinition, options: SolveOptions = {}): StallAnalysis {
+  const solver = new Solver(puzzle, options);
+  solver.runToStall();
+  return {
+    steps: solver.steps,
+    grid: solver.grid.map(row => row.slice()),
+    branchPoints: () => solver.analyseBranchPoints(),
+  };
 }
 
 export function solveWithTrace(

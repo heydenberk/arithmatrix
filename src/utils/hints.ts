@@ -32,12 +32,14 @@
 
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 import {
+  BranchPoint,
   CellRef,
   SolverStep,
+  StallAnalysis,
   TECHNIQUE_LABELS,
   TechniqueId,
   countSolutions,
-  solveWithTrace,
+  solveToStall,
 } from './solver';
 
 export type HintLevel = {
@@ -51,7 +53,14 @@ export type HintLevel = {
 };
 
 export type Hint = {
-  kind: 'deduction' | 'contradiction' | 'stale-marks' | 'guess-required' | 'solved';
+  kind:
+    | 'deduction'
+    | 'contradiction'
+    | 'stale-marks'
+    /** No forced move, but one cell's alternatives all collapse: still a proof. */
+    | 'forced-by-contradiction'
+    | 'guess-required'
+    | 'solved';
   technique?: TechniqueId;
   techniqueLabel?: string;
   levels: HintLevel[];
@@ -158,23 +167,6 @@ const toStartCandidates = (
 const isRepairStep = (step: SolverStep) => step.description.startsWith('Repair:');
 
 /**
- * Only the steps the solver reached without guessing.
- *
- * Everything after its first `trial_and_error` is a consequence of that guess
- * rather than of the position, and it does not look any different: a naked
- * single inside a branch is still recorded as a naked single. Without this cut
- * the engine reported those as forced moves, which is why they could never be
- * explained - there was no deduction behind them. On 7x7 experts, where the
- * solver nearly always has to guess eventually, that was most hints.
- *
- * Repairs survive the cut: they are emitted before solving begins.
- */
-const beforeFirstGuess = (steps: SolverStep[]): SolverStep[] => {
-  const guess = steps.findIndex(step => step.technique === 'trial_and_error');
-  return guess === -1 ? steps : steps.slice(0, guess);
-};
-
-/**
  * How far to look past the first usable step for one that carries evidence.
  * Small on purpose: a later step is a deeper deduction, and a hint that skips
  * ahead is worse than one that is merely terse.
@@ -277,6 +269,240 @@ const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel
 };
 
 /**
+ * Ranks branch points by what they cost a player, cheapest first.
+ *
+ * A point where logic alone refutes every option but one is not a branch at
+ * all - it is a proof - so those come first. After that fewer options is
+ * better (a two-way choice is half the work of a four-way), and among equals
+ * the one whose wrong turn shows up soonest, since that is the one you can
+ * back out of cheaply.
+ */
+const branchCost = (point: BranchPoint): number[] => [
+  point.forced === undefined ? 1 : 0,
+  point.options.length,
+  point.shallowestRefutation ?? Number.MAX_SAFE_INTEGER,
+];
+
+/** Lexicographic: earlier entries in the cost vector dominate later ones. */
+const compareCost = (a: number[], b: number[]): number => {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] - b[i];
+  }
+  return 0;
+};
+
+const byCost = (points: BranchPoint[]): BranchPoint[] =>
+  [...points].sort((a, b) => compareCost(branchCost(a), branchCost(b)));
+
+/**
+ * "3 deductions" / "1 deduction".
+ *
+ * Branch depth counts recorded inferences, and most of those are eliminations
+ * rather than placements, so calling them moves would overstate what the
+ * player would actually have to undo.
+ */
+const deductions = (n: number) => `${n} deduction${n === 1 ? '' : 's'}`;
+
+/*
+ * Branch points to settle by exhaustive search, and how long to spend on it.
+ *
+ * Search answers "is this value possible" exactly where propagation only
+ * guesses, and on a stalled board it is fast - single-digit milliseconds,
+ * because most of the grid is already filled. But an early stall on a 7x7 is a
+ * much bigger search, and this runs while somebody waits, so both the number
+ * of cells tried and the wall clock are capped. Falling out of the budget
+ * costs the player nothing worse than the advice they would have had anyway.
+ */
+const EXACT_BRANCH_POINTS = 2;
+const EXACT_BUDGET_MS = 300;
+
+type ExactResult = { viable: number[]; complete: boolean };
+
+/** Which of a cell's candidates actually admit a solution. */
+const testExactly = (
+  puzzleDefinition: PuzzleDefinition,
+  grid: number[][],
+  point: BranchPoint,
+  deadline: number
+): ExactResult => {
+  const viable: number[] = [];
+  for (const option of point.options) {
+    if (Date.now() > deadline) return { viable, complete: false };
+    const trial = grid.map(row => row.slice());
+    trial[point.cell.row][point.cell.col] = option.value;
+    if (countSolutions(puzzleDefinition, 1, trial) > 0) viable.push(option.value);
+  }
+  return { viable, complete: true };
+};
+
+/**
+ * The hint for a position that deduction cannot finish.
+ *
+ * "You need to guess" is true but useless on its own: when the solver stalls,
+ * some cells are a two-way choice that collapses in three moves and others are
+ * a five-way choice that runs for twenty, and a player told only to guess is
+ * as likely to pick the worst as the best. So this costs the branches out and
+ * names the cheapest.
+ *
+ * Two better outcomes are checked for first. If propagation alone kills every
+ * option but one, the survivor is proved by ordinary reasoning and there is
+ * nothing to guess. Failing that, exhaustive search can still settle the cell -
+ * the value is forced, just not by any argument short enough to see - and
+ * saying so beats sending the player down a branch that cannot work.
+ */
+const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hint => {
+  const grid = stall.grid;
+  const ranked = byCost(stall.branchPoints());
+  const branch = ranked[0];
+
+  if (!branch) {
+    return {
+      kind: 'guess-required',
+      levels: [
+        {
+          title: 'No forced move',
+          body:
+            'Nothing here can be settled by reasoning alone. From this position the puzzle has ' +
+            'to be finished by picking a value and following it through — set a checkpoint ' +
+            'first so you can back out if the branch dies.',
+          supportCells: [],
+          targetCells: [],
+        },
+      ],
+    };
+  }
+
+  // Best case: the alternatives die under ordinary propagation, so this is a
+  // deduction the player could have made and the hint can teach it
+  if (branch.forced !== undefined) {
+    const others = branch.options.filter(option => option.value !== branch.forced);
+    const worst = Math.max(...others.map(option => option.depth));
+    return {
+      kind: 'forced-by-contradiction',
+      levels: [
+        {
+          title: 'No forced move — but not a guess either',
+          body:
+            'Nothing can be read straight off the board here. One cell can still be settled ' +
+            'though: take each value it could hold in turn and follow the consequences, and all ' +
+            'but one of them leave some cell with nothing to put in it.',
+          supportCells: [],
+          targetCells: [],
+        },
+        {
+          title: 'Which cell',
+          body:
+            `${cellName(branch.cell)} is the one to test — ${branch.options.length} candidates, ` +
+            `fewer than anywhere else. ${others.length === 1 ? 'The other collapses' : `${others.length} of them collapse`} ` +
+            `within ${deductions(worst)}, so this is quick to check by hand.`,
+          supportCells: [],
+          targetCells: [branch.cell],
+        },
+        {
+          title: 'The move',
+          body: `${cellName(branch.cell)} must be ${branch.forced} — every other value there runs a cell out of options.`,
+          supportCells: [],
+          targetCells: [branch.cell],
+        },
+      ],
+    };
+  }
+
+  /*
+   * Second best: search settles it even though no technique does. Only the few
+   * cheapest cells are tried, and only while the clock allows.
+   */
+  const deadline = Date.now() + EXACT_BUDGET_MS;
+  for (const point of ranked.slice(0, EXACT_BRANCH_POINTS)) {
+    const { viable, complete } = testExactly(puzzleDefinition, grid, point, deadline);
+    if (!complete || viable.length !== 1) continue;
+    const dead = point.options.filter(option => option.value !== viable[0]);
+    const survives = Math.max(...dead.map(option => option.depth));
+    /*
+     * The answer is known, but it goes last. What the player can use first is
+     * the advice: which cell is cheapest to branch on, and how expensive being
+     * wrong will be. Only if they keep asking do they get the value - the same
+     * bargain every other hint makes.
+     */
+    return {
+      kind: 'forced-by-contradiction',
+      levels: [
+        {
+          title: 'No forced move',
+          body:
+            'Nothing can be read off the board from here — the rest of this one has to be found ' +
+            'by assuming a value and following it out. Some cells are far cheaper to test than ' +
+            'others, so it is worth picking the branch rather than taking the first that looks ' +
+            'interesting.',
+          supportCells: [],
+          targetCells: [],
+        },
+        {
+          title: 'Where to branch',
+          body:
+            `${cellName(point.cell)} is the cheapest place, with ${point.options.length} ` +
+            `candidates and nothing on the board narrower. Set a checkpoint before you commit: ` +
+            `a wrong choice here keeps looking fine for about ${deductions(survives)} before the ` +
+            'branch runs dry, which is exactly why nothing points at it.',
+          supportCells: [],
+          targetCells: [point.cell],
+        },
+        {
+          title: 'Or skip the search',
+          body: `${cellName(point.cell)} must be ${viable[0]} — no completed grid exists with anything else there.`,
+          supportCells: [],
+          targetCells: [point.cell],
+        },
+      ],
+    };
+  }
+
+  /*
+   * A genuine branch. The useful advice is where it is cheapest and how long
+   * before a wrong turn shows itself: the difference between undoing three
+   * moves and undoing twenty.
+   */
+  const shallowestStall = Math.min(...branch.options.map(option => option.depth));
+  const payoff =
+    branch.shallowestRefutation === undefined
+      ? `Either choice carries you about ${deductions(shallowestStall)} further before things stall ` +
+        'again, so keep the checkpoint until you are sure.'
+      : `A wrong choice runs a cell out of options within ${deductions(branch.shallowestRefutation)}, ` +
+        'so you will not have far to back up.';
+
+  return {
+    kind: 'guess-required',
+    levels: [
+      {
+        title: 'No forced move',
+        body:
+          'Nothing here can be settled by reasoning alone, so the rest has to be found by ' +
+          'assuming a value and following it through. Some cells are far cheaper to try than ' +
+          'others — look for the one with the fewest candidates left.',
+        supportCells: [],
+        targetCells: [],
+      },
+      {
+        title: 'Where to branch',
+        body:
+          `${cellName(branch.cell)} is the cheapest place to do it, with ${branch.options.length} ` +
+          `candidates and nothing on the board narrower. ${payoff}`,
+        supportCells: [],
+        targetCells: [branch.cell],
+      },
+      {
+        title: 'The move',
+        body:
+          `Set a checkpoint, then put one of ${branch.options.map(o => o.value).join(' or ')} in ` +
+          `${cellName(branch.cell)} and carry on. If it collapses, revert and the other stands.`,
+        supportCells: [],
+        targetCells: [branch.cell],
+      },
+    ],
+  };
+};
+
+/**
  * Works out the next hint for a position.
  *
  * `gridValues` is the player's board as the UI holds it; empty strings are
@@ -335,7 +561,12 @@ export const computeHint = (
     ? toStartCandidates(puzzleDefinition.size, gridValues, pencilMarks)
     : undefined;
 
-  const result = solveWithTrace(puzzleDefinition, { startGrid, startCandidates, solution });
+  /*
+   * Deduction only. The old call solved all the way through, backtracking past
+   * the stall, and every step that produced was discarded - a hint may not
+   * report anything found inside a guessed branch.
+   */
+  const stall = solveToStall(puzzleDefinition, { startGrid, startCandidates, solution });
 
   /*
    * The solver repairs a position it cannot reason from - a pencil mark that
@@ -343,7 +574,7 @@ export const computeHint = (
    * it is the difference between "here is your next move" and "your notes have
    * a mistake in them".
    */
-  const repair = result.steps.find(isRepairStep);
+  const repair = stall.steps.find(isRepairStep);
   if (repair) {
     const cell = repair.highlight[0];
     /*
@@ -369,30 +600,9 @@ export const computeHint = (
     };
   }
 
-  const step = firstDeductiveStep(beforeFirstGuess(result.steps), startGrid);
+  const step = firstDeductiveStep(stall.steps, startGrid);
 
-  if (!step) {
-    /*
-     * Reached whenever deduction runs out, which on a 7x7 expert is most of
-     * the endgame - so this is a message the player will actually read, not an
-     * edge case. It says the position is the problem rather than their play,
-     * and points at the checkpoint, which is the tool for exploring a branch.
-     */
-    return {
-      kind: 'guess-required',
-      levels: [
-        {
-          title: 'No forced move',
-          body:
-            'Nothing here can be settled by reasoning alone — from this position the puzzle has ' +
-            'to be finished by picking a value and following it through. Setting a checkpoint ' +
-            'first makes it easy to back out if the branch dies.',
-          supportCells: [],
-          targetCells: [],
-        },
-      ],
-    };
-  }
+  if (!step) return stallHint(puzzleDefinition, stall);
 
   return {
     kind: 'deduction',
