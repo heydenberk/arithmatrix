@@ -235,6 +235,19 @@ describe('hint wording', () => {
               : new Set<string>()
           )
         );
+        /*
+         * Bank the cells the marks already settle. Left in place the hint
+         * would - rightly - tell the player to fill those in before offering
+         * anything new, and we would collect no technique wording at all.
+         */
+        for (let rr = 0; rr < size; rr++) {
+          for (let cc = 0; cc < size; cc++) {
+            if (grid[rr][cc] === '' && marks[rr][cc].size === 1) {
+              grid[rr][cc] = [...marks[rr][cc]][0];
+              marks[rr][cc] = new Set<string>();
+            }
+          }
+        }
         const hint = computeHint(puzzle, grid, marks, r.puzzle.solution);
         if (!hint || hint.kind !== 'deduction' || !hint.technique) continue;
         out.push({
@@ -542,5 +555,104 @@ describe('evidence behind a hint', () => {
       expect(bridge, `no bridge for ${hint.technique}`).toBeTruthy();
       expect(bridge!.body).toMatch(/pencilled at [A-G]\d/);
     }
+  });
+});
+
+describe('the board has to be sound before a hint is worth anything', () => {
+  const record = RECORDS.find(r => r.metadata.size === 5)!;
+  const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+  const size = puzzle.size;
+  const solution = record.puzzle.solution;
+  const noMarks = () =>
+    Array.from({ length: size }, () => Array.from({ length: size }, () => new Set<string>()));
+  const wrongValueFor = (row: number, col: number) => String((solution[row][col] % size) + 1);
+
+  it('names every wrong value rather than saying to undo and hope', () => {
+    const grid = emptyGrid(size);
+    grid[1][1] = wrongValueFor(1, 1);
+    grid[3][2] = wrongValueFor(3, 2);
+
+    const hint = computeHint(puzzle, grid, noMarks(), solution)!;
+    expect(hint.kind).toBe('contradiction');
+    expect(hint.levels[0].targetCells).toEqual(
+      expect.arrayContaining([
+        { row: 1, col: 1 },
+        { row: 3, col: 2 },
+      ])
+    );
+    expect(hint.levels[0].body).toMatch(/B2/);
+    expect(hint.levels[0].body).toMatch(/C4/);
+  });
+
+  it('reports every cell whose notes rule out its answer, not just the first', () => {
+    const marks = noMarks();
+    const cross = (row: number, col: number) => {
+      marks[row][col] = new Set(
+        Array.from({ length: size }, (_, i) => String(i + 1)).filter(
+          v => v !== String(solution[row][col])
+        )
+      );
+    };
+    cross(0, 0);
+    cross(2, 3);
+    cross(4, 1);
+
+    const hint = computeHint(puzzle, emptyGrid(size), marks, solution)!;
+    expect(hint.kind).toBe('stale-marks');
+    expect(hint.levels[0].targetCells).toHaveLength(3);
+    expect(hint.levels[0].body).toMatch(/crossed off/);
+  });
+
+  it('hands back work the player has already done before offering more', () => {
+    const marks = noMarks();
+    marks[0][0] = new Set([String(solution[0][0])]);
+    marks[2][2] = new Set([String(solution[2][2])]);
+
+    const hint = computeHint(puzzle, emptyGrid(size), marks, solution)!;
+    expect(hint.kind).toBe('unclaimed');
+    expect(hint.levels[0].targetCells).toEqual([
+      { row: 0, col: 0 },
+      { row: 2, col: 2 },
+    ]);
+    expect(hint.levels[0].body).toMatch(/A1/);
+    expect(hint.levels[0].body).toMatch(/C3/);
+  });
+
+  it('does not mistake a cell the player has already filled for unclaimed work', () => {
+    const grid = emptyGrid(size);
+    grid[0][0] = String(solution[0][0]);
+    const marks = noMarks();
+    // A leftover mark on a filled cell is not outstanding work
+    marks[0][0] = new Set([String(solution[0][0])]);
+
+    const hint = computeHint(puzzle, grid, marks, solution)!;
+    expect(hint.kind).not.toBe('unclaimed');
+  });
+
+  it('puts a wrong value ahead of bad notes, and bad notes ahead of unclaimed work', () => {
+    // All three problems at once: the most damaging one has to win
+    const grid = emptyGrid(size);
+    grid[1][1] = wrongValueFor(1, 1);
+    const marks = noMarks();
+    marks[0][0] = new Set(
+      Array.from({ length: size }, (_, i) => String(i + 1)).filter(
+        v => v !== String(solution[0][0])
+      )
+    );
+    marks[2][2] = new Set([String(solution[2][2])]);
+
+    expect(computeHint(puzzle, grid, marks, solution)!.kind).toBe('contradiction');
+
+    // Fix the placement: the notes are next
+    grid[1][1] = '';
+    expect(computeHint(puzzle, grid, marks, solution)!.kind).toBe('stale-marks');
+
+    // Fix the notes: the unbanked cell is next
+    marks[0][0] = new Set<string>();
+    expect(computeHint(puzzle, grid, marks, solution)!.kind).toBe('unclaimed');
+
+    // Bank it, and a real hint finally arrives
+    marks[2][2] = new Set<string>();
+    expect(computeHint(puzzle, grid, marks, solution)!.kind).toBe('deduction');
   });
 });

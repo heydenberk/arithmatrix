@@ -57,6 +57,8 @@ export type Hint = {
     | 'deduction'
     | 'contradiction'
     | 'stale-marks'
+    /** The player's own notes already settle cells they have not filled in. */
+    | 'unclaimed'
     /** No forced move, but one cell's alternatives all collapse: still a proof. */
     | 'forced-by-contradiction'
     | 'guess-required'
@@ -129,6 +131,35 @@ const describeRegion = (step: SolverStep): string => {
 };
 
 const listCells = (cells: CellRef[]) => cells.map(cellName).join(', ');
+
+/** Every cell the predicate accepts, in reading order. */
+const cellsWhere = (size: number, accept: (row: number, col: number) => boolean): CellRef[] => {
+  const cells: CellRef[] = [];
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size; col++) {
+      if (accept(row, col)) cells.push({ row, col });
+    }
+  }
+  return cells;
+};
+
+/** "B7", "B7 and D3", "B7, D3 and F1" - for prose rather than a bare list. */
+const listNames = (cells: CellRef[]): string => {
+  const names = cells.map(cellName);
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+};
+
+/*
+ * How many cells to name before the sentence becomes a list nobody reads. The
+ * rest are still highlighted on the board, which is the part that matters.
+ */
+const MAX_NAMED_CELLS = 4;
+
+const namedOrCounted = (cells: CellRef[]): string =>
+  cells.length > MAX_NAMED_CELLS
+    ? `${listNames(cells.slice(0, MAX_NAMED_CELLS))} and ${cells.length - MAX_NAMED_CELLS} more`
+    : listNames(cells);
 
 /** Converts the UI's string grid into the solver's numeric one. */
 const toNumericGrid = (gridValues: string[][]): number[][] =>
@@ -538,9 +569,40 @@ export const computeHint = (
   }
 
   /*
-   * A wrong entry is the most useful thing a hint can report, and the solver
-   * would otherwise dead-end trying to reason from it.
+   * Before anything else: is the board sound?
+   *
+   * A hint built on a wrong entry is worse than no hint, because every
+   * deduction it offers rests on the mistake. Knowing the solution lets us
+   * name the offending cells outright rather than telling the player to undo
+   * and guess which move it was.
    */
+  const wrongCells = solution
+    ? cellsWhere(
+        puzzleDefinition.size,
+        (row, col) => startGrid[row][col] !== 0 && startGrid[row][col] !== solution[row]?.[col]
+      )
+    : [];
+
+  if (wrongCells.length > 0) {
+    const one = wrongCells.length === 1;
+    return {
+      kind: 'contradiction',
+      levels: [
+        {
+          title: one ? 'A value is wrong' : `${wrongCells.length} values are wrong`,
+          body:
+            `${namedOrCounted(wrongCells)} ${one ? 'has a value' : 'have values'} that cannot be ` +
+            `right — no finished grid has ${one ? 'it' : 'them'} there. Clear ` +
+            `${one ? 'it' : 'them'} before going on, or anything you work out next will be built ` +
+            'on the mistake.',
+          supportCells: [],
+          targetCells: wrongCells,
+        },
+      ],
+    };
+  }
+
+  // Without the solution we can still tell that something is wrong, just not what
   if (countSolutions(puzzleDefinition, 1, startGrid) === 0) {
     return {
       kind: 'contradiction',
@@ -569,32 +631,77 @@ export const computeHint = (
   const stall = solveToStall(puzzleDefinition, { startGrid, startCandidates, solution });
 
   /*
-   * The solver repairs a position it cannot reason from - a pencil mark that
-   * rules out a cell's answer - and says so. That is worth surfacing directly:
-   * it is the difference between "here is your next move" and "your notes have
-   * a mistake in them".
+   * Marks that rule out the cell's own answer.
+   *
+   * Read straight off the board rather than from the solver's repair steps,
+   * which only ever reported the first one it tripped over. The solver still
+   * repairs internally so it can keep reasoning; this is about telling the
+   * player, and they want all of them at once.
+   *
+   * There is no companion branch for a misplaced *value* here: a wrong
+   * placement always leaves the puzzle unsolvable, so it is caught above and
+   * named there.
    */
-  const repair = stall.steps.find(isRepairStep);
-  if (repair) {
-    const cell = repair.highlight[0];
-    /*
-     * Which kind of repair it was, read off the player's own board rather than
-     * the solver's wording: a cell that holds a value had a bad placement, an
-     * empty one had its answer crossed off in the marks. Both of the solver's
-     * repair messages contain the word "had", so matching on the text got this
-     * backwards.
-     */
-    const misplaced = startGrid[cell.row]?.[cell.col] !== 0;
+  const staleCells =
+    solution && pencilMarks
+      ? cellsWhere(puzzleDefinition.size, (row, col) => {
+          if (startGrid[row][col] !== 0) return false;
+          const marks = pencilMarks[row]?.[col];
+          const answer = solution[row]?.[col];
+          return !!marks && marks.size > 0 && answer !== undefined && !marks.has(String(answer));
+        })
+      : [];
+
+  if (staleCells.length > 0) {
+    const one = staleCells.length === 1;
     return {
       kind: 'stale-marks',
       levels: [
         {
-          title: misplaced ? 'A value looks wrong' : 'Your notes rule out the answer',
-          body: misplaced
-            ? `The value in ${cellName(cell)} cannot be right. Clearing it will let the rest fall into place.`
-            : `${cellName(cell)} has its answer crossed off in your pencil marks, so nothing can be deduced from there. Worth re-checking that cell.`,
+          title: one ? 'Your notes rule out the answer' : 'Your notes rule out some answers',
+          body:
+            `${namedOrCounted(staleCells)} ${one ? 'has its answer' : 'have their answers'} ` +
+            `crossed off in your pencil marks, so nothing can be deduced ` +
+            `${one ? 'from there' : 'from those cells'}. Worth re-checking ` +
+            `${one ? 'that cell' : 'them'} before going further.`,
           supportCells: [],
-          targetCells: [cell],
+          targetCells: staleCells,
+        },
+      ],
+    };
+  }
+
+  /*
+   * Work the player has already done but not banked.
+   *
+   * A cell their own marks have narrowed to one value is settled - they proved
+   * it, they just have not written it in. Offering a fresh deduction on top of
+   * that is answering a question they have not got to yet. Safe to trust the
+   * mark because the stale check above has established that every cell's marks
+   * still contain its answer.
+   */
+  const unclaimed = pencilMarks
+    ? cellsWhere(
+        puzzleDefinition.size,
+        (row, col) => startGrid[row][col] === 0 && pencilMarks[row]?.[col]?.size === 1
+      )
+    : [];
+
+  if (unclaimed.length > 0) {
+    const one = unclaimed.length === 1;
+    return {
+      kind: 'unclaimed',
+      levels: [
+        {
+          title: one
+            ? 'One cell is already settled'
+            : `${unclaimed.length} cells are already settled`,
+          body:
+            `${namedOrCounted(unclaimed)} ${one ? 'is' : 'are'} down to a single candidate in ` +
+            `your own notes, so ${one ? 'it is' : 'they are'} yours to take before anything new. ` +
+            'The autofill button will put them in for you.',
+          supportCells: [],
+          targetCells: unclaimed,
         },
       ],
     };
