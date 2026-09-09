@@ -400,17 +400,87 @@ class Solver {
 
   // ---------- Techniques ----------
 
+  /**
+   * The placed cells that account for a naked single.
+   *
+   * "Only one value is possible here" is a claim about candidates, which the
+   * player cannot see. These are the squares that did the eliminating - the
+   * filled cells sharing this one's row or column - so a hint can point at the
+   * evidence instead of asserting the conclusion.
+   *
+   * Comes back empty when the eliminations came from cage logic or the
+   * player's own marks rather than placements; the description adapts rather
+   * than claiming a row and column that are not carrying the argument.
+   */
+  private rowColEvidence(row: number, col: number): CellRef[] {
+    const cells: CellRef[] = [];
+    for (let i = 0; i < this.size; i++) {
+      if (i !== col && this.grid[row][i] !== 0) cells.push({ row, col: i });
+      if (i !== row && this.grid[i][col] !== 0) cells.push({ row: i, col });
+    }
+    return cells;
+  }
+
+  /**
+   * The placed cells that account for a hidden single: inside the line, the
+   * squares already filled, plus - for every empty square that cannot take the
+   * value - the placement in its crossing line that blocks it.
+   */
+  private hiddenSingleEvidence(value: number, line: CellRef[], target: CellRef): CellRef[] {
+    const seen = new Set<string>();
+    const cells: CellRef[] = [];
+    const add = (row: number, col: number) => {
+      const key = `${row}-${col}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      cells.push({ row, col });
+    };
+
+    for (const cell of line) {
+      if (cell.row === target.row && cell.col === target.col) continue;
+      if (this.grid[cell.row][cell.col] !== 0) {
+        add(cell.row, cell.col);
+        continue;
+      }
+      // Empty, yet the value cannot go here - find the placement that blocks it
+      for (let i = 0; i < this.size; i++) {
+        if (this.grid[cell.row][i] === value) {
+          add(cell.row, i);
+          break;
+        }
+        if (this.grid[i][cell.col] === value) {
+          add(i, cell.col);
+          break;
+        }
+      }
+    }
+    return cells;
+  }
+
   private applyNakedSingles(): boolean {
     let progress = false;
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
         if (this.grid[r][c] === 0 && this.candidates[r][c].size === 1) {
           const v = [...this.candidates[r][c]][0];
+          // Read the evidence before placing, or this cell's own value joins it
+          const evidence = this.rowColEvidence(r, c);
           this.place(r, c, v);
+          const inRow = evidence.some(cell => cell.row === r);
+          const inCol = evidence.some(cell => cell.col === c);
+          const lines =
+            inRow && inCol
+              ? `row ${r + 1} and column ${colLetter(c)}`
+              : inRow
+                ? `row ${r + 1}`
+                : `column ${colLetter(c)}`;
           this.recordStep(
             'naked_single',
-            `Naked single at ${cellLabel(r, c)}: only ${v} is possible (row + column eliminate the rest).`,
-            [{ row: r, col: c }]
+            evidence.length > 0
+              ? `Naked single at ${cellLabel(r, c)}: ${v} is the only value left — the values already placed in ${lines} rule out the rest.`
+              : `Naked single at ${cellLabel(r, c)}: ${v} is the only value left in this cell.`,
+            [{ row: r, col: c }],
+            evidence
           );
           progress = true;
         }
@@ -437,11 +507,14 @@ class Solver {
         }
         if (possible.length === 1) {
           const col = possible[0];
+          const line = Array.from({ length: this.size }, (_, i) => ({ row: r, col: i }));
+          const evidence = this.hiddenSingleEvidence(num, line, { row: r, col });
           this.place(r, col, num);
           this.recordStep(
             'hidden_single',
             `Hidden single in row ${r + 1}: ${num} can only go at ${cellLabel(r, col)}.`,
-            [{ row: r, col }]
+            [{ row: r, col }],
+            evidence
           );
           progress = true;
         }
@@ -463,11 +536,14 @@ class Solver {
         }
         if (possible.length === 1) {
           const row = possible[0];
+          const line = Array.from({ length: this.size }, (_, i) => ({ row: i, col: c }));
+          const evidence = this.hiddenSingleEvidence(num, line, { row, col: c });
           this.place(row, c, num);
           this.recordStep(
             'hidden_single',
             `Hidden single in column ${colLetter(c)}: ${num} can only go at ${cellLabel(row, c)}.`,
-            [{ row, col: c }]
+            [{ row, col: c }],
+            evidence
           );
           progress = true;
         }

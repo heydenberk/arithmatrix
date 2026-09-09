@@ -361,3 +361,104 @@ describe('computeHint mid-game', () => {
     expect(computeHint(null as unknown as PuzzleDefinition, [])).toBeNull();
   });
 });
+
+describe('a position the solver can only finish by guessing', () => {
+  /*
+   * The board a player sees once they have marked up as far as logic goes:
+   * the solver's own state from immediately before its first guess.
+   *
+   * Everything the solver records after that point is a consequence of the
+   * guess, and looks identical to an ordinary deduction. The engine used to
+   * hand those back as forced moves - on 7x7 experts, for most hints - which
+   * is why they could never be explained.
+   */
+  const preGuessPositions = () => {
+    const out = [];
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      const guess = trace.steps.findIndex(step => step.technique === 'trial_and_error');
+      if (guess <= 0) continue;
+      const before = trace.steps[guess - 1];
+      out.push({
+        key: `${record.metadata.size}x${record.metadata.size} ${record.metadata.actual_difficulty}`,
+        puzzle,
+        solution: record.puzzle.solution,
+        grid: before.grid.map(row => row.map(v => (v === 0 ? '' : String(v)))),
+        marks: before.candidates.map((row, r) =>
+          row.map((set, c) =>
+            before.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+          )
+        ),
+      });
+    }
+    return out;
+  };
+
+  const POSITIONS = preGuessPositions();
+
+  it('finds such positions in the corpus to test against', () => {
+    // The old test for this asserted only that the hint's own technique was not
+    // trial_and_error, which is true by construction and could never fail.
+    expect(POSITIONS.length).toBeGreaterThan(0);
+  });
+
+  it('says a guess is needed instead of reporting what the guess implies', () => {
+    for (const position of POSITIONS) {
+      const hint = computeHint(position.puzzle, position.grid, position.marks, position.solution);
+      const last = hint!.levels[hint!.levels.length - 1].body;
+      expect(hint!.kind, `${position.key} offered: ${last}`).toBe('guess-required');
+    }
+  });
+});
+
+describe('evidence behind a hint', () => {
+  it('never claims placed values rule something out without naming them', () => {
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const step of trace.steps) {
+        if (!step.description.includes('already placed in')) continue;
+        expect(step.supportCells?.length ?? 0, step.description).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('gives singles cells to point at, so the hint can show its working', () => {
+    let singles = 0;
+    let withEvidence = 0;
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const step of trace.steps) {
+        if (step.technique !== 'naked_single' && step.technique !== 'hidden_single') continue;
+        singles++;
+        if ((step.supportCells?.length ?? 0) > 0) withEvidence++;
+      }
+    }
+    expect(singles).toBeGreaterThan(20);
+    // Before this change it was exactly zero for every single, at every size
+    expect(withEvidence / singles).toBeGreaterThan(0.9);
+  });
+
+  it('names the marks still standing on the cell it is about', () => {
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      // A player who has pencilled everything in and eliminated nothing
+      const marks = Array.from({ length: size }, () =>
+        Array.from(
+          { length: size },
+          () => new Set(Array.from({ length: size }, (_, i) => String(i + 1)))
+        )
+      );
+      const hint = computeHint(puzzle, emptyGrid(size), marks, record.puzzle.solution);
+      if (hint?.kind !== 'deduction') continue;
+      const single = hint.levels[hint.levels.length - 1];
+      const bridge = hint.levels.find(level => level.title === 'Against your notes');
+      if (single.targetCells.length !== 1) continue;
+      expect(bridge, `no bridge for ${hint.technique}`).toBeTruthy();
+      expect(bridge!.body).toMatch(/pencilled at [A-G]\d/);
+    }
+  });
+});

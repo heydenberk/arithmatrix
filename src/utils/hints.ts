@@ -74,8 +74,8 @@ export type Hint = {
 const TECHNIQUE_NUDGES: Record<TechniqueId, (region: string) => string> = {
   stipulated: () => 'A cage covering a single cell states that cell’s value outright.',
   naked_single: () =>
-    'Somewhere there is a cell with only one value left that can go in it — its row and ' +
-    'column between them rule out all the others.',
+    'Somewhere there is a cell with only one value left that can go in it. Between them, the ' +
+    'values already placed in its row and its column rule out every other option.',
   hidden_single: region =>
     `Somewhere${region ? ` in ${region}` : ''} there is a value with only one square left ` +
     'that can hold it. Rather than asking what fits a cell, ask where a number can still go.',
@@ -158,19 +158,52 @@ const toStartCandidates = (
 const isRepairStep = (step: SolverStep) => step.description.startsWith('Repair:');
 
 /**
- * The first step worth showing: a real deduction, not a guess, and not aimed at
- * a cell the player has already filled.
+ * Only the steps the solver reached without guessing.
+ *
+ * Everything after its first `trial_and_error` is a consequence of that guess
+ * rather than of the position, and it does not look any different: a naked
+ * single inside a branch is still recorded as a naked single. Without this cut
+ * the engine reported those as forced moves, which is why they could never be
+ * explained - there was no deduction behind them. On 7x7 experts, where the
+ * solver nearly always has to guess eventually, that was most hints.
+ *
+ * Repairs survive the cut: they are emitted before solving begins.
  */
-const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverStep | null =>
-  steps.find(
+const beforeFirstGuess = (steps: SolverStep[]): SolverStep[] => {
+  const guess = steps.findIndex(step => step.technique === 'trial_and_error');
+  return guess === -1 ? steps : steps.slice(0, guess);
+};
+
+/**
+ * How far to look past the first usable step for one that carries evidence.
+ * Small on purpose: a later step is a deeper deduction, and a hint that skips
+ * ahead is worse than one that is merely terse.
+ */
+const EXPLAINABLE_WINDOW = 4;
+
+/**
+ * The step worth showing: a real deduction, not a guess, and not aimed at a
+ * cell the player has already filled.
+ *
+ * Among the first few candidates it prefers one with supporting cells, because
+ * a step with evidence can be shown and a step without one can only be
+ * asserted - which is the difference between a hint and an answer.
+ */
+const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverStep | null => {
+  const eligible = steps.filter(
     step =>
       step.technique !== 'trial_and_error' &&
       !isRepairStep(step) &&
       // Nothing to say about a cell that already has a value in it
       step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
-  ) ?? null;
+  );
+  const explainable = eligible
+    .slice(0, EXPLAINABLE_WINDOW)
+    .find(step => (step.supportCells?.length ?? 0) > 0);
+  return explainable ?? eligible[0] ?? null;
+};
 
-const buildLevels = (step: SolverStep): HintLevel[] => {
+const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel[] => {
   const target = step.highlight;
   const support = step.supportCells ?? [];
   const region = describeRegion(step);
@@ -190,7 +223,10 @@ const buildLevels = (step: SolverStep): HintLevel[] => {
   if (support.length > 0) {
     levels.push({
       title: 'What it follows from',
-      body: `Work from ${listCells(support)}. Together these are enough to settle another cell nearby.`,
+      body:
+        support.length === 1
+          ? `Work from ${cellName(support[0])}. That alone settles another cell nearby.`
+          : `Work from ${listCells(support)}. Together these are enough to settle another cell nearby.`,
       supportCells: support,
       targetCells: [],
     });
@@ -205,6 +241,29 @@ const buildLevels = (step: SolverStep): HintLevel[] => {
     supportCells: support,
     targetCells: target,
   });
+
+  /*
+   * Bridge to what the player is actually looking at.
+   *
+   * "Naked single at F7" against a cell showing two pencil marks reads as a
+   * contradiction, because the solver is describing its own candidate set and
+   * the player is describing theirs. Naming their marks makes the step land as
+   * "cross one of these off" rather than "you are wrong about this cell".
+   */
+  const single = target.length === 1 ? target[0] : null;
+  const marks = single ? pencilMarks?.[single.row]?.[single.col] : undefined;
+  if (single && marks && marks.size > 1) {
+    const listed = [...marks]
+      .map(Number)
+      .sort((a, b) => a - b)
+      .join(', ');
+    levels.push({
+      title: 'Against your notes',
+      body: `You have ${listed} pencilled at ${cellName(single)}. This leaves exactly one of them standing.`,
+      supportCells: support,
+      targetCells: target,
+    });
+  }
 
   levels.push({
     // The solver's own wording, which names the value
@@ -310,15 +369,24 @@ export const computeHint = (
     };
   }
 
-  const step = firstDeductiveStep(result.steps, startGrid);
+  const step = firstDeductiveStep(beforeFirstGuess(result.steps), startGrid);
 
   if (!step) {
+    /*
+     * Reached whenever deduction runs out, which on a 7x7 expert is most of
+     * the endgame - so this is a message the player will actually read, not an
+     * edge case. It says the position is the problem rather than their play,
+     * and points at the checkpoint, which is the tool for exploring a branch.
+     */
     return {
       kind: 'guess-required',
       levels: [
         {
           title: 'No forced move',
-          body: TECHNIQUE_NUDGES.trial_and_error(''),
+          body:
+            'Nothing here can be settled by reasoning alone — from this position the puzzle has ' +
+            'to be finished by picking a value and following it through. Setting a checkpoint ' +
+            'first makes it easy to back out if the branch dies.',
           supportCells: [],
           targetCells: [],
         },
@@ -330,6 +398,6 @@ export const computeHint = (
     kind: 'deduction',
     technique: step.technique,
     techniqueLabel: TECHNIQUE_LABELS[step.technique],
-    levels: buildLevels(step),
+    levels: buildLevels(step, pencilMarks),
   };
 };

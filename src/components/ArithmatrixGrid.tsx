@@ -20,6 +20,7 @@ import { Box, Stack } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 import MobileNumberPad from './MobileNumberPad';
 import HintPanel from './HintPanel';
+import GridAxisLabels from './GridAxisLabels';
 import { Hint, computeHint } from '../utils/hints';
 
 /*
@@ -37,6 +38,15 @@ const OUTER_MARGIN = { MOBILE: 4, DESKTOP: 32 };
 
 // Largest cell we draw, so the desktop grid doesn't sprawl
 const MAX_CELL_SIZE = 80;
+
+// Strip along the top and left edges holding the A-G / 1-7 coordinates a hint
+// refers to. Reserved at all times even though the labels only appear with a
+// hint, so opening one does not resize the board.
+const AXIS_GUTTER = { MOBILE: 14, DESKTOP: 20 };
+
+// Narrower than this and a digit is not legible, so the labels are dropped
+// rather than squeezed - the hint still highlights the cells it means.
+const MIN_AXIS_GUTTER = 10;
 
 // Vertical space reserved at the top of every cell for the cage target badge.
 // Pencil marks start below this, and it is uniform across cells so the pencil
@@ -385,25 +395,35 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       return null;
     }
 
-    // Compute a cell size that guarantees the grid fits within the viewport on mobile
-    const computeFittingCellSize = (): number => {
+    /*
+     * Cell size, plus how much width is left over for the coordinate gutter.
+     *
+     * The gutter is a nicety; the touch target is not. A 7x7 on a 320px phone
+     * already spends every pixel keeping cells at 44px, so the gutter takes
+     * only what is spare and collapses to nothing when there is none.
+     */
+    const computeBoardMetrics = (): { cellSize: number; gutter: number } => {
       const viewportWidth = layout.width || window.innerWidth;
       const outerMargin = viewportWidth <= 768 ? OUTER_MARGIN.MOBILE : OUTER_MARGIN.DESKTOP;
+      const preferredGutter = viewportWidth <= 768 ? AXIS_GUTTER.MOBILE : AXIS_GUTTER.DESKTOP;
       const availableWidth = Math.max(0, viewportWidth - outerMargin);
 
       // Minimum touch target size
       const minCell = layout.isTouchDevice ? 44 : 32;
+      const fixedWidth = (size - 1) * LATTICE_GAP + GRID_PADDING * 2;
 
-      const sizeByWidth = Math.floor(
-        (availableWidth - (size - 1) * LATTICE_GAP - GRID_PADDING * 2) / size
-      );
+      const spare = availableWidth - fixedWidth - minCell * size;
+      const gutter = Math.max(0, Math.min(preferredGutter, spare));
 
-      return Math.max(Math.min(sizeByWidth, MAX_CELL_SIZE), minCell);
+      const sizeByWidth = Math.floor((availableWidth - gutter - fixedWidth) / size);
+      return { cellSize: Math.max(Math.min(sizeByWidth, MAX_CELL_SIZE), minCell), gutter };
     };
 
-    const cellSize = computeFittingCellSize();
+    const { cellSize, gutter: axisGutter } = computeBoardMetrics();
     const viewportWidth = layout.width || window.innerWidth;
     const isMobileViewport = viewportWidth <= 768;
+    // Below this the strip is too thin to read a digit in, so skip it entirely
+    const showAxisLabels = axisGutter >= MIN_AXIS_GUTTER;
 
     // Cells are square, and separated by the same hairline, at every breakpoint
     const cellHeight = cellSize;
@@ -466,7 +486,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const tabStopKey = firstSelected ?? '0-0';
 
     // The grid element (shared between mobile and desktop)
-    const gridElement = (
+    const boardElement = (
       <Box
         className="arithmatrix-grid"
         role="grid"
@@ -544,6 +564,33 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             })}
           </div>
         ))}
+      </Box>
+    );
+
+    /*
+     * The board plus its coordinate gutter. The gutter is always there; only
+     * the labels in it come and go, so the grid never shifts under a hint.
+     */
+    const gridElement = (
+      <Box
+        style={{
+          position: 'relative',
+          paddingTop: axisGutter,
+          paddingLeft: axisGutter,
+          width: 'fit-content',
+        }}
+      >
+        {showAxisLabels && (
+          <GridAxisLabels
+            size={size}
+            cellSize={cellSize}
+            cellHeight={cellHeight}
+            gap={LATTICE_GAP}
+            gutter={axisGutter}
+            visible={hint !== null}
+          />
+        )}
+        {boardElement}
       </Box>
     );
 
