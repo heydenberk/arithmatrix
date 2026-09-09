@@ -10,6 +10,7 @@ import { describe, expect, it } from 'vitest';
 import {
   canonicalCagesSig,
   groupByScoreBand,
+  pickRandomEntry,
   scoreBandStart,
   tierForScore,
   type CatalogEntry,
@@ -131,5 +132,40 @@ describe('groupByScoreBand', () => {
     const entries = [10, 25, 25, 60, 99].map((score, i) => entry({ index: i, score }));
     const bands = groupByScoreBand(entries);
     expect(bands.reduce((n, b) => n + b.entries.length, 0)).toBe(entries.length);
+  });
+});
+
+describe('pickRandomEntry', () => {
+  const pool = [1, 2, 3, 4, 5].map(index => entry({ index }));
+
+  it('returns null for an empty set, so an empty filter cannot start a game', () => {
+    expect(pickRandomEntry([])).toBeNull();
+  });
+
+  it('only ever returns a puzzle from the set it was given', () => {
+    const indexes = new Set(Array.from({ length: 200 }, () => pickRandomEntry(pool)!.index));
+    expect([...indexes].every(i => i >= 1 && i <= 5)).toBe(true);
+  });
+
+  it('can reach every puzzle in the set', () => {
+    const seen = new Set(Array.from({ length: 500 }, () => pickRandomEntry(pool)!.index));
+    expect(seen.size).toBe(pool.length);
+  });
+
+  it('never hands back the puzzle already being played', () => {
+    const seen = new Set(Array.from({ length: 300 }, () => pickRandomEntry(pool, 3)!.index));
+    expect(seen.has(3)).toBe(false);
+    expect(seen.size).toBe(pool.length - 1);
+  });
+
+  // Refusing would leave the button dead on a filter with exactly one match
+  it('returns the only match even when it is the current puzzle', () => {
+    const single = [entry({ index: 7 })];
+    expect(pickRandomEntry(single, 7)?.index).toBe(7);
+  });
+
+  it('ignores a current puzzle that is outside the filtered set', () => {
+    const seen = new Set(Array.from({ length: 300 }, () => pickRandomEntry(pool, 99)!.index));
+    expect(seen.size).toBe(pool.length);
   });
 });

@@ -182,6 +182,26 @@ export const groupByScoreBand = (entries: CatalogEntry[]): ScoreBand[] => {
 };
 
 /**
+ * A random puzzle out of an already-filtered set.
+ *
+ * The gallery's shuffle draws from exactly what the filters are showing, so
+ * "random" means random within the size, operations and hide-completed choices
+ * the player has made rather than random across the whole database.
+ *
+ * `excludeIndex` keeps it from handing back the puzzle already on the board,
+ * which reads as a button that did nothing - unless that is the only puzzle the
+ * filters match, in which case it is the honest answer.
+ */
+export const pickRandomEntry = (
+  entries: CatalogEntry[],
+  excludeIndex?: number | null
+): CatalogEntry | null => {
+  const pool = entries.length > 1 ? entries.filter(e => e.index !== excludeIndex) : entries;
+  if (pool.length === 0) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+};
+
+/**
  * Signatures of every puzzle the player has completed.
  *
  * Matching on signature rather than index means completions recorded before

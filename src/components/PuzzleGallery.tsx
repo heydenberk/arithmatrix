@@ -16,6 +16,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Badge,
   Box,
+  Button,
   Group,
   Loader,
   Modal,
@@ -26,13 +27,14 @@ import {
   Text,
   UnstyledButton,
 } from '@mantine/core';
-import { IconCircleCheckFilled, IconPlayerPauseFilled } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconDice5, IconPlayerPauseFilled } from '@tabler/icons-react';
 import {
   CatalogEntry,
   RawPuzzleRecord,
   completedSignatures,
   groupByScoreBand,
   loadCatalog,
+  pickRandomEntry,
 } from '../utils/puzzleCatalog';
 import { OPERATION_TIERS, OPERATION_TIER_LABELS, VALID_SIZES } from '../constants/gameConstants';
 import { triggerHapticFeedback } from '../utils/touchUtils';
@@ -111,16 +113,22 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     }
   }, [opened, initialSize, initialOperationsTier]);
 
-  const bands = useMemo(() => {
+  /*
+   * Everything the filters currently admit, flat. The bands below are just this
+   * set grouped for display, and the shuffle button draws from it directly, so
+   * a random pick can only ever be a puzzle the player can already see.
+   */
+  const matching = useMemo(() => {
     if (!catalog) return [];
-    const matching = catalog.filter(
+    return catalog.filter(
       entry =>
         entry.size === size &&
         (operationsTier === ANY_OPS || entry.operationsTier === operationsTier) &&
         !(hideCompleted && solved.has(entry.cagesSig))
     );
-    return groupByScoreBand(matching);
   }, [catalog, size, operationsTier, hideCompleted, solved]);
+
+  const bands = useMemo(() => groupByScoreBand(matching), [matching]);
 
   const pausedEntries = useMemo(() => {
     if (!catalog || inProgress.size === 0) return [];
@@ -131,10 +139,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
       .filter((entry): entry is CatalogEntry => entry !== undefined);
   }, [catalog, inProgress]);
 
-  const totalShown = useMemo(
-    () => bands.reduce((sum, band) => sum + band.entries.length, 0),
-    [bands]
-  );
+  const totalShown = matching.length;
 
   // Progress is reported against the whole size/ops filter, independent of
   // whether completed puzzles are currently hidden from view.
@@ -223,6 +228,11 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     onClose();
   };
 
+  const handleRandom = () => {
+    const entry = pickRandomEntry(matching, currentPuzzleIndex);
+    if (entry) handleSelect(entry);
+  };
+
   return (
     <Modal
       opened={opened}
@@ -288,12 +298,27 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
             </Group>
 
             <Group gap="sm" justify="space-between" wrap="wrap">
-              <Switch
-                size="sm"
-                checked={hideCompleted}
-                onChange={event => setHideCompleted(event.currentTarget.checked)}
-                label="Hide completed"
-              />
+              <Group gap="md" wrap="nowrap">
+                {/* Sits with the filters because it obeys them */}
+                <Button
+                  size="xs"
+                  radius="xl"
+                  variant="light"
+                  color="indigo"
+                  leftSection={<IconDice5 size="1rem" />}
+                  onClick={handleRandom}
+                  disabled={totalShown === 0}
+                  aria-label="Play a random puzzle matching these filters"
+                >
+                  Surprise me
+                </Button>
+                <Switch
+                  size="sm"
+                  checked={hideCompleted}
+                  onChange={event => setHideCompleted(event.currentTarget.checked)}
+                  label="Hide completed"
+                />
+              </Group>
               <Text size="xs" c="dimmed">
                 {solvedCount} of {filterTotal} completed
               </Text>
