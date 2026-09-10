@@ -278,8 +278,13 @@ function App() {
   const [showVersion, setShowVersion] = useState<boolean>(false);
 
   // Secret keyboard shortcut: Esc to show version
+  /*
+   * Esc flashes the build version. Unlike the solver replay and the dev panel
+   * it gives nothing away, so it ships - it is the quickest way to check what
+   * a device is actually running, which matters here because the service
+   * worker can leave one on an old build for a while.
+   */
   const handleSecretVersionShortcut = useCallback((event: KeyboardEvent) => {
-    if (!import.meta.env.DEV) return;
     if (event.key === 'Escape') {
       event.preventDefault();
       setShowVersion(true);
@@ -1080,6 +1085,13 @@ function App() {
                   </Tooltip>
                 </Group>
               )}
+
+              {/* Mobile has this in the overflow menu; desktop had nowhere,
+                  so the only way to check a build was a shortcut nobody
+                  would guess */}
+              <Text size="10px" c="dimmed" style={{ opacity: 0.65 }}>
+                v{APP_VERSION}
+              </Text>
             </Stack>
           </Paper>
         )}
@@ -1184,7 +1196,7 @@ function App() {
         </Suspense>
       )}
 
-      {/* Secret version overlay - triggered by Esc */}
+      {/* Version overlay - triggered by Esc */}
       {showVersion && (
         <Box
           style={{
