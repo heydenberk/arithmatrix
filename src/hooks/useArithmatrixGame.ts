@@ -30,6 +30,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixTypes';
 import { checkWinCondition, findConflictingCells } from '../utils/arithmatrixUtils';
+import type { HintAction } from '../utils/hints';
 
 interface UseArithmatrixGameProps {
   puzzleDefinition: PuzzleDefinition;
@@ -389,6 +390,69 @@ export const useArithmatrixGame = ({
       setPencilMarks(nextPencilMarks);
       clearErrors();
     }
+  };
+
+  /**
+   * Carries out the move a hint describes, as one undoable step.
+   *
+   * The hint reports what to do structurally rather than in prose, so this
+   * does not have to interpret anything - it writes values, strikes
+   * candidates, or wipes notes, whichever the hint asked for.
+   */
+  const applyHintAction = (action: HintAction) => {
+    const { size } = puzzleDefinition;
+    const nextGridValues = gridValues.map(row => [...row]);
+    const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
+    let anyUpdated = false;
+
+    for (const { row, col, value } of action.place ?? []) {
+      if (nextGridValues[row][col] === value) continue;
+      nextGridValues[row][col] = value;
+      nextPencilMarks[row][col] = new Set<string>();
+      // Entering a value strikes it from the marks it rules out, as typing does
+      if (value !== '') {
+        for (let i = 0; i < size; i++) {
+          if (i !== col) nextPencilMarks[row][i].delete(value);
+          if (i !== row) nextPencilMarks[i][col].delete(value);
+        }
+      }
+      anyUpdated = true;
+    }
+
+    for (const { row, col, values } of action.eliminate ?? []) {
+      if (nextGridValues[row][col] !== '') continue;
+      /*
+       * An elimination needs somewhere to land. A cell the player has not
+       * marked up has nothing to strike from, so seed it with the candidates
+       * still legal here first - otherwise Apply would silently do nothing on
+       * exactly the cells the hint is about.
+       */
+      if (nextPencilMarks[row][col].size === 0) {
+        for (let n = 1; n <= size; n++) {
+          const candidate = String(n);
+          if (findConflictingCells(row, col, candidate, nextGridValues, size).length === 0) {
+            nextPencilMarks[row][col].add(candidate);
+          }
+        }
+        anyUpdated = true;
+      }
+      for (const value of values) {
+        if (nextPencilMarks[row][col].delete(String(value))) anyUpdated = true;
+      }
+    }
+
+    for (const { row, col } of action.clearMarks ?? []) {
+      if (nextPencilMarks[row][col].size === 0) continue;
+      nextPencilMarks[row][col] = new Set<string>();
+      anyUpdated = true;
+    }
+
+    if (!anyUpdated) return;
+    setHistory(prevHistory => [...prevHistory, [gridValues, pencilMarks]]);
+    setRedoStack([]);
+    setGridValues(nextGridValues);
+    setPencilMarks(nextPencilMarks);
+    clearErrors();
   };
 
   // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
@@ -851,6 +915,7 @@ export const useArithmatrixGame = ({
     handleCheckPuzzle,
     handleAutofillSingles,
     handleFillAllCandidates,
+    applyHintAction,
     handleSecretShortcut,
     revertToState,
     clearErrors,

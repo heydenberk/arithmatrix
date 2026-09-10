@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { ActionIcon, Badge, Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { IconBulbFilled, IconChevronRight, IconX } from '@tabler/icons-react';
+import { IconBulbFilled, IconCheck, IconChevronRight, IconX } from '@tabler/icons-react';
 import { Hint } from '../utils/hints';
 
 interface HintPanelProps {
@@ -18,13 +18,27 @@ interface HintPanelProps {
   level: number;
   onMore: () => void;
   onClose: () => void;
+  /** Carries out the hint's move. Absent when there is nothing to carry out. */
+  onApply?: () => void;
   compact?: boolean;
 }
 
-const HintPanel: React.FC<HintPanelProps> = ({ hint, level, onMore, onClose, compact = false }) => {
+const HintPanel: React.FC<HintPanelProps> = ({
+  hint,
+  level,
+  onMore,
+  onClose,
+  onApply,
+  compact = false,
+}) => {
   const current = hint.levels[Math.min(level, hint.levels.length - 1)];
   const hasMore = level < hint.levels.length - 1;
   const stepped = hint.levels.length > 1;
+  /*
+   * Only at the end. Offering it earlier would let the player take the move
+   * without ever seeing the reasoning, which is the opposite of the point.
+   */
+  const canApply = !hasMore && hint.action && onApply;
 
   return (
     <Paper
@@ -73,19 +87,32 @@ const HintPanel: React.FC<HintPanelProps> = ({ hint, level, onMore, onClose, com
           {current.body}
         </Text>
 
-        {hasMore && (
+        {(hasMore || canApply) && (
           <Group justify="flex-end">
-            <Button
-              size="compact-xs"
-              radius="xl"
-              variant="light"
-              color="yellow"
-              rightSection={<IconChevronRight size="0.8rem" />}
-              onClick={onMore}
-            >
-              {/* The last step is the solver's own wording, which names the value */}
-              {level === hint.levels.length - 2 ? 'Show the move' : 'Tell me more'}
-            </Button>
+            {hasMore ? (
+              <Button
+                size="compact-xs"
+                radius="xl"
+                variant="light"
+                color="yellow"
+                rightSection={<IconChevronRight size="0.8rem" />}
+                onClick={onMore}
+              >
+                {/* The last step is the solver's own wording, which names the value */}
+                {level === hint.levels.length - 2 ? 'Show the move' : 'Tell me more'}
+              </Button>
+            ) : (
+              <Button
+                size="compact-xs"
+                radius="xl"
+                variant="filled"
+                color="teal"
+                leftSection={<IconCheck size="0.8rem" />}
+                onClick={onApply}
+              >
+                {hint.action!.label}
+              </Button>
+            )}
           </Group>
         )}
       </Stack>

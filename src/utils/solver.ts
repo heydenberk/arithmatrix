@@ -56,6 +56,19 @@ export const TECHNIQUE_LABELS: Record<TechniqueId, string> = {
 
 export type CellRef = { row: number; col: number };
 
+/**
+ * What a step actually did to the board, from diffing the snapshot before it
+ * against the one after.
+ *
+ * Derived rather than declared by each technique: there are a dozen of them
+ * and they would each have had to remember to report it. A diff cannot fall
+ * out of step with what the code did.
+ */
+export type StepChanges = {
+  placed: { row: number; col: number; value: number }[];
+  eliminated: { row: number; col: number; values: number[] }[];
+};
+
 export type SolverStep = {
   technique: TechniqueId;
   description: string;
@@ -68,6 +81,8 @@ export type SolverStep = {
   // Full snapshot AFTER applying this step
   grid: number[][];
   candidates: Set<number>[][];
+  /** The difference this step made, for a caller that wants to apply it. */
+  changes: StepChanges;
   // Score weight contributed by this step
   scoreDelta: number;
   // Running totals after this step
@@ -244,6 +259,9 @@ class Solver {
   /** Set while exploring a hypothetical branch; see recordStep. */
   private muted = false;
   private mutedSteps = 0;
+  /** The board as the previous recorded step left it, for diffing. */
+  private prevGrid: number[][] = [];
+  private prevCandidates: Set<number>[][] = [];
 
   constructor(puzzle: PuzzleDefinition, options: SolveOptions = {}) {
     this.puzzle = puzzle;
@@ -334,6 +352,10 @@ class Solver {
         }
       }
     }
+
+    // The baseline every step's diff is measured against
+    this.prevGrid = this.snapshotGrid();
+    this.prevCandidates = this.snapshotCandidates();
   }
 
   /**
@@ -395,6 +417,33 @@ class Solver {
     this.eliminateFromRowCol(row, col, value);
   }
 
+  /**
+   * The board's movement since the last recorded step.
+   *
+   * A placed cell reports only the placement: clearing its own candidates and
+   * striking the value from its row and column are bookkeeping that follows
+   * from entering a value, and any caller applying this will do the same by
+   * entering it normally.
+   */
+  private changesSince(grid: number[][], candidates: Set<number>[][]): StepChanges {
+    const placed: StepChanges['placed'] = [];
+    const eliminated: StepChanges['eliminated'] = [];
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) {
+        if (grid[r][c] !== 0) {
+          if (this.prevGrid[r]?.[c] === 0) placed.push({ row: r, col: c, value: grid[r][c] });
+          continue;
+        }
+        const before = this.prevCandidates[r]?.[c];
+        if (!before) continue;
+        const gone = [...before].filter(v => !candidates[r][c].has(v));
+        if (gone.length > 0)
+          eliminated.push({ row: r, col: c, values: gone.sort((a, b) => a - b) });
+      }
+    }
+    return { placed, eliminated };
+  }
+
   private snapshotGrid(): number[][] {
     return this.grid.map(row => row.slice());
   }
@@ -423,13 +472,19 @@ class Solver {
       const delta = TECHNIQUE_WEIGHTS[technique];
       this.counts[technique] += 1;
       this.rawScore = bottleneckRaw(this.counts);
+      const grid = this.snapshotGrid();
+      const candidates = this.snapshotCandidates();
+      const changes = this.changesSince(grid, candidates);
+      this.prevGrid = grid;
+      this.prevCandidates = candidates;
       this.steps.push({
         technique,
         description,
         highlight,
         supportCells,
-        grid: this.snapshotGrid(),
-        candidates: this.snapshotCandidates(),
+        grid,
+        candidates,
+        changes,
         scoreDelta: delta,
         cumulativeScore: this.rawScore,
         cumulativeCounts: { ...this.counts },

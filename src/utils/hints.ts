@@ -52,6 +52,24 @@ export type HintLevel = {
   targetCells: CellRef[];
 };
 
+/**
+ * The move a hint describes, in a form the board can carry out.
+ *
+ * Structural rather than parsed back out of the description: the solver
+ * already reports exactly what each step changed, so Apply does what the step
+ * did rather than what its sentence appears to say.
+ */
+export type HintAction = {
+  /** Button label, naming the move. */
+  label: string;
+  /** Values to write in. An empty string clears the cell. */
+  place?: { row: number; col: number; value: string }[];
+  /** Candidates to strike from the player's pencil marks. */
+  eliminate?: { row: number; col: number; values: number[] }[];
+  /** Cells whose marks should be wiped so they can be redone. */
+  clearMarks?: CellRef[];
+};
+
 export type Hint = {
   kind:
     | 'deduction'
@@ -66,6 +84,11 @@ export type Hint = {
   technique?: TechniqueId;
   techniqueLabel?: string;
   levels: HintLevel[];
+  /**
+   * Offered at the last level only. Absent where there is nothing to carry
+   * out - a position needing a guess, or a finished board.
+   */
+  action?: HintAction;
 };
 
 /**
@@ -218,6 +241,41 @@ const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverS
       // Nothing to say about a cell that already has a value in it
       step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
   ) ?? null;
+
+/**
+ * The move a deductive step makes, ready to apply.
+ *
+ * A step that places a value is offered as a placement and its incidental
+ * candidate tidying ignored - entering a value on the board does that anyway.
+ * Everything else is an elimination, which is the whole of what those
+ * techniques do.
+ */
+const actionForStep = (step: SolverStep): HintAction | undefined => {
+  const { placed, eliminated } = step.changes;
+
+  if (placed.length > 0) {
+    return {
+      label:
+        placed.length === 1
+          ? `Place ${placed[0].value} at ${cellName(placed[0])}`
+          : `Place ${placed.length} values`,
+      place: placed.map(p => ({ row: p.row, col: p.col, value: String(p.value) })),
+    };
+  }
+
+  if (eliminated.length > 0) {
+    const values = [...new Set(eliminated.flatMap(e => e.values))].sort((a, b) => a - b);
+    return {
+      label:
+        eliminated.length === 1 && values.length === 1
+          ? `Rule out ${values[0]} at ${cellName(eliminated[0])}`
+          : `Rule out ${values.join(', ')} across ${eliminated.length} cells`,
+      eliminate: eliminated,
+    };
+  }
+
+  return undefined;
+};
 
 const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel[] => {
   const target = step.highlight;
@@ -429,6 +487,10 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
           targetCells: [branch.cell],
         },
       ],
+      action: {
+        label: `Place ${branch.forced} at ${cellName(branch.cell)}`,
+        place: [{ row: branch.cell.row, col: branch.cell.col, value: String(branch.forced) }],
+      },
     };
   }
 
@@ -478,6 +540,10 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
           targetCells: [point.cell],
         },
       ],
+      action: {
+        label: `Place ${viable[0]} at ${cellName(point.cell)}`,
+        place: [{ row: point.cell.row, col: point.cell.col, value: String(viable[0]) }],
+      },
     };
   }
 
@@ -592,6 +658,10 @@ export const computeHint = (
           targetCells: wrongCells,
         },
       ],
+      action: {
+        label: one ? 'Clear it' : `Clear all ${wrongCells.length}`,
+        place: wrongCells.map(cell => ({ row: cell.row, col: cell.col, value: '' })),
+      },
     };
   }
 
@@ -661,6 +731,16 @@ export const computeHint = (
           targetCells: staleCells,
         },
       ],
+      /*
+       * Wipes the notes rather than putting the missing value back, which
+       * would hand over the answer - the level above deliberately does not
+       * name it. An unmarked cell reads as "not thought about yet", which is
+       * where the player actually is.
+       */
+      action: {
+        label: one ? 'Clear those notes' : `Clear the notes on all ${staleCells.length}`,
+        clearMarks: staleCells,
+      },
     };
   }
 
@@ -697,6 +777,14 @@ export const computeHint = (
           targetCells: unclaimed,
         },
       ],
+      action: {
+        label: one ? 'Fill it in' : `Fill in all ${unclaimed.length}`,
+        place: unclaimed.map(cell => ({
+          row: cell.row,
+          col: cell.col,
+          value: [...(pencilMarks?.[cell.row]?.[cell.col] ?? [])][0] ?? '',
+        })),
+      },
     };
   }
 
@@ -709,5 +797,6 @@ export const computeHint = (
     technique: step.technique,
     techniqueLabel: TECHNIQUE_LABELS[step.technique],
     levels: buildLevels(step, pencilMarks),
+    action: actionForStep(step),
   };
 };

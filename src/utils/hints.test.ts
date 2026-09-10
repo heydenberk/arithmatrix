@@ -700,3 +700,102 @@ describe('descriptions name the board the way the board is labelled', () => {
     }
   });
 });
+
+describe('the move a hint offers to apply', () => {
+  /*
+   * Apply writes to the player's board, so a wrong action is worse than a
+   * confusing sentence: it damages a position they cannot easily audit. These
+   * check the two ways that could happen - placing a value that is not the
+   * answer, or striking the answer out of a cell's notes.
+   */
+  const positions = () => {
+    const out: {
+      key: string;
+      puzzle: PuzzleDefinition;
+      grid: string[][];
+      marks: Set<string>[][];
+      solution: number[][];
+    }[] = [];
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 2, 5, 9]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        const grid = step.grid.map(row => row.map(v => (v === 0 ? '' : String(v))));
+        const marks = step.candidates.map((row, r) =>
+          row.map((set, c) =>
+            step.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+          )
+        );
+        out.push({
+          key: `${size}x${size} ${record.metadata.actual_difficulty} @${i}`,
+          puzzle,
+          grid,
+          marks,
+          solution: record.puzzle.solution,
+        });
+      }
+    }
+    return out;
+  };
+
+  const POSITIONS = positions();
+
+  it('only ever places the value that actually belongs there', () => {
+    let placements = 0;
+    for (const p of POSITIONS) {
+      const hint = computeHint(p.puzzle, p.grid, p.marks, p.solution);
+      for (const cell of hint?.action?.place ?? []) {
+        if (cell.value === '') continue; // clearing a wrong entry
+        expect(Number(cell.value), `${p.key} at ${cell.row},${cell.col}`).toBe(
+          p.solution[cell.row][cell.col]
+        );
+        placements++;
+      }
+    }
+    expect(placements).toBeGreaterThan(5);
+  });
+
+  it('never strikes a cell’s own answer out of its notes', () => {
+    let eliminations = 0;
+    for (const p of POSITIONS) {
+      const hint = computeHint(p.puzzle, p.grid, p.marks, p.solution);
+      for (const cell of hint?.action?.eliminate ?? []) {
+        expect(cell.values, `${p.key} at ${cell.row},${cell.col}`).not.toContain(
+          p.solution[cell.row][cell.col]
+        );
+        eliminations += cell.values.length;
+      }
+    }
+    expect(eliminations).toBeGreaterThan(5);
+  });
+
+  it('only clears cells that really do hold a wrong value', () => {
+    const record = RECORDS.find(r => r.metadata.size === 5)!;
+    const size = record.puzzle.size;
+    const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+    const grid = emptyGrid(size);
+    grid[1][1] = String((record.puzzle.solution[1][1] % size) + 1);
+
+    const hint = computeHint(puzzle, grid, undefined, record.puzzle.solution)!;
+    expect(hint.action?.place).toEqual([{ row: 1, col: 1, value: '' }]);
+  });
+
+  it('offers nothing to apply where nothing is forced', () => {
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const full = asStrings(record.puzzle.solution);
+      expect(computeHint(puzzle, full, undefined, record.puzzle.solution)!.action).toBeUndefined();
+    }
+  });
+
+  it('gives every deduction something to apply', () => {
+    for (const p of POSITIONS) {
+      const hint = computeHint(p.puzzle, p.grid, p.marks, p.solution);
+      if (hint?.kind !== 'deduction') continue;
+      expect(hint.action, `${p.key}: ${hint.levels[hint.levels.length - 1].body}`).toBeTruthy();
+    }
+  });
+});

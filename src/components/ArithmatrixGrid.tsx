@@ -627,6 +627,15 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           compact={isMobile}
           onMore={() => setHintLevel(level => Math.min(level + 1, hint.levels.length - 1))}
           onClose={() => setHint(null)}
+          onApply={
+            hint.action
+              ? () => {
+                  gameState.applyHintAction(hint.action!);
+                  // The board has moved on, so the hint describing it has too
+                  setHint(null);
+                }
+              : undefined
+          }
         />
       </Box>
     ) : null;
