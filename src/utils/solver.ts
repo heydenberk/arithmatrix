@@ -1630,10 +1630,14 @@ class Solver {
           if (!everPossible.has(v)) toRemove.push(v);
         }
         if (toRemove.length > 0) {
+          const gone = toRemove.sort((a, b) => a - b);
           toRemove.forEach(v => cellCandidates.delete(v));
           this.recordStep(
             'cage_impossible',
-            `Math impossible: ${toRemove.sort((a, b) => a - b).join(', ')} can never appear in the ${cageHeader(cage)} cage at ${cellLabel(cell.row, cell.col)}.`,
+            `Math impossible: ${andList(gone)} can never appear in the ${cageHeader(cage)} cage at ${cellLabel(cell.row, cell.col)}.` +
+              // Same worked reasoning as a cage_combinations elimination; this
+              // one just gets there from the cage's arithmetic alone
+              this.explainCageElimination(cage, pos, gone),
             [cell],
             cage.cells.filter(c => c.row !== cell.row || c.col !== cell.col)
           );
@@ -1659,6 +1663,80 @@ class Solver {
    * independence is the whole point: picking a later step out of the *trace*
    * is what once produced a hint whose premises were not on the board yet.
    */
+  /**
+   * Every per-cell cage narrowing available right now.
+   *
+   * narrowCage stops at the first cell it can change and processCagesByStrength
+   * stops at the first cage, so the logic loop only ever surfaces one of these
+   * at a time - and not necessarily the strongest. On a 4-cell 11+ cage that
+   * meant offering "6 can never appear at F3" from the cage's abstract
+   * arithmetic while the same cage, read against the candidates actually on
+   * the board, ruled out 4, 5 and 6 there.
+   *
+   * Each is derived from the same untouched position and applied in isolation,
+   * so they can be compared and the weaker ones discarded.
+   */
+  private cageNarrowingSteps(): SolverStep[] {
+    const baseGrid = this.snapshotGrid();
+    const baseCandidates = this.snapshotCandidates();
+    const stepCount = this.steps.length;
+    const found: SolverStep[] = [];
+
+    const restore = () => {
+      this.grid = baseGrid.map(row => row.slice());
+      this.candidates = baseCandidates.map(row => row.map(set => new Set(set)));
+      this.prevGrid = baseGrid.map(row => row.slice());
+      this.prevCandidates = baseCandidates.map(row => row.map(set => new Set(set)));
+    };
+
+    for (const cage of this.cages) {
+      restore();
+      if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) continue;
+      const combos = this.survivingCombos(cage);
+      if (combos.length === 0) continue;
+
+      for (let pos = 0; pos < cage.cells.length; pos++) {
+        const cell = cage.cells[pos];
+        restore();
+        if (this.grid[cell.row][cell.col] !== 0) continue;
+
+        const possible = new Set<number>();
+        for (const combo of combos) possible.add(combo[pos]);
+        const support = cage.cells.filter((_, i) => i !== pos);
+
+        if (possible.size === 1) {
+          const value = [...possible][0];
+          if (!this.candidates[cell.row][cell.col].has(value)) continue;
+          this.place(cell.row, cell.col, value);
+          this.recordStep(
+            'cage_single',
+            `Cage single at ${cellLabel(cell.row, cell.col)}: the ${cageHeader(cage)} cage forces ${value}.`,
+            [{ row: cell.row, col: cell.col }],
+            support
+          );
+        } else {
+          const removed = [...this.candidates[cell.row][cell.col]]
+            .filter(v => !possible.has(v))
+            .sort((a, b) => a - b);
+          if (removed.length === 0) continue;
+          removed.forEach(v => this.candidates[cell.row][cell.col].delete(v));
+          this.recordStep(
+            'cage_combinations',
+            `Cage combinations: the ${cageHeader(cage)} cage rules out ${andList(removed)} at ${cellLabel(cell.row, cell.col)}.` +
+              this.explainCageElimination(cage, pos, removed),
+            [{ row: cell.row, col: cell.col }],
+            support
+          );
+        }
+        if (this.steps.length > stepCount) found.push(this.steps[stepCount]);
+        this.steps.length = stepCount;
+      }
+    }
+
+    restore();
+    return found;
+  }
+
   availableSteps(): SolverStep[] {
     const runners: Array<() => boolean> = [
       // A single-cell cage states its value outright - nothing is easier, and
@@ -1696,6 +1774,12 @@ class Solver {
       if (this.steps.length > stepCount) found.push(this.steps[stepCount]);
       this.steps.length = stepCount;
     }
+
+    // Cage narrowings the loop would have skipped past
+    this.grid = grid.map(row => row.slice());
+    this.candidates = candidates.map(row => row.map(set => new Set(set)));
+    found.push(...this.cageNarrowingSteps());
+    this.steps.length = stepCount;
 
     // Nothing here happened as far as the solve is concerned
     this.grid = grid;

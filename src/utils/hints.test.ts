@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeHint, stepDifficulty } from './hints';
+import { computeHint, eligibleSteps, stepDifficulty } from './hints';
 import { solveToStall, solveWithTrace } from './solver';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
@@ -691,16 +691,15 @@ describe('a hint is the easiest move on the board', () => {
         });
         // Once: it re-runs every technique, so calling it per comparison
         // turned this from seconds into a timeout on slower machines
-        const available = availableSteps();
+        // The same set the selector chooses from: steps another step
+        // strictly contains are not on offer, however cheap they look
+        const available = eligibleSteps(availableSteps(), startGrid);
         const shown = hint.levels[hint.levels.length - 1].body;
         const chosen = available.find(s => s.description === shown);
         expect(chosen, `hint not among the available steps: ${shown}`).toBeTruthy();
 
         const mine = stepDifficulty(chosen!, startGrid, size);
         for (const other of available) {
-          // Only steps that would actually be offered
-          if (other.technique === 'trial_and_error') continue;
-          if (!other.highlight.some(cell => startGrid[cell.row][cell.col] === 0)) continue;
           expect(
             stepDifficulty(other, startGrid, size),
             `${other.description} is easier than the one shown: ${shown}`
@@ -710,6 +709,49 @@ describe('a hint is the easiest move on the board', () => {
       }
     }
     expect(checked, 'no deduction hints found to check').toBeGreaterThan(5);
+  });
+
+  it('never offers a weaker version of a move that is also available', () => {
+    /*
+     * A cage read two ways gives two strengths of the same move: its abstract
+     * arithmetic ruled 6 out of a 4-cell 11+ cage, while the same cage against
+     * the board's candidates ruled out 4, 5 and 6 in the same place. The
+     * weaker one scores as easier - it is the same cage and the same argument,
+     * so taking it just leaves more of the board undone.
+     */
+    let checked = 0;
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 3, 8]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        const startGrid = step.grid;
+        const { availableSteps } = solveToStall(puzzle, {
+          startGrid,
+          startCandidates: step.candidates.map(row => row.map(set => new Set(set))),
+          solution: record.puzzle.solution,
+        });
+        const offered = eligibleSteps(availableSteps(), startGrid);
+        for (const a of offered) {
+          for (const b of offered) {
+            if (a === b) continue;
+            const inA = new Set(
+              a.changes.eliminated.flatMap(c => c.values.map(v => `${c.row}:${c.col}:${v}`))
+            );
+            const inB = new Set(
+              b.changes.eliminated.flatMap(c => c.values.map(v => `${c.row}:${c.col}:${v}`))
+            );
+            if (inA.size === 0 || inA.size >= inB.size) continue;
+            const contained = [...inA].every(x => inB.has(x));
+            expect(contained, `${a.description} is contained by ${b.description}`).toBe(false);
+          }
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(5);
   });
 
   it('prefers a nearly-filled cage over a hidden single down an open line', () => {
@@ -739,11 +781,10 @@ describe('a hint is the easiest move on the board', () => {
       startGrid,
       solution: record.puzzle.solution,
     });
-    const available = availableSteps();
+    const available = eligibleSteps(availableSteps(), startGrid);
     const shown = hint.levels[hint.levels.length - 1].body;
     const chosen = available.find(s => s.description === shown)!;
     for (const other of available) {
-      if (!other.highlight.some(cell => startGrid[cell.row][cell.col] === 0)) continue;
       expect(stepDifficulty(other, startGrid, size)).toBeGreaterThanOrEqual(
         stepDifficulty(chosen, startGrid, size)
       );

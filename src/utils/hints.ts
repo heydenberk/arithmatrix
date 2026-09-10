@@ -292,6 +292,48 @@ export const stepDifficulty = (step: SolverStep, grid: number[][], size: number)
   TECHNIQUE_WEIGHTS[step.technique] + unknownsBehind(step, grid, size);
 
 /**
+ * What a step does, as a set of atoms, so two steps can be compared.
+ */
+const stepSignature = (step: SolverStep): Set<string> => {
+  const atoms = new Set<string>();
+  for (const c of step.changes.placed) atoms.add(`p:${c.row}:${c.col}:${c.value}`);
+  for (const c of step.changes.eliminated) {
+    for (const v of c.values) atoms.add(`e:${c.row}:${c.col}:${v}`);
+  }
+  return atoms;
+};
+
+const isSubsetOf = (a: Set<string>, b: Set<string>) => [...a].every(x => b.has(x));
+
+/**
+ * Discards steps another available step strictly contains.
+ *
+ * The same cage read two ways gives two different-strength moves: its abstract
+ * arithmetic says 6 can never sit at F3, while the same cage against the
+ * candidates on the board rules out 4, 5 and 6 there. Offering the weaker one
+ * is a worse hint for the same reading - it is the same cage, the same
+ * argument, and less of the board resolved.
+ *
+ * Only a strict subset is dropped, so two steps that do exactly the same thing
+ * both survive and the difficulty ranking chooses between them.
+ */
+const dropDominated = (steps: SolverStep[]): SolverStep[] => {
+  const seen = new Set<string>();
+  const unique = steps.filter(step => {
+    if (seen.has(step.description)) return false;
+    seen.add(step.description);
+    return true;
+  });
+  const signatures = unique.map(stepSignature);
+  return unique.filter((_, i) =>
+    signatures.every(
+      (other, j) =>
+        i === j || !(signatures[i].size < other.size && isSubsetOf(signatures[i], other))
+    )
+  );
+};
+
+/**
  * The step worth showing: the easiest real deduction available right now.
  *
  * Every step here was derived from the player's position independently of the
@@ -305,18 +347,23 @@ export const stepDifficulty = (step: SolverStep, grid: number[][], size: number)
  * Weight alone would rank a hidden single (2) above a cage single (3), even
  * when the cage has one cell left and the row has four.
  */
+export const eligibleSteps = (steps: SolverStep[], startGrid: number[][]): SolverStep[] =>
+  dropDominated(
+    steps.filter(
+      step =>
+        step.technique !== 'trial_and_error' &&
+        !isRepairStep(step) &&
+        // Nothing to say about a cell that already has a value in it
+        step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
+    )
+  );
+
 const easiestDeductiveStep = (
   steps: SolverStep[],
   startGrid: number[][],
   size: number
 ): SolverStep | null => {
-  const eligible = steps.filter(
-    step =>
-      step.technique !== 'trial_and_error' &&
-      !isRepairStep(step) &&
-      // Nothing to say about a cell that already has a value in it
-      step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
-  );
+  const eligible = eligibleSteps(steps, startGrid);
   if (eligible.length === 0) return null;
   /*
    * Weight plus unknowns, added rather than ranked in tiers.
