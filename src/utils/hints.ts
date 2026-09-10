@@ -198,33 +198,26 @@ const toStartCandidates = (
 const isRepairStep = (step: SolverStep) => step.description.startsWith('Repair:');
 
 /**
- * How far to look past the first usable step for one that carries evidence.
- * Small on purpose: a later step is a deeper deduction, and a hint that skips
- * ahead is worse than one that is merely terse.
- */
-const EXPLAINABLE_WINDOW = 4;
-
-/**
  * The step worth showing: a real deduction, not a guess, and not aimed at a
  * cell the player has already filled.
  *
- * Among the first few candidates it prefers one with supporting cells, because
- * a step with evidence can be shown and a step without one can only be
- * asserted - which is the difference between a hint and an answer.
+ * Strictly the *first* such step, never a later one that happens to look
+ * better. This briefly preferred a step carrying supporting cells over an
+ * earlier one without any, on the grounds that evidence can be shown where a
+ * bare assertion cannot. That was backwards: the trace is a chain, so skipping
+ * a step means presenting a conclusion whose premises are not on the board
+ * yet. It picked "the 14+ cage rules out 2 at D4" over the summation on the
+ * step before, which is what had removed 5 from E4 and F4 and made it true -
+ * leaving a player looking at two cells that still showed 5 in their notes.
  */
-const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverStep | null => {
-  const eligible = steps.filter(
+const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverStep | null =>
+  steps.find(
     step =>
       step.technique !== 'trial_and_error' &&
       !isRepairStep(step) &&
       // Nothing to say about a cell that already has a value in it
       step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
-  );
-  const explainable = eligible
-    .slice(0, EXPLAINABLE_WINDOW)
-    .find(step => (step.supportCells?.length ?? 0) > 0);
-  return explainable ?? eligible[0] ?? null;
-};
+  ) ?? null;
 
 const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel[] => {
   const target = step.highlight;

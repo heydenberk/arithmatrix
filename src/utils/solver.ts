@@ -159,6 +159,21 @@ const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
 const cellLabel = (row: number, col: number) => `${colLetter(col)}${row + 1}`;
 
+/**
+ * "row 4", "columns E, F and G" - named the way the board labels them.
+ *
+ * Columns are letters on the grid, so numbering them in a description sent
+ * the player looking for a column 5 that does not exist.
+ */
+const lineNames = (indexes: number[], orientation: 'row' | 'col'): string => {
+  const names = [...indexes]
+    .sort((a, b) => a - b)
+    .map(i => (orientation === 'row' ? String(i + 1) : colLetter(i)));
+  const noun = orientation === 'row' ? 'row' : 'column';
+  if (names.length === 1) return `${noun} ${names[0]}`;
+  return `${noun}s ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+};
+
 function interp(x: number, x0: number, x1: number, y0: number, y1: number): number {
   if (x1 <= x0) return y0;
   return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
@@ -970,12 +985,7 @@ class Solver {
               this.place(row, col, residual);
               this.recordStep(
                 'summation',
-                `Summation: rows/cols ${[...subset]
-                  .sort()
-                  .map(i => i + 1)
-                  .join(
-                    ','
-                  )} (${orientation}) sum to ${target}; cage totals cover ${knownSum + placedUncoveredSum}, so ${cellLabel(row, col)} must be ${residual}.`,
+                `Summation: ${lineNames([...subset], orientation)} must total ${target}, and the cages covering them account for ${knownSum + placedUncoveredSum}, so ${cellLabel(row, col)} must be ${residual}.`,
                 [{ row, col }]
               );
               return true;
@@ -1001,12 +1011,7 @@ class Solver {
               this.candidates[b.row][b.col] = new2;
               this.recordStep(
                 'summation',
-                `Summation: rows/cols ${[...subset]
-                  .sort()
-                  .map(i => i + 1)
-                  .join(
-                    ','
-                  )} (${orientation}) need ${residual} across ${cellLabel(a.row, a.col)} and ${cellLabel(b.row, b.col)}.`,
+                `Summation: the cages covering ${lineNames([...subset], orientation)} leave ${residual} to be split between ${cellLabel(a.row, a.col)} and ${cellLabel(b.row, b.col)}.`,
                 [a, b]
               );
               return true;

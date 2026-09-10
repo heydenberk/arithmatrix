@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeHint } from './hints';
-import { solveWithTrace } from './solver';
+import { solveToStall, solveWithTrace } from './solver';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 type Record_ = {
@@ -654,5 +654,49 @@ describe('the board has to be sound before a hint is worth anything', () => {
     // Bank it, and a real hint finally arrives
     marks[2][2] = new Set<string>();
     expect(computeHint(puzzle, grid, marks, solution)!.kind).toBe('deduction');
+  });
+});
+
+describe('a hint is the next step, not the best-looking one', () => {
+  /*
+   * The trace is a chain. Skipping a step - even for a better-presented one a
+   * little further on - hands the player a conclusion whose premises are not
+   * on the board yet. This regressed once: a preference for steps carrying
+   * supporting cells picked "the 14+ cage rules out 2 at D4" over the
+   * summation immediately before it, which was what had removed 5 from E4 and
+   * F4 and made the elimination true. The player was left looking at two cells
+   * whose notes still showed 5.
+   */
+  it('always shows the earliest deduction available from the position', () => {
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const grid = emptyGrid(puzzle.size);
+      const hint = computeHint(puzzle, grid, undefined, record.puzzle.solution);
+      if (hint?.kind !== 'deduction') continue;
+
+      const { steps } = solveToStall(puzzle, { solution: record.puzzle.solution });
+      const earliest = steps.find(
+        step =>
+          step.technique !== 'trial_and_error' &&
+          !step.description.startsWith('Repair:') &&
+          step.highlight.some(cell => grid[cell.row][cell.col] === '')
+      );
+      expect(hint.levels[hint.levels.length - 1].body).toBe(earliest!.description);
+    }
+  });
+});
+
+describe('descriptions name the board the way the board is labelled', () => {
+  it('never refers to a column by number', () => {
+    // Columns are lettered on the grid, so "cols 5,6,7" sent the player
+    // hunting for a column 5
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const { steps } = solveToStall(puzzle, { solution: record.puzzle.solution });
+      for (const step of steps) {
+        expect(step.description, step.description).not.toMatch(/\bcolumns?\s+\d/i);
+        expect(step.description, step.description).not.toMatch(/\brows?\/cols?\b/i);
+      }
+    }
   });
 });
