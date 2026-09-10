@@ -799,3 +799,41 @@ describe('the move a hint offers to apply', () => {
     }
   });
 });
+
+describe('cells are listed the way they are read', () => {
+  const cellsIn = (text: string) => text.match(/\b[A-G][1-7]\b/g) ?? [];
+  const isSorted = (names: string[]) => {
+    const key = (n: string) => Number(n.slice(1)) * 10 + (n.charCodeAt(0) - 65);
+    return names.every((n, i) => i === 0 || key(names[i - 1]) <= key(n));
+  };
+
+  it('never lists them in the order the solver happened to reach them', () => {
+    // "Work from A3, A4, A1, A2" - the same four cells a player scans in order
+    let checked = 0;
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 1, 3, 6, 10]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        const grid = step.grid.map(row => row.map(v => (v === 0 ? '' : String(v))));
+        const marks = step.candidates.map((row, r) =>
+          row.map((set, c) =>
+            step.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+          )
+        );
+        const hint = computeHint(puzzle, grid, marks, record.puzzle.solution);
+        for (const level of hint?.levels ?? []) {
+          // Only the engine's own prose; the last level is the solver's wording
+          if (level.title === 'The move') continue;
+          const names = cellsIn(level.body);
+          if (names.length < 2) continue;
+          expect(isSorted(names), `${level.title}: ${level.body}`).toBe(true);
+          checked++;
+        }
+      }
+    }
+    expect(checked, 'no multi-cell lists found to check').toBeGreaterThan(3);
+  });
+});

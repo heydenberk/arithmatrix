@@ -513,7 +513,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     // The grid element (shared between mobile and desktop)
     const boardElement = (
       <Box
-        className="arithmatrix-grid"
+        /*
+         * hint-active dims every cell the hint is not about. Only once it has
+         * cells to name: the first level names none, and fading the whole
+         * board to say nothing would just look broken.
+         */
+        className={`arithmatrix-grid${hintTargets.size + hintSupport.size > 0 ? ' hint-active' : ''}`}
         role="grid"
         aria-label={`${size} by ${size} Arithmatrix puzzle`}
         aria-rowcount={size}

@@ -153,7 +153,17 @@ const describeRegion = (step: SolverStep): string => {
   return match ? match[1] : '';
 };
 
-const listCells = (cells: CellRef[]) => cells.map(cellName).join(', ');
+/**
+ * Reading order: down the rows, left to right within each.
+ *
+ * The solver emits cells in whatever order its loops reached them, which
+ * produced lists like "A3, A4, A1, A2" - the same four cells a player would
+ * scan top to bottom.
+ */
+const inReadingOrder = (cells: CellRef[]): CellRef[] =>
+  [...cells].sort((a, b) => a.row - b.row || a.col - b.col);
+
+const listCells = (cells: CellRef[]) => inReadingOrder(cells).map(cellName).join(', ');
 
 /** Every cell the predicate accepts, in reading order. */
 const cellsWhere = (size: number, accept: (row: number, col: number) => boolean): CellRef[] => {
@@ -168,7 +178,7 @@ const cellsWhere = (size: number, accept: (row: number, col: number) => boolean)
 
 /** "B7", "B7 and D3", "B7, D3 and F1" - for prose rather than a bare list. */
 const listNames = (cells: CellRef[]): string => {
-  const names = cells.map(cellName);
+  const names = inReadingOrder(cells).map(cellName);
   if (names.length <= 1) return names[0] ?? '';
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 };
@@ -179,10 +189,12 @@ const listNames = (cells: CellRef[]): string => {
  */
 const MAX_NAMED_CELLS = 4;
 
-const namedOrCounted = (cells: CellRef[]): string =>
-  cells.length > MAX_NAMED_CELLS
-    ? `${listNames(cells.slice(0, MAX_NAMED_CELLS))} and ${cells.length - MAX_NAMED_CELLS} more`
-    : listNames(cells);
+const namedOrCounted = (cells: CellRef[]): string => {
+  const ordered = inReadingOrder(cells);
+  return ordered.length > MAX_NAMED_CELLS
+    ? `${listNames(ordered.slice(0, MAX_NAMED_CELLS))} and ${ordered.length - MAX_NAMED_CELLS} more`
+    : listNames(ordered);
+};
 
 /** Converts the UI's string grid into the solver's numeric one. */
 const toNumericGrid = (gridValues: string[][]): number[][] =>
