@@ -693,7 +693,7 @@ describe('a hint is the easiest move on the board', () => {
         // turned this from seconds into a timeout on slower machines
         // The same set the selector chooses from: steps another step
         // strictly contains are not on offer, however cheap they look
-        const available = eligibleSteps(availableSteps(), startGrid);
+        const available = eligibleSteps(availableSteps(), startGrid, startCandidates);
         const shown = hint.levels[hint.levels.length - 1].body;
         const chosen = available.find(s => s.description === shown);
         expect(chosen, `hint not among the available steps: ${shown}`).toBeTruthy();
@@ -746,6 +746,49 @@ describe('a hint is the easiest move on the board', () => {
             if (inA.size === 0 || inA.size >= inB.size) continue;
             const contained = [...inA].every(x => inB.has(x));
             expect(contained, `${a.description} is contained by ${b.description}`).toBe(false);
+          }
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(5);
+  });
+
+  it('takes the placement when a narrowing of the same cell is also on offer', () => {
+    /*
+     * A cage-locked narrowing that leaves one candidate is the same deduction
+     * stopping a step short: "the 17+ cage must contain {2,4,7}, narrowing D2"
+     * against "the 17+ cage forces 4 at D2". Counting a placement as
+     * eliminating everything else in that cell makes the narrowing a strict
+     * subset, so it never gets offered instead.
+     */
+    let checked = 0;
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 4, 9]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        const startGrid = step.grid;
+        const startCandidates = step.candidates.map(row => row.map(set => new Set(set)));
+        const { availableSteps } = solveToStall(puzzle, {
+          startGrid,
+          startCandidates,
+          solution: record.puzzle.solution,
+        });
+        const offered = eligibleSteps(availableSteps(), startGrid, startCandidates);
+        const placedAt = new Set(
+          offered.flatMap(s => s.changes.placed.map(c => `${c.row}:${c.col}`))
+        );
+        for (const s of offered) {
+          // Nothing may merely narrow a cell that another offer settles
+          for (const c of s.changes.eliminated) {
+            if (s.changes.placed.length > 0) continue;
+            expect(
+              placedAt.has(`${c.row}:${c.col}`) && s.changes.eliminated.length === 1,
+              `${s.description} only narrows a cell another step settles`
+            ).toBe(false);
           }
         }
         checked++;

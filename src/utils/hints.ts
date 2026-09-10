@@ -293,10 +293,22 @@ export const stepDifficulty = (step: SolverStep, grid: number[][], size: number)
 
 /**
  * What a step does, as a set of atoms, so two steps can be compared.
+ *
+ * A placement counts as eliminating every other candidate the player had in
+ * that cell, because it does: writing 4 into a cell marked 4/5/6 settles the
+ * 5 and the 6 as surely as striking them off would. Without that, "the 17+
+ * cage must contain {2,4,7}, narrowing D2" and "the 17+ cage forces 4 at D2"
+ * looked like unrelated moves and the narrowing - which is the same deduction
+ * stopping one step short - could win on being marginally cheaper.
  */
-const stepSignature = (step: SolverStep): Set<string> => {
+const stepSignature = (step: SolverStep, marks: Set<number>[][] | undefined): Set<string> => {
   const atoms = new Set<string>();
-  for (const c of step.changes.placed) atoms.add(`p:${c.row}:${c.col}:${c.value}`);
+  for (const c of step.changes.placed) {
+    atoms.add(`p:${c.row}:${c.col}:${c.value}`);
+    for (const v of marks?.[c.row]?.[c.col] ?? []) {
+      if (v !== c.value) atoms.add(`e:${c.row}:${c.col}:${v}`);
+    }
+  }
   for (const c of step.changes.eliminated) {
     for (const v of c.values) atoms.add(`e:${c.row}:${c.col}:${v}`);
   }
@@ -317,14 +329,14 @@ const isSubsetOf = (a: Set<string>, b: Set<string>) => [...a].every(x => b.has(x
  * Only a strict subset is dropped, so two steps that do exactly the same thing
  * both survive and the difficulty ranking chooses between them.
  */
-const dropDominated = (steps: SolverStep[]): SolverStep[] => {
+const dropDominated = (steps: SolverStep[], marks: Set<number>[][] | undefined): SolverStep[] => {
   const seen = new Set<string>();
   const unique = steps.filter(step => {
     if (seen.has(step.description)) return false;
     seen.add(step.description);
     return true;
   });
-  const signatures = unique.map(stepSignature);
+  const signatures = unique.map(step => stepSignature(step, marks));
   return unique.filter((_, i) =>
     signatures.every(
       (other, j) =>
@@ -347,7 +359,11 @@ const dropDominated = (steps: SolverStep[]): SolverStep[] => {
  * Weight alone would rank a hidden single (2) above a cage single (3), even
  * when the cage has one cell left and the row has four.
  */
-export const eligibleSteps = (steps: SolverStep[], startGrid: number[][]): SolverStep[] =>
+export const eligibleSteps = (
+  steps: SolverStep[],
+  startGrid: number[][],
+  startCandidates?: Set<number>[][]
+): SolverStep[] =>
   dropDominated(
     steps.filter(
       step =>
@@ -355,15 +371,17 @@ export const eligibleSteps = (steps: SolverStep[], startGrid: number[][]): Solve
         !isRepairStep(step) &&
         // Nothing to say about a cell that already has a value in it
         step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
-    )
+    ),
+    startCandidates
   );
 
 const easiestDeductiveStep = (
   steps: SolverStep[],
   startGrid: number[][],
-  size: number
+  size: number,
+  startCandidates?: Set<number>[][]
 ): SolverStep | null => {
-  const eligible = eligibleSteps(steps, startGrid);
+  const eligible = eligibleSteps(steps, startGrid, startCandidates);
   if (eligible.length === 0) return null;
   /*
    * Weight plus unknowns, added rather than ranked in tiers.
@@ -375,9 +393,20 @@ const easiestDeductiveStep = (
    * four blanks. The sum is right about both, and degrades to weight where
    * there is nothing to measure.
    */
-  return eligible.reduce((best, step) =>
-    stepDifficulty(step, startGrid, size) < stepDifficulty(best, startGrid, size) ? step : best
-  );
+  /*
+   * Difficulty first, then a placement over an elimination. Among moves that
+   * are equally hard to see, writing a number in is more progress than
+   * striking one off, and it is what the player came for.
+   */
+  const rank = (step: SolverStep): [number, number] => [
+    stepDifficulty(step, startGrid, size),
+    step.changes.placed.length > 0 ? 0 : 1,
+  ];
+  return eligible.reduce((best, step) => {
+    const [d, p] = rank(step);
+    const [bd, bp] = rank(best);
+    return d < bd || (d === bd && p < bp) ? step : best;
+  });
 };
 
 /**
@@ -985,7 +1014,12 @@ export const computeHint = (
    * to take. See easiestDeductiveStep - the trace could not be reordered
    * safely, this list can.
    */
-  const step = easiestDeductiveStep(stall.availableSteps(), startGrid, puzzleDefinition.size);
+  const step = easiestDeductiveStep(
+    stall.availableSteps(),
+    startGrid,
+    puzzleDefinition.size,
+    startCandidates
+  );
 
   if (!step) return stallHint(puzzleDefinition, stall);
 
