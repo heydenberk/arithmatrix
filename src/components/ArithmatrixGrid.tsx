@@ -187,6 +187,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const hintTargets = new Set(
       (hintLevelCells?.targetCells ?? []).map(cell => `${cell.row}-${cell.col}`)
     );
+    const hintRegion = new Set(
+      (hintLevelCells?.regionCells ?? []).map(cell => `${cell.row}-${cell.col}`)
+    );
     const hintSupport = new Set(
       (hintLevelCells?.supportCells ?? []).map(cell => `${cell.row}-${cell.col}`)
     );
@@ -518,7 +521,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
          * cells to name: the first level names none, and fading the whole
          * board to say nothing would just look broken.
          */
-        className={`arithmatrix-grid${hintTargets.size + hintSupport.size > 0 ? ' hint-active' : ''}`}
+        className={`arithmatrix-grid${
+          hintTargets.size + hintSupport.size + hintRegion.size > 0 ? ' hint-active' : ''
+        }`}
         role="grid"
         aria-label={`${size} by ${size} Arithmatrix puzzle`}
         aria-rowcount={size}
@@ -587,7 +592,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
                       ? 'target'
                       : hintSupport.has(cellKey)
                         ? 'support'
-                        : undefined
+                        : hintRegion.has(cellKey)
+                          ? 'region'
+                          : undefined
                   }
                 />
               );

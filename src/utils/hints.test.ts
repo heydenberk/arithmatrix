@@ -837,3 +837,110 @@ describe('cells are listed the way they are read', () => {
     expect(checked, 'no multi-cell lists found to check').toBeGreaterThan(3);
   });
 });
+
+describe('a hint says what the step actually did', () => {
+  const stepPositions = () => {
+    const out: {
+      key: string;
+      puzzle: PuzzleDefinition;
+      grid: string[][];
+      marks: Set<string>[][];
+      solution: number[][];
+    }[] = [];
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 1, 2, 3, 4, 6, 8, 11, 15, 20, 26]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        out.push({
+          key: `${size}x${size} @${i}`,
+          puzzle,
+          grid: step.grid.map(row => row.map(v => (v === 0 ? '' : String(v)))),
+          marks: step.candidates.map((row, r) =>
+            row.map((set, c) =>
+              step.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+            )
+          ),
+          solution: record.puzzle.solution,
+        });
+      }
+    }
+    return out;
+  };
+
+  const POSITIONS = stepPositions();
+
+  it('never claims a cell is settled when it is only narrowed', () => {
+    /*
+     * A cage_combinations step routinely strikes two of four candidates and
+     * leaves two standing. Saying it "leaves exactly one of them standing" or
+     * that the cell "can be settled" was simply false.
+     */
+    let narrowing = 0;
+    for (const p of POSITIONS) {
+      const hint = computeHint(p.puzzle, p.grid, p.marks, p.solution);
+      if (hint?.kind !== 'deduction' || hint.action?.place) continue;
+      narrowing++;
+      for (const level of hint.levels) {
+        if (level.title === 'The move') continue;
+        expect(level.body, `${p.key}: ${level.body}`).not.toMatch(/can be settled/);
+        expect(level.body, `${p.key}: ${level.body}`).not.toMatch(/exactly one of them standing/);
+      }
+    }
+    expect(narrowing, 'no narrowing hints found to check').toBeGreaterThan(3);
+  });
+
+  it('lights the whole line when the nudge tells you to search one', () => {
+    let regional = 0;
+    for (const p of POSITIONS) {
+      const hint = computeHint(p.puzzle, p.grid, p.marks, p.solution);
+      if (hint?.kind !== 'deduction') continue;
+      // Any preposition: "in row 4", "confines a value to row 1"
+      const named = hint.levels[0].body.match(/\b(row \d+|column [A-G])\b/);
+      if (!named) {
+        // Nothing named, nothing to light
+        expect(hint.levels[0].regionCells).toEqual([]);
+        continue;
+      }
+      regional++;
+      const cells = hint.levels[0].regionCells;
+      expect(cells.length, `${p.key}: ${named[0]}`).toBe(p.puzzle.size);
+      // A single line: all one row, or all one column
+      const rows = new Set(cells.map(c => c.row));
+      const cols = new Set(cells.map(c => c.col));
+      expect(rows.size === 1 || cols.size === 1).toBe(true);
+    }
+    expect(regional, 'no region-based hints found to check').toBeGreaterThan(0);
+  });
+
+  it('shows the arithmetic behind a cage elimination', () => {
+    /*
+     * Its own scan: cage_combinations is common overall but lands at
+     * different points in each puzzle, so fixed sample indices miss it.
+     */
+    let explained = 0;
+    outer: for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (let i = 0; i < Math.min(trace.steps.length, 24); i++) {
+        const step = trace.steps[i];
+        const grid = step.grid.map(row => row.map(v => (v === 0 ? '' : String(v))));
+        const marks = step.candidates.map((row, r) =>
+          row.map((set, c) =>
+            step.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+          )
+        );
+        const hint = computeHint(puzzle, grid, marks, record.puzzle.solution);
+        if (hint?.technique !== 'cage_combinations') continue;
+        const move = hint.levels[hint.levels.length - 1].body;
+        // Beyond the bare conclusion: what the rest of the cage would have to do
+        expect(move, `${size}x${size} @${i}`).toMatch(/can total|would need|nothing reaches/);
+        if (++explained >= 5) break outer;
+      }
+    }
+    expect(explained, 'no cage_combinations hints found to check').toBeGreaterThan(0);
+  });
+});

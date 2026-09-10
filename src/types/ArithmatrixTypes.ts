@@ -97,7 +97,7 @@ export type CellCoord = {
  */
 export type ArithmatrixCellProps = {
   /** How this cell figures in the hint currently on screen, if at all. */
-  hintRole?: 'target' | 'support';
+  hintRole?: 'target' | 'support' | 'region';
   /** True for the single cell that carries the grid's tab stop. */
   isTabStop?: boolean;
   /** Zero-based row index of this cell */

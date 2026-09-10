@@ -121,6 +121,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
     hasError ? 'error-cell' : '',
     hintRole === 'target' ? 'hint-target' : '',
     hintRole === 'support' ? 'hint-support' : '',
+    hintRole === 'region' ? 'hint-region' : '',
   ]
     .filter(Boolean)
     .join(' ');

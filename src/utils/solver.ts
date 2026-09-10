@@ -124,6 +124,14 @@ export type BranchPoint = {
  */
 const BRANCH_TRIAL_BUDGET = 8;
 
+/*
+ * How much of a cage elimination to spell out. Two values and three options
+ * apiece is enough to show the shape of the argument; past that the sentence
+ * turns into a table and stops being read.
+ */
+const MAX_EXPLAINED_VALUES = 2;
+const MAX_EXPLAINED_OPTIONS = 3;
+
 export type SolverResult = {
   steps: SolverStep[];
   finalGrid: number[][];
@@ -180,6 +188,12 @@ const cellLabel = (row: number, col: number) => `${colLetter(col)}${row + 1}`;
  * Columns are letters on the grid, so numbering them in a description sent
  * the player looking for a column 5 that does not exist.
  */
+/** "2", "2 and 5", "2, 3 and 5". */
+const andList = (values: number[]): string =>
+  values.length <= 1
+    ? String(values[0] ?? '')
+    : `${values.slice(0, -1).join(', ')} and ${values[values.length - 1]}`;
+
 const lineNames = (indexes: number[], orientation: 'row' | 'col'): string => {
   const names = [...indexes]
     .sort((a, b) => a - b)
@@ -1178,6 +1192,86 @@ class Solver {
     return false;
   }
 
+  /**
+   * Why a cage rules a value out, worked through.
+   *
+   * "The 13+ cage rules out 2 and 5 at A1" is true but unarguable: the
+   * enumeration behind it happens inside the solver, and to the player the
+   * cage's other cells still look as though they allow it.
+   *
+   * A sum cage leads with the range its other cells can reach, which settles
+   * most eliminations in one clause - if A1 has to be 3 to 9, there is nothing
+   * more to say about 2. Only values inside that range need the combinations
+   * listing, and it is the near misses that do: those are the ones a player
+   * would otherwise believe still work.
+   *
+   * The combinations are the precomputed ones, which already drop any that
+   * repeat a value between two cage cells sharing a row or column - so a
+   * missing option is missing for a reason, whether or not it is spelled out.
+   */
+  private explainCageElimination(cage: CageInfo, pos: number, removed: number[]): string {
+    const others = cage.cells.filter((_, i) => i !== pos);
+    if (others.length === 0) return '';
+
+    const names = others.map(cell => cellLabel(cell.row, cell.col));
+    const nameList =
+      names.length === 1
+        ? names[0]
+        : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+
+    const clauses: string[] = [];
+    let coveredByRange = new Set<number>();
+
+    if (cage.operation === '+') {
+      // Every total the other cells could reach on their own terms
+      const totals = new Set<number>();
+      for (const combo of cage.combinations) {
+        const rest = combo.filter((_, i) => i !== pos);
+        const reachable = rest.every((value, i) => {
+          const { row, col } = others[i];
+          return this.grid[row][col] !== 0
+            ? this.grid[row][col] === value
+            : this.candidates[row][col].has(value);
+        });
+        if (reachable) totals.add(rest.reduce((a, b) => a + b, 0));
+      }
+      if (totals.size > 0) {
+        const low = Math.min(...totals);
+        const high = Math.max(...totals);
+        clauses.push(
+          `${nameList} can total ${low} to ${high} between them, so ${cellLabel(cage.cells[pos].row, cage.cells[pos].col)} has to be ${cage.value - high} to ${cage.value - low}`
+        );
+        coveredByRange = new Set(
+          removed.filter(v => cage.value - v < low || cage.value - v > high)
+        );
+      }
+    }
+
+    const needExplaining = removed.filter(v => !coveredByRange.has(v));
+    for (const value of needExplaining.slice(0, MAX_EXPLAINED_VALUES)) {
+      const combos = cage.combinations.filter(combo => combo[pos] === value);
+      const needed = cage.operation === '+' ? ` to total ${cage.value - value}` : '';
+      if (combos.length === 0) {
+        clauses.push(
+          `${value} would need ${nameList}${needed || ' to make up the difference'}, which nothing reaches`
+        );
+        continue;
+      }
+      const options = combos
+        .map(combo => combo.filter((_, i) => i !== pos))
+        .sort((a, b) => a[0] - b[0] || (a[1] ?? 0) - (b[1] ?? 0))
+        .map(option => option.join(' and '));
+      const shown = options.slice(0, MAX_EXPLAINED_OPTIONS);
+      const tail = options.length > shown.length ? ' among others' : '';
+      clauses.push(
+        `${value} would need ${nameList}${needed}, as ${shown.join(', ')}${tail} — none of which they can hold`
+      );
+    }
+
+    if (clauses.length === 0) return '';
+    return ` ${clauses.join('. ')}.`;
+  }
+
   /** Narrow + place from this single cage's surviving combinations. */
   private narrowCage(cage: CageInfo): boolean {
     if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) return false;
@@ -1215,9 +1309,12 @@ class Solver {
         }
         if (toRemove.length > 0) {
           toRemove.forEach(v => this.candidates[cell.row][cell.col].delete(v));
+          const removed = toRemove.sort((a, b) => a - b);
+          const pos = cage.cells.indexOf(cell);
           this.recordStep(
             'cage_combinations',
-            `Cage combinations: the ${cageHeader(cage)} cage rules out ${toRemove.sort((a, b) => a - b).join(', ')} at ${cellLabel(cell.row, cell.col)}.`,
+            `Cage combinations: the ${cageHeader(cage)} cage rules out ${andList(removed)} at ${cellLabel(cell.row, cell.col)}.` +
+              this.explainCageElimination(cage, pos, removed),
             [{ row: cell.row, col: cell.col }],
             supportCells
           );

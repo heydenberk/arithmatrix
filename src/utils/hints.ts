@@ -50,6 +50,15 @@ export type HintLevel = {
   supportCells: CellRef[];
   /** Cells to highlight as the deduction's target at this level. */
   targetCells: CellRef[];
+  /**
+   * The whole line a deduction is about, lit from the first level.
+   *
+   * "Somewhere in row 4 there is a value with only one square left" is an
+   * instruction to search a line, so the line is worth showing - and unlike a
+   * target it gives nothing away, which is why it is separate from the cells
+   * above rather than folded into them.
+   */
+  regionCells: CellRef[];
 };
 
 /**
@@ -163,7 +172,21 @@ const describeRegion = (step: SolverStep): string => {
 const inReadingOrder = (cells: CellRef[]): CellRef[] =>
   [...cells].sort((a, b) => a.row - b.row || a.col - b.col);
 
-const listCells = (cells: CellRef[]) => inReadingOrder(cells).map(cellName).join(', ');
+/** The cells of the line a step names, for lighting it up. */
+const regionCellsOf = (step: SolverStep, size: number): CellRef[] => {
+  const match = step.description.match(/\bin (row (\d+)|column ([A-Z]))\b/);
+  if (!match) return [];
+  if (match[2]) {
+    const row = parseInt(match[2], 10) - 1;
+    if (row < 0 || row >= size) return [];
+    return Array.from({ length: size }, (_, col) => ({ row, col }));
+  }
+  const col = match[3].charCodeAt(0) - 'A'.charCodeAt(0);
+  if (col < 0 || col >= size) return [];
+  return Array.from({ length: size }, (_, row) => ({ row, col }));
+};
+
+const listCells = (cells: CellRef[]) => listNames(cells);
 
 /** Every cell the predicate accepts, in reading order. */
 const cellsWhere = (size: number, accept: (row: number, col: number) => boolean): CellRef[] => {
@@ -277,11 +300,15 @@ const actionForStep = (step: SolverStep): HintAction | undefined => {
 
   if (eliminated.length > 0) {
     const values = [...new Set(eliminated.flatMap(e => e.values))].sort((a, b) => a - b);
+    const listed =
+      values.length <= 1
+        ? String(values[0] ?? '')
+        : `${values.slice(0, -1).join(', ')} and ${values[values.length - 1]}`;
     return {
       label:
-        eliminated.length === 1 && values.length === 1
-          ? `Rule out ${values[0]} at ${cellName(eliminated[0])}`
-          : `Rule out ${values.join(', ')} across ${eliminated.length} cells`,
+        eliminated.length === 1
+          ? `Rule out ${listed} at ${cellName(eliminated[0])}`
+          : `Rule out ${listed} across ${eliminated.length} cells`,
       eliminate: eliminated,
     };
   }
@@ -289,10 +316,24 @@ const actionForStep = (step: SolverStep): HintAction | undefined => {
   return undefined;
 };
 
-const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel[] => {
+const buildLevels = (
+  step: SolverStep,
+  size: number,
+  pencilMarks?: Set<string>[][]
+): HintLevel[] => {
   const target = step.highlight;
   const support = step.supportCells ?? [];
   const region = describeRegion(step);
+  /*
+   * Light the line only when the nudge actually sends the player to search
+   * one. Several descriptions mention a line in passing - a naked single now
+   * says its row and column rule the rest out - and lighting a row off the
+   * back of that would be arbitrary, since the same sentence names a column
+   * too. Asking the nudge whether it used the region keeps the highlight and
+   * the wording from drifting apart.
+   */
+  const nudge = TECHNIQUE_NUDGES[step.technique];
+  const regionCells = region !== '' && nudge(region) !== nudge('') ? regionCellsOf(step, size) : [];
 
   const levels: HintLevel[] = [
     {
@@ -302,6 +343,7 @@ const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel
       body: TECHNIQUE_NUDGES[step.technique](region),
       supportCells: [],
       targetCells: [],
+      regionCells,
     },
   ];
 
@@ -309,23 +351,27 @@ const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel
   if (support.length > 0) {
     levels.push({
       title: 'What it follows from',
-      body:
-        support.length === 1
-          ? `Work from ${cellName(support[0])}. That alone settles another cell nearby.`
-          : `Work from ${listCells(support)}. Together these are enough to settle another cell nearby.`,
+      body: `Work from ${listCells(support)}. ${
+        step.changes.placed.length > 0
+          ? support.length === 1
+            ? 'That alone settles another cell nearby.'
+            : 'Together these are enough to settle another cell nearby.'
+          : 'What those can hold between them limits what fits elsewhere.'
+      }`,
       supportCells: support,
       targetCells: [],
+      regionCells,
     });
   }
 
   levels.push({
     title: 'Which cell',
-    body:
-      target.length === 1
-        ? `${cellName(target[0])} can be settled from here.`
-        : `${listCells(target)} can be narrowed from here.`,
+    // Settled or merely narrowed - branching on the cell count got this wrong
+    // for a one-cell elimination, which narrows but does not settle
+    body: `${listCells(target)} can be ${step.changes.placed.length > 0 ? 'settled' : 'narrowed'} from here.`,
     supportCells: support,
     targetCells: target,
+    regionCells,
   });
 
   /*
@@ -343,11 +389,26 @@ const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel
       .map(Number)
       .sort((a, b) => a - b)
       .join(', ');
+    /*
+     * Whether this settles the cell or only narrows it. Saying "leaves exactly
+     * one standing" of an elimination was simply wrong - a cage_combinations
+     * step routinely strikes two of four candidates and leaves two.
+     */
+    const settles = step.changes.placed.some(
+      cell => cell.row === single.row && cell.col === single.col
+    );
+    const struck = step.changes.eliminated.find(
+      cell => cell.row === single.row && cell.col === single.col
+    );
+    const count = struck?.values.length ?? 0;
     levels.push({
       title: 'Against your notes',
-      body: `You have ${listed} pencilled at ${cellName(single)}. This leaves exactly one of them standing.`,
+      body: settles
+        ? `You have ${listed} pencilled at ${cellName(single)}. This leaves exactly one of them standing.`
+        : `You have ${listed} pencilled at ${cellName(single)}. ${count === 1 ? 'One of them can be struck off' : `${count} of them can be struck off`}.`,
       supportCells: support,
       targetCells: target,
+      regionCells,
     });
   }
 
@@ -357,6 +418,7 @@ const buildLevels = (step: SolverStep, pencilMarks?: Set<string>[][]): HintLevel
     body: step.description,
     supportCells: support,
     targetCells: target,
+    regionCells,
   });
 
   return levels;
@@ -461,6 +523,7 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
             'first so you can back out if the branch dies.',
           supportCells: [],
           targetCells: [],
+          regionCells: [],
         },
       ],
     };
@@ -482,6 +545,7 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
             'but one of them leave some cell with nothing to put in it.',
           supportCells: [],
           targetCells: [],
+          regionCells: [],
         },
         {
           title: 'Which cell',
@@ -491,12 +555,14 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
             `within ${deductions(worst)}, so this is quick to check by hand.`,
           supportCells: [],
           targetCells: [branch.cell],
+          regionCells: [],
         },
         {
           title: 'The move',
           body: `${cellName(branch.cell)} must be ${branch.forced} — every other value there runs a cell out of options.`,
           supportCells: [],
           targetCells: [branch.cell],
+          regionCells: [],
         },
       ],
       action: {
@@ -534,6 +600,7 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
             'interesting.',
           supportCells: [],
           targetCells: [],
+          regionCells: [],
         },
         {
           title: 'Where to branch',
@@ -544,12 +611,14 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
             'branch runs dry, which is exactly why nothing points at it.',
           supportCells: [],
           targetCells: [point.cell],
+          regionCells: [],
         },
         {
           title: 'Or skip the search',
           body: `${cellName(point.cell)} must be ${viable[0]} — no completed grid exists with anything else there.`,
           supportCells: [],
           targetCells: [point.cell],
+          regionCells: [],
         },
       ],
       action: {
@@ -583,6 +652,7 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
           'others — look for the one with the fewest candidates left.',
         supportCells: [],
         targetCells: [],
+        regionCells: [],
       },
       {
         title: 'Where to branch',
@@ -591,6 +661,7 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
           `candidates and nothing on the board narrower. ${payoff}`,
         supportCells: [],
         targetCells: [branch.cell],
+        regionCells: [],
       },
       {
         title: 'The move',
@@ -599,6 +670,7 @@ const stallHint = (puzzleDefinition: PuzzleDefinition, stall: StallAnalysis): Hi
           `${cellName(branch.cell)} and carry on. If it collapses, revert and the other stands.`,
         supportCells: [],
         targetCells: [branch.cell],
+        regionCells: [],
       },
     ],
   };
@@ -634,6 +706,7 @@ export const computeHint = (
           body: 'Every cell is filled.',
           supportCells: [],
           targetCells: [],
+          regionCells: [],
         },
       ],
     };
@@ -668,6 +741,7 @@ export const computeHint = (
             'on the mistake.',
           supportCells: [],
           targetCells: wrongCells,
+          regionCells: [],
         },
       ],
       action: {
@@ -689,6 +763,7 @@ export const computeHint = (
             'must be wrong. Try undoing your most recent entries.',
           supportCells: [],
           targetCells: [],
+          regionCells: [],
         },
       ],
     };
@@ -741,6 +816,7 @@ export const computeHint = (
             `${one ? 'that cell' : 'them'} before going further.`,
           supportCells: [],
           targetCells: staleCells,
+          regionCells: [],
         },
       ],
       /*
@@ -784,9 +860,10 @@ export const computeHint = (
           body:
             `${namedOrCounted(unclaimed)} ${one ? 'is' : 'are'} down to a single candidate in ` +
             `your own notes, so ${one ? 'it is' : 'they are'} yours to take before anything new. ` +
-            'The autofill button will put them in for you.',
+            `The autofill button will put ${one ? 'it' : 'them'} in for you.`,
           supportCells: [],
           targetCells: unclaimed,
+          regionCells: [],
         },
       ],
       action: {
@@ -808,7 +885,7 @@ export const computeHint = (
     kind: 'deduction',
     technique: step.technique,
     techniqueLabel: TECHNIQUE_LABELS[step.technique],
-    levels: buildLevels(step, pencilMarks),
+    levels: buildLevels(step, puzzleDefinition.size, pencilMarks),
     action: actionForStep(step),
   };
 };
