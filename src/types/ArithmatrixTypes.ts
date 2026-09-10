@@ -97,6 +97,8 @@ export type CellCoord = {
  */
 export type ArithmatrixCellProps = {
   /** How this cell figures in the hint currently on screen, if at all. */
+  /** Just landed from an autofill wave, for the settle animation. */
+  isSettling?: boolean;
   hintRole?: 'target' | 'support' | 'region';
   /** True for the single cell that carries the grid's tab stop. */
   isTabStop?: boolean;

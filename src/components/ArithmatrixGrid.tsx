@@ -568,6 +568,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
                   gridSize={size}
                   isSelected={gameState.selectedCells.has(cellKey)}
                   isFlashing={gameState.flashingCells.has(cellKey)}
+                  isSettling={gameState.settlingCells.has(cellKey)}
                   hasError={gameState.errorCells.has(cellIndex)}
                   cageColorClass={getCageColorClass(cageIndex, cageColorMap)}
                   cageTextColorClass={getCageTextColorClass(cageIndex, cageColorMap)}

@@ -25,6 +25,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   gridSize,
   isSelected,
   isFlashing,
+  isSettling,
   hasError,
   cageColorClass,
   cageTextColorClass,
@@ -122,6 +123,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
     hintRole === 'target' ? 'hint-target' : '',
     hintRole === 'support' ? 'hint-support' : '',
     hintRole === 'region' ? 'hint-region' : '',
+    isSettling ? 'cell-settle' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -164,9 +166,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
           }}
           onFocus={onFocus}
           onKeyDown={onKeyDown}
-          className={`cell-input ${hasError ? 'input-error' : ''} ${
-            isFlashing ? 'cell-flash-invalid' : ''
-          }`}
+          className={`cell-input ${hasError ? 'input-error' : ''} ${isFlashing ? 'cell-flash-invalid' : ''}`}
           maxLength={1}
           data-row={rowIndex}
           data-col={colIndex}

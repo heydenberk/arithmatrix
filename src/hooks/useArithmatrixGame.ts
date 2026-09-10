@@ -32,6 +32,16 @@ import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixT
 import { checkWinCondition, findConflictingCells } from '../utils/arithmatrixUtils';
 import type { HintAction } from '../utils/hints';
 
+/*
+ * Gap between autofill waves.
+ *
+ * Long enough to read as a chain of consequences rather than one change, short
+ * enough that a deep cascade does not become a thing you wait out. The settle
+ * animation is a little shorter again, so each wave has finished before the
+ * next arrives.
+ */
+const AUTOFILL_WAVE_MS = 200;
+
 interface UseArithmatrixGameProps {
   puzzleDefinition: PuzzleDefinition;
   solution: number[][];
@@ -68,10 +78,13 @@ export const useArithmatrixGame = ({
   const [hasEnteredValueSinceSelection, setHasEnteredValueSinceSelection] = useState(false); // Track if values were entered
   const [errorCells, setErrorCells] = useState<Set<number>>(new Set());
   const [flashingCells, setFlashingCells] = useState<Set<string>>(new Set());
+  /** Cells the current autofill wave just landed, for the settle animation. */
+  const [settlingCells, setSettlingCells] = useState<Set<string>>(new Set());
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
 
   // Refs for tracking
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
+  const autofillTimers = useRef<number[]>([]);
   const lastFocusedCell = useRef<CellCoord | null>(null);
 
   // Initialize or reset game state when puzzle changes
@@ -103,6 +116,10 @@ export const useArithmatrixGame = ({
       setErrorCells(new Set());
       setSelectedCells(new Set());
       setFlashingCells(new Set());
+      setSettlingCells(new Set());
+      // A cascade from the previous puzzle must not land on this one
+      autofillTimers.current.forEach(id => clearTimeout(id));
+      autofillTimers.current = [];
 
       // Initialize input refs
       inputRefs.current = Array(size)
@@ -140,6 +157,12 @@ export const useArithmatrixGame = ({
       onStateChange(gridValues, pencilMarks);
     }
   }, [gridValues, pencilMarks, onStateChange]);
+
+  // Pending waves belong to a board that is going away
+  useEffect(() => {
+    const timers = autofillTimers.current;
+    return () => timers.forEach(id => clearTimeout(id));
+  }, []);
 
   // Clear error state
   const clearErrors = () => {
@@ -455,91 +478,131 @@ export const useArithmatrixGame = ({
     clearErrors();
   };
 
-  // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
-  const handleAutofillSingles = () => {
+  type Placement = { row: number; col: number; value: string };
+
+  /**
+   * The autofill cascade, split into the waves that produce it.
+   *
+   * Each pass fills every cell that is settled right now; doing so strikes
+   * those values from the marks along their rows and columns, which can leave
+   * another cell with a single candidate for the next pass. Returning the
+   * passes separately is what lets the board show the chain running instead of
+   * arriving all at once.
+   */
+  const computeAutofillWaves = (): Placement[][] => {
     const { size, cages } = puzzleDefinition;
+    const grid = gridValues.map(row => [...row]);
+    const marks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
+    const waves: Placement[][] = [];
 
-    let anyUpdated = false;
-
-    const nextGridValues = gridValues.map(row => [...row]);
-    const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
-
-    // Helper to set a value and clear pencils row/col like normal entry
     const setCellValue = (r: number, c: number, valueStr: string) => {
-      if (nextGridValues[r][c] !== '') return;
-      nextGridValues[r][c] = valueStr;
-      // Clear pencils in the cell and remove candidate from row/col
+      grid[r][c] = valueStr;
+      // Clear pencils in the cell and remove the value from its row and column
       for (let i = 0; i < size; i++) {
-        if (i !== c) {
-          nextPencilMarks[r][i].delete(valueStr);
-        }
+        if (i !== c) marks[r][i].delete(valueStr);
+        if (i !== r) marks[i][c].delete(valueStr);
       }
-      for (let i = 0; i < size; i++) {
-        if (i !== r) {
-          nextPencilMarks[i][c].delete(valueStr);
-        }
-      }
-      nextPencilMarks[r][c] = new Set<string>();
+      marks[r][c] = new Set<string>();
     };
 
-    // Iterate until no more autofills are possible
-    // This captures cascading singles after each placement updates row/col pencil marks
-    // to potentially produce new single-candidate cells
-    // Safeguard: with finite grid and monotonic fills, this will terminate quickly
-    // even if users have many pencil marks
+    // Finite grid, monotonic fills: this terminates quickly however many marks
+    // the player has
     while (true) {
-      let updatedInPass = false;
+      const wave: Placement[] = [];
 
       // 1) Single-cell cages with explicit value
-      cages.forEach(cage => {
-        if (cage.cells.length === 1 && (cage.operation === '=' || cage.operation === '')) {
-          const cellIndex = cage.cells[0];
-          const r = Math.floor(cellIndex / size);
-          const c = cellIndex % size;
-          if (nextGridValues[r][c] === '') {
-            const valueStr = String(cage.value);
-            const value = parseInt(valueStr, 10);
-            if (value >= 1 && value <= size) {
-              const conflicts = findConflictingCells(r, c, valueStr, nextGridValues, size);
-              if (conflicts.length === 0) {
-                setCellValue(r, c, valueStr);
-                updatedInPass = true;
-                anyUpdated = true;
-              }
-            }
-          }
-        }
-      });
+      for (const cage of cages) {
+        if (cage.cells.length !== 1 || (cage.operation !== '=' && cage.operation !== '')) continue;
+        const cellIndex = cage.cells[0];
+        const r = Math.floor(cellIndex / size);
+        const c = cellIndex % size;
+        if (grid[r][c] !== '') continue;
+        const valueStr = String(cage.value);
+        const value = parseInt(valueStr, 10);
+        if (value < 1 || value > size) continue;
+        if (findConflictingCells(r, c, valueStr, grid, size).length > 0) continue;
+        wave.push({ row: r, col: c, value: valueStr });
+      }
 
-      // 2) Cells with exactly one pencil mark candidate
+      // 2) Cells the player's own marks have narrowed to one candidate
       for (let r = 0; r < size; r++) {
         for (let c = 0; c < size; c++) {
-          if (nextGridValues[r][c] === '' && nextPencilMarks[r][c].size === 1) {
-            const [only] = Array.from(nextPencilMarks[r][c]);
-            const value = parseInt(only, 10);
-            if (!isNaN(value) && value >= 1 && value <= size) {
-              const conflicts = findConflictingCells(r, c, only, nextGridValues, size);
-              if (conflicts.length === 0) {
-                setCellValue(r, c, only);
-                updatedInPass = true;
-                anyUpdated = true;
-              }
-            }
-          }
+          if (grid[r][c] !== '' || marks[r][c].size !== 1) continue;
+          const [only] = Array.from(marks[r][c]);
+          const value = parseInt(only, 10);
+          if (isNaN(value) || value < 1 || value > size) continue;
+          if (findConflictingCells(r, c, only, grid, size).length > 0) continue;
+          wave.push({ row: r, col: c, value: only });
         }
       }
 
-      if (!updatedInPass) break;
+      if (wave.length === 0) break;
+      // Applied after the whole pass is collected, so cells settled by this
+      // wave belong to the next one rather than sneaking into this one
+      for (const { row, col, value } of wave) setCellValue(row, col, value);
+      waves.push(wave);
     }
 
-    if (anyUpdated) {
-      setHistory(prevHistory => [...prevHistory, [gridValues, pencilMarks]]);
-      setRedoStack([]);
-      setGridValues(nextGridValues);
-      setPencilMarks(nextPencilMarks);
-      clearErrors();
-      setHasEnteredValueSinceSelection(true);
-    }
+    return waves;
+  };
+
+  const cancelAutofill = () => {
+    autofillTimers.current.forEach(id => clearTimeout(id));
+    autofillTimers.current = [];
+  };
+
+  /**
+   * Commits one wave.
+   *
+   * Written as functional updates over the previous state rather than against
+   * a grid computed up front, so a wave still lands correctly if the player
+   * types something while the cascade is running - and skips any cell they
+   * filled themselves in the meantime.
+   */
+  const applyAutofillWave = (wave: Placement[]) => {
+    const { size } = puzzleDefinition;
+    setGridValues(prev => {
+      const next = prev.map(row => [...row]);
+      for (const { row, col, value } of wave) {
+        if (next[row][col] === '') next[row][col] = value;
+      }
+      return next;
+    });
+    setPencilMarks(prev => {
+      const next = prev.map(row => row.map(cellSet => new Set(cellSet)));
+      for (const { row, col, value } of wave) {
+        next[row][col] = new Set<string>();
+        for (let i = 0; i < size; i++) {
+          if (i !== col) next[row][i].delete(value);
+          if (i !== row) next[i][col].delete(value);
+        }
+      }
+      return next;
+    });
+    setSettlingCells(new Set(wave.map(({ row, col }) => `${row}-${col}`)));
+  };
+
+  // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
+  const handleAutofillSingles = () => {
+    cancelAutofill();
+    const waves = computeAutofillWaves();
+    if (waves.length === 0) return;
+
+    // One user action, so one undo - the waves are presentation, not history
+    setHistory(prevHistory => [...prevHistory, [gridValues, pencilMarks]]);
+    setRedoStack([]);
+    clearErrors();
+    setHasEnteredValueSinceSelection(true);
+
+    applyAutofillWave(waves[0]);
+    waves.slice(1).forEach((wave, index) => {
+      autofillTimers.current.push(
+        window.setTimeout(() => applyAutofillWave(wave), (index + 1) * AUTOFILL_WAVE_MS)
+      );
+    });
+    autofillTimers.current.push(
+      window.setTimeout(() => setSettlingCells(new Set()), waves.length * AUTOFILL_WAVE_MS)
+    );
   };
 
   // Handle direct number input (overwrite existing values)
@@ -891,6 +954,7 @@ export const useArithmatrixGame = ({
     enterTemporaryPencilMode,
     errorCells,
     flashingCells,
+    settlingCells,
     selectedCells,
     setSelectedCells,
     hasEnteredValueSinceSelection,
