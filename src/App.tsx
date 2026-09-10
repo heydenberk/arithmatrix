@@ -41,7 +41,12 @@ import {
 import { RawPuzzleRecord, canonicalCagesSig, loadCatalog } from './utils/puzzleCatalog';
 import { checkWinCondition } from './utils/arithmatrixUtils';
 import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
-import { evaluateAchievement, saveAchievement, type AchievementResult } from './utils/achievements';
+import {
+  evaluateAchievement,
+  saveAchievement,
+  type AchievementResult,
+  type GameConduct,
+} from './utils/achievements';
 import AchievementGallery from './components/AchievementGallery';
 import WinModal from './components/WinModal';
 import { useInstallPrompt } from './hooks/useInstallPrompt';
@@ -225,6 +230,7 @@ function App() {
   const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time (used for initial restore)
   const completionTimeRef = useRef<number>(0); // Ref to avoid re-rendering App every second
   const [initialGridValues, setInitialGridValues] = useState<string[][] | undefined>(undefined);
+  const [initialConduct, setInitialConduct] = useState<GameConduct | undefined>(undefined);
   const [initialPencilMarks, setInitialPencilMarks] = useState<Set<string>[][] | undefined>(
     undefined
   );
@@ -350,6 +356,7 @@ function App() {
       setCurrentPuzzleIndex(null); // Clear stale index until the new one resolves
       setInitialGridValues(undefined); // Clear initial state
       setInitialPencilMarks(undefined);
+      setInitialConduct(undefined);
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`); // Updated log
 
       try {
@@ -388,6 +395,7 @@ function App() {
         // Clear initial state for new puzzles and set start time
         setInitialGridValues(undefined);
         setInitialPencilMarks(undefined);
+        setInitialConduct(undefined);
         setGameStartTime(new Date());
       } catch (err) {
         console.error('Failed to fetch puzzle:', err); // Debug log
@@ -491,7 +499,11 @@ function App() {
   }, [showPuzzleGallery, isGameWon]);
 
   // Handler for game state changes - save to localStorage
-  const handleGameStateChange = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
+  const handleGameStateChange = (
+    gridValues: string[][],
+    pencilMarks: Set<string>[][],
+    conduct: GameConduct
+  ) => {
     latestGridValuesRef.current = gridValues;
     latestPencilMarksRef.current = pencilMarks;
     if (!puzzleDefinition || !solutionGrid) return;
@@ -519,7 +531,8 @@ function App() {
         { size: puzzleSize, difficulty, operationsTier },
         completionTimeRef.current,
         gameStartTime,
-        currentPuzzleIndex
+        currentPuzzleIndex,
+        conduct
       );
     } else {
       // Board cleared back to empty - it is no longer a game in progress
@@ -532,6 +545,7 @@ function App() {
     // Clear initial values so grid starts fresh
     setInitialGridValues(undefined);
     setInitialPencilMarks(undefined);
+    setInitialConduct(undefined);
     // Reset completion time BEFORE incrementing resetKey so Timer sees 0
     setCurrentCompletionTime(0);
     completionTimeRef.current = 0;
@@ -572,6 +586,7 @@ function App() {
 
     setInitialGridValues(saved.gridValues);
     setInitialPencilMarks(deserializePencilMarks(saved.pencilMarks));
+    setInitialConduct(saved.conduct);
 
     // Resume the clock where it stopped
     setGameStartTime(new Date(saved.startedAt));
@@ -624,6 +639,7 @@ function App() {
     setSolutionGrid(record.puzzle.solution);
     setInitialGridValues(inProgress?.gridValues);
     setInitialPencilMarks(inProgress ? deserializePencilMarks(inProgress.pencilMarks) : undefined);
+    setInitialConduct(inProgress?.conduct);
 
     // Game state: pick up where a paused puzzle left off, else start clean
     setIsGameWon(false);
@@ -679,7 +695,7 @@ function App() {
   };
 
   // Callback for when the puzzle is won
-  const handleWin = () => {
+  const handleWin = (conduct: GameConduct) => {
     console.log('Puzzle solved!');
     setIsTimerRunning(false); // Pause the timer
     setIsGameWon(true); // Set the win state
@@ -698,24 +714,16 @@ function App() {
     }
 
     // Evaluate and save achievement
-    const result = evaluateAchievement(
-      puzzleSize,
-      difficulty,
-      operationsTier,
-      completionTimeRef.current
+    const result = evaluateAchievement(puzzleSize, difficulty, completionTimeRef.current, conduct);
+    /*
+     * Saved on every completion, not only an improving one: a badge can be
+     * earned on a slow solve, and the record keeps the best of each thing
+     * separately.
+     */
+    saveAchievement(puzzleSize, difficulty, result.tier, completionTimeRef.current, conduct);
+    setLastAchievement(
+      result.isNew || result.isUpgrade || result.newBadges.length > 0 ? result : null
     );
-    if (result.isNew || result.isUpgrade) {
-      saveAchievement(
-        puzzleSize,
-        difficulty,
-        operationsTier,
-        result.tier,
-        completionTimeRef.current
-      );
-      setLastAchievement(result);
-    } else {
-      setLastAchievement(null);
-    }
 
     // A finished puzzle is no longer in progress
     if (puzzleDefinition) deleteGameForPuzzle(puzzleDefinition);
@@ -922,6 +930,7 @@ function App() {
                   isGameWon={isGameWon}
                   initialGridValues={initialGridValues}
                   initialPencilMarks={initialPencilMarks}
+                  initialConduct={initialConduct}
                   onStateChange={handleGameStateChange}
                   onCheckpointRequested={saveCheckpoint}
                   hasCheckpoint={hasCheckpoint}

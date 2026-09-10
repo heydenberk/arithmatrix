@@ -1,14 +1,32 @@
-import { VALID_SIZES, DIFFICULTY_LEVELS, OPERATION_TIERS } from '../constants/gameConstants';
+import { VALID_SIZES, DIFFICULTY_LEVELS } from '../constants/gameConstants';
 
 export type TimeTier = 'platinum' | 'gold' | 'silver' | 'bronze';
+
+/**
+ * How a puzzle was solved, as opposed to how fast.
+ *
+ * Time was the only thing recorded, so a player could hint and autofill their
+ * way to platinum - the achievement rewarded the opposite of what the hints
+ * are there to teach. These two say something time cannot.
+ */
+export type GameConduct = {
+  /** No hint, no autofill, no check-answer. */
+  unaided: boolean;
+  /** No wrong value was ever placed, at any point. */
+  clean: boolean;
+};
+
+export const NEUTRAL_CONDUCT: GameConduct = { unaided: true, clean: true };
 
 export type Achievement = {
   size: number;
   difficulty: string;
-  operationsTier: string;
   tier: TimeTier;
   timeSeconds: number;
   achievedAt: string;
+  /** Earned at least once on this board, whether or not on the best time. */
+  unaided?: boolean;
+  clean?: boolean;
 };
 
 export type AchievementStore = Record<string, Achievement>;
@@ -19,6 +37,8 @@ export type AchievementResult = {
   isUpgrade: boolean;
   previousTier?: TimeTier;
   comboKey: string;
+  /** Badges earned for the first time by this solve. */
+  newBadges: (keyof GameConduct)[];
 };
 
 const STORAGE_KEY = 'arithmatrix_achievements';
@@ -55,8 +75,16 @@ export const TIER_LABELS: Record<TimeTier, string> = {
   platinum: 'Platinum',
 };
 
-function comboKey(size: number, difficulty: string, operationsTier: string): string {
-  return `${size}-${difficulty}-${operationsTier}`;
+/*
+ * Boards are size and difficulty only.
+ *
+ * The operations tier used to be part of the key, giving 80 boards - but the
+ * time targets never depended on it, so a 7x7 expert in addition-only and one
+ * in + - * / demanded the same 20 minutes. Three quarters of the grid was the
+ * same target four times over.
+ */
+function comboKey(size: number, difficulty: string): string {
+  return `${size}-${difficulty}`;
 }
 
 export function getTimeThreshold(size: number, difficulty: string, tier: TimeTier): number {
@@ -79,42 +107,64 @@ function tierRank(tier: TimeTier): number {
 export function evaluateAchievement(
   size: number,
   difficulty: string,
-  operationsTier: string,
-  timeSeconds: number
+  timeSeconds: number,
+  conduct: GameConduct = NEUTRAL_CONDUCT
 ): AchievementResult {
-  const key = comboKey(size, difficulty, operationsTier);
+  const key = comboKey(size, difficulty);
   const tier = getTimeTier(size, difficulty, timeSeconds);
   const store = getAchievements();
   const existing = store[key];
 
+  // A badge is news only the first time this board earns it
+  const newBadges = (['unaided', 'clean'] as const).filter(
+    badge => conduct[badge] && !existing?.[badge]
+  );
+
   if (!existing) {
-    return { tier, isNew: true, isUpgrade: false, comboKey: key };
+    return { tier, isNew: true, isUpgrade: false, comboKey: key, newBadges };
   }
 
   if (tierRank(tier) > tierRank(existing.tier)) {
-    return { tier, isNew: false, isUpgrade: true, previousTier: existing.tier, comboKey: key };
+    return {
+      tier,
+      isNew: false,
+      isUpgrade: true,
+      previousTier: existing.tier,
+      comboKey: key,
+      newBadges,
+    };
   }
 
-  return { tier, isNew: false, isUpgrade: false, comboKey: key };
+  return { tier, isNew: false, isUpgrade: false, comboKey: key, newBadges };
 }
 
+/**
+ * Records a completion, keeping the best of everything.
+ *
+ * Badges and tier are tracked separately on purpose: a careful unaided solve
+ * and a fast one are different accomplishments, and demanding both at once
+ * would make the badge unreachable on any board worth the name.
+ */
 export function saveAchievement(
   size: number,
   difficulty: string,
-  operationsTier: string,
   tier: TimeTier,
-  timeSeconds: number
+  timeSeconds: number,
+  conduct: GameConduct = NEUTRAL_CONDUCT
 ): void {
   try {
     const store = getAchievements();
-    const key = comboKey(size, difficulty, operationsTier);
+    const key = comboKey(size, difficulty);
+    const existing = store[key];
+    const beatsTime = !existing || tierRank(tier) > tierRank(existing.tier);
     store[key] = {
       size,
       difficulty,
-      operationsTier,
-      tier,
-      timeSeconds,
-      achievedAt: new Date().toISOString(),
+      tier: beatsTime ? tier : existing.tier,
+      timeSeconds: beatsTime ? timeSeconds : Math.min(existing.timeSeconds, timeSeconds),
+      achievedAt: beatsTime ? new Date().toISOString() : existing.achievedAt,
+      unaided: existing?.unaided || conduct.unaided,
+      clean: existing?.clean || conduct.clean,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   } catch (error) {
@@ -122,47 +172,91 @@ export function saveAchievement(
   }
 }
 
+/**
+ * Folds records written under the old size-difficulty-operations key into the
+ * size-difficulty one, keeping the best tier and fastest time of each group.
+ * Without this a player's whole history would silently vanish from the grid.
+ */
+function migrateLegacyKeys(store: AchievementStore): AchievementStore {
+  const merged: AchievementStore = {};
+  for (const [key, achievement] of Object.entries(store)) {
+    if (!achievement || typeof achievement.size !== 'number') continue;
+    const target = comboKey(achievement.size, achievement.difficulty);
+    const existing = merged[target];
+    if (!existing || tierRank(achievement.tier) > tierRank(existing.tier)) {
+      merged[target] = {
+        ...achievement,
+        timeSeconds: existing
+          ? Math.min(existing.timeSeconds, achievement.timeSeconds)
+          : achievement.timeSeconds,
+        unaided: existing?.unaided || achievement.unaided,
+        clean: existing?.clean || achievement.clean,
+      };
+    } else {
+      merged[target] = {
+        ...existing,
+        timeSeconds: Math.min(existing.timeSeconds, achievement.timeSeconds),
+        unaided: existing.unaided || achievement.unaided,
+        clean: existing.clean || achievement.clean,
+      };
+    }
+    if (key !== target) merged[target].achievedAt ??= achievement.achievedAt;
+  }
+  return merged;
+}
+
 export function getAchievements(): AchievementStore {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return {};
-    return JSON.parse(stored) as AchievementStore;
+    const parsed = JSON.parse(stored) as AchievementStore;
+    const migrated = migrateLegacyKeys(parsed);
+    // Rewrite only when the shape actually changed, so reads stay cheap
+    if (Object.keys(migrated).length !== Object.keys(parsed).length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+    }
+    return migrated;
   } catch {
     return {};
   }
 }
 
 export function getAchievementProgress(): {
+  /** Boards in the grid. */
   total: number;
+  /** Boards with any tier at all. */
   unlocked: number;
+  /** Boards whose best is this tier - each board counted once. */
   byTier: Record<TimeTier, number>;
+  unaided: number;
+  clean: number;
 } {
   const store = getAchievements();
   const achievements = Object.values(store);
-  const total = VALID_SIZES.length * DIFFICULTY_LEVELS.length * OPERATION_TIERS.length * TIER_ORDER.length;
+  const total = VALID_SIZES.length * DIFFICULTY_LEVELS.length;
   const byTier: Record<TimeTier, number> = { bronze: 0, silver: 0, gold: 0, platinum: 0 };
 
-  // Count total unlocked tiers: e.g. a gold achievement also counts bronze + silver
-  let unlocked = 0;
-  for (const a of achievements) {
-    const rank = tierRank(a.tier);
-    // Each achievement unlocks all tiers up to and including its rank
-    for (let i = 0; i <= rank; i++) {
-      byTier[TIER_ORDER[i]]++;
-      unlocked++;
-    }
-  }
+  /*
+   * One board, one count. This used to add every tier up to a board's rank,
+   * so a single platinum read as four unlocks against a total of 320 - a
+   * number with no meaning a player could hold on to.
+   */
+  for (const a of achievements) byTier[a.tier]++;
 
-  return { total, unlocked, byTier };
+  return {
+    total,
+    unlocked: achievements.length,
+    byTier,
+    unaided: achievements.filter(a => a.unaided).length,
+    clean: achievements.filter(a => a.clean).length,
+  };
 }
 
-export function getAllCombinations(): { key: string; size: number; difficulty: string; operationsTier: string }[] {
-  const combos: { key: string; size: number; difficulty: string; operationsTier: string }[] = [];
+export function getAllCombinations(): { key: string; size: number; difficulty: string }[] {
+  const combos: { key: string; size: number; difficulty: string }[] = [];
   for (const size of VALID_SIZES) {
     for (const difficulty of DIFFICULTY_LEVELS) {
-      for (const tier of OPERATION_TIERS) {
-        combos.push({ key: comboKey(size, difficulty, tier), size, difficulty, operationsTier: tier });
-      }
+      combos.push({ key: comboKey(size, difficulty), size, difficulty });
     }
   }
   return combos;

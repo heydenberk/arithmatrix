@@ -1,15 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import {
-  Modal,
-  Text,
-  Group,
-  Stack,
-  SegmentedControl,
-  Tooltip,
-  Box,
-  Badge,
-} from '@mantine/core';
-import { OPERATION_TIER_LABELS } from '../constants/gameConstants';
+import { Modal, Text, Group, Stack, SegmentedControl, Tooltip, Box, Badge } from '@mantine/core';
 import {
   getAchievements,
   getAchievementProgress,
@@ -27,7 +17,7 @@ interface AchievementGalleryProps {
   onClose: () => void;
 }
 
-type GroupBy = 'size' | 'difficulty' | 'operations';
+type GroupBy = 'size' | 'difficulty';
 
 const DIFFICULTY_LABELS: Record<string, string> = {
   easiest: 'Easiest',
@@ -54,17 +44,16 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
   const combos = useMemo(() => getAllCombinations(), []);
 
   const grouped = useMemo(() => {
-    const groups: Record<string, { key: string; size: number; difficulty: string; operationsTier: string; achievement?: Achievement }[]> = {};
+    const groups: Record<
+      string,
+      { key: string; size: number; difficulty: string; achievement?: Achievement }[]
+    > = {};
 
     for (const combo of combos) {
-      let groupKey: string;
-      if (groupBy === 'size') {
-        groupKey = SIZE_LABELS[combo.size];
-      } else if (groupBy === 'difficulty') {
-        groupKey = DIFFICULTY_LABELS[combo.difficulty] || combo.difficulty;
-      } else {
-        groupKey = OPERATION_TIER_LABELS[combo.operationsTier] || combo.operationsTier;
-      }
+      const groupKey =
+        groupBy === 'size'
+          ? SIZE_LABELS[combo.size]
+          : DIFFICULTY_LABELS[combo.difficulty] || combo.difficulty;
 
       if (!groups[groupKey]) groups[groupKey] = [];
       groups[groupKey].push({ ...combo, achievement: store[combo.key] });
@@ -73,9 +62,13 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
     return groups;
   }, [combos, store, groupBy]);
 
-  const tooltipContent = (combo: { size: number; difficulty: string; operationsTier: string; achievement?: Achievement }) => {
-    const { size, difficulty, operationsTier, achievement } = combo;
-    const label = `${SIZE_LABELS[size]} ${DIFFICULTY_LABELS[difficulty]} (${OPERATION_TIER_LABELS[operationsTier]})`;
+  const tooltipContent = (combo: {
+    size: number;
+    difficulty: string;
+    achievement?: Achievement;
+  }) => {
+    const { size, difficulty, achievement } = combo;
+    const label = `${SIZE_LABELS[size]} ${DIFFICULTY_LABELS[difficulty]}`;
 
     if (!achievement) {
       const bronzeTime = getTimeThreshold(size, difficulty, 'silver');
@@ -91,7 +84,12 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
       nextLine = `\nNext: ${TIER_LABELS[next]} < ${formatTime(getTimeThreshold(size, difficulty, next))}`;
     }
 
-    return `${label}\n${tierLabel} - ${time}${nextLine}`;
+    // Badges are separate accomplishments, so they are listed rather than
+    // folded into the tier
+    const badges = [achievement.unaided && 'Unaided', achievement.clean && 'Clean']
+      .filter(Boolean)
+      .join(', ');
+    return `${label}\n${tierLabel} - ${time}${badges ? `\n${badges}` : ''}${nextLine}`;
   };
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
@@ -102,7 +100,9 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
       onClose={onClose}
       title={
         <Group gap="sm">
-          <Text fw={700} size="lg">Achievements</Text>
+          <Text fw={700} size="lg">
+            Achievements
+          </Text>
           {progress && (
             <Badge variant="light" color="indigo" size="lg">
               {progress.unlocked} / {progress.total}
@@ -128,7 +128,10 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
                   border: '1px solid rgba(0,0,0,0.15)',
                 }}
               />
-              <Text size="xs" c="dimmed">{TIER_LABELS[t]}{progress ? ` (${progress.byTier[t]})` : ''}</Text>
+              <Text size="xs" c="dimmed">
+                {TIER_LABELS[t]}
+                {progress ? ` (${progress.byTier[t]})` : ''}
+              </Text>
             </Group>
           ))}
           <Group gap={4}>
@@ -141,7 +144,9 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
                 border: '1px solid rgba(0,0,0,0.1)',
               }}
             />
-            <Text size="xs" c="dimmed">Locked</Text>
+            <Text size="xs" c="dimmed">
+              Locked
+            </Text>
           </Group>
         </Group>
 
@@ -151,14 +156,15 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
           data={[
             { value: 'size', label: 'By Size' },
             { value: 'difficulty', label: 'By Difficulty' },
-            { value: 'operations', label: 'By Operations' },
           ]}
           fullWidth
         />
 
         {Object.entries(grouped).map(([groupLabel, items]) => (
           <Box key={groupLabel}>
-            <Text fw={600} size="sm" mb={6}>{groupLabel}</Text>
+            <Text fw={600} size="sm" mb={6}>
+              {groupLabel}
+            </Text>
             <Group gap={6} wrap="wrap">
               {items.map(item => {
                 const achievement = item.achievement;
@@ -181,7 +187,9 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
                         height: 22,
                         borderRadius: '50%',
                         backgroundColor: color,
-                        border: achievement ? '2px solid rgba(0,0,0,0.15)' : '1px solid rgba(0,0,0,0.1)',
+                        border: achievement
+                          ? '2px solid rgba(0,0,0,0.15)'
+                          : '1px solid rgba(0,0,0,0.1)',
                         cursor: 'pointer',
                         transition: 'transform 150ms ease',
                       }}

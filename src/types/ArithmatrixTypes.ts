@@ -5,6 +5,8 @@
  * including puzzle structure, game state, and component props.
  */
 
+import type { GameConduct } from '../utils/achievements';
+
 /**
  * Represents a cage in the Arithmatrix puzzle.
  * A cage is a group of cells that must satisfy a mathematical operation.
@@ -41,7 +43,7 @@ export type ArithmatrixGridProps = {
   /** The correct solution grid for validation */
   solution: number[][];
   /** Callback function called when the puzzle is successfully solved */
-  onWin: () => void;
+  onWin: (conduct: GameConduct) => void;
   /** Whether the game timer is currently running */
   isTimerRunning: boolean;
   /** Whether the game has been won */
@@ -50,8 +52,14 @@ export type ArithmatrixGridProps = {
   initialGridValues?: string[][];
   /** Initial pencil marks for restoring saved state */
   initialPencilMarks?: Set<string>[][];
+  /** Conduct carried over from a resumed game. */
+  initialConduct?: GameConduct;
   /** Callback for when grid state changes (for persistence) */
-  onStateChange?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
+  onStateChange?: (
+    gridValues: string[][],
+    pencilMarks: Set<string>[][],
+    conduct: GameConduct
+  ) => void;
   /** Callback for when a checkpoint is requested from the parent */
   onCheckpointRequested?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
   /** Whether a checkpoint exists */

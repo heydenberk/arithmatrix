@@ -95,6 +95,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       isGameWon,
       initialGridValues,
       initialPencilMarks,
+      initialConduct,
       onStateChange,
       onCheckpointRequested,
       hasCheckpoint,
@@ -125,6 +126,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       isGameWon,
       initialGridValues,
       initialPencilMarks,
+      initialConduct,
       onStateChange,
     });
 
@@ -170,6 +172,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
        * pointing at.
        */
       gameState.setSelectedCells(new Set());
+      gameState.markAided();
       // The player's marks are part of the position: without them the hint
       // would re-suggest eliminations they have already made and written down.
       setHint(computeHint(puzzleDefinition, gameState.gridValues, gameState.pencilMarks, solution));

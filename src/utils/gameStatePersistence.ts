@@ -29,6 +29,12 @@ export type SavedGame = {
     operationsTier?: string;
   };
   elapsedTime: number;
+  /**
+   * Whether hints and tools have been used, and whether the board has been
+   * clean throughout. Saved so a pause and resume does not quietly restore an
+   * unaided record to somebody who has been leaning on the hint button.
+   */
+  conduct?: { unaided: boolean; clean: boolean };
   /** ISO strings; JSON has no date type */
   startedAt: string;
   savedAt: string;
@@ -137,7 +143,8 @@ export const saveGame = (
   puzzleSettings: { size: number; difficulty: string; operationsTier?: string },
   elapsedTime: number,
   startedAt?: Date,
-  puzzleIndex?: number | null
+  puzzleIndex?: number | null,
+  conduct?: { unaided: boolean; clean: boolean }
 ): void => {
   const cagesSig = canonicalCagesSig(puzzleDefinition.cages);
   const games = readAll();
@@ -153,6 +160,7 @@ export const saveGame = (
     // Keep the original start time across saves
     startedAt: (startedAt ?? new Date()).toISOString(),
     savedAt: new Date().toISOString(),
+    conduct,
   };
   writeAll(games);
 };

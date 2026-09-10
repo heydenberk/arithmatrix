@@ -31,6 +31,7 @@ import { useState, useEffect, useRef } from 'react';
 import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixTypes';
 import { checkWinCondition, findConflictingCells } from '../utils/arithmatrixUtils';
 import type { HintAction } from '../utils/hints';
+import type { GameConduct } from '../utils/achievements';
 
 /*
  * Gap between autofill waves.
@@ -45,12 +46,18 @@ const AUTOFILL_WAVE_MS = 200;
 interface UseArithmatrixGameProps {
   puzzleDefinition: PuzzleDefinition;
   solution: number[][];
-  onWin: () => void;
+  onWin: (conduct: GameConduct) => void;
   isTimerRunning: boolean;
   isGameWon: boolean;
   initialGridValues?: string[][];
   initialPencilMarks?: Set<string>[][];
-  onStateChange?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
+  /** Conduct carried over from a resumed game; fresh boards start clean. */
+  initialConduct?: GameConduct;
+  onStateChange?: (
+    gridValues: string[][],
+    pencilMarks: Set<string>[][],
+    conduct: GameConduct
+  ) => void;
 }
 
 export const useArithmatrixGame = ({
@@ -61,6 +68,7 @@ export const useArithmatrixGame = ({
   isGameWon: _isGameWon,
   initialGridValues,
   initialPencilMarks,
+  initialConduct,
   onStateChange,
 }: UseArithmatrixGameProps) => {
   const { size } = puzzleDefinition;
@@ -85,6 +93,12 @@ export const useArithmatrixGame = ({
   // Refs for tracking
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
   const autofillTimers = useRef<number[]>([]);
+  /*
+   * How this puzzle is being solved, as opposed to how fast. Held in a ref
+   * because nothing renders from it - it is read once, when the board is
+   * finished, and rewriting the grid on every hint would be pure churn.
+   */
+  const conduct = useRef<GameConduct>(initialConduct ?? { unaided: true, clean: true });
   const lastFocusedCell = useRef<CellCoord | null>(null);
 
   // Initialize or reset game state when puzzle changes
@@ -117,6 +131,7 @@ export const useArithmatrixGame = ({
       setSelectedCells(new Set());
       setFlashingCells(new Set());
       setSettlingCells(new Set());
+      conduct.current = initialConduct ?? { unaided: true, clean: true };
       // A cascade from the previous puzzle must not land on this one
       autofillTimers.current.forEach(id => clearTimeout(id));
       autofillTimers.current = [];
@@ -126,7 +141,7 @@ export const useArithmatrixGame = ({
         .fill(0)
         .map(() => Array(size).fill(null));
     }
-  }, [puzzleDefinition, size, initialGridValues, initialPencilMarks]);
+  }, [puzzleDefinition, size, initialGridValues, initialPencilMarks, initialConduct]);
 
   /*
    * The single place a win is announced.
@@ -145,16 +160,42 @@ export const useArithmatrixGame = ({
 
     if (won && !hasAnnouncedWinRef.current) {
       hasAnnouncedWinRef.current = true;
-      onWin();
+      onWin({ ...conduct.current });
     } else if (!won) {
       hasAnnouncedWinRef.current = false;
     }
   }, [gridValues, puzzleDefinition, onWin]);
 
+  /*
+   * Latches the moment a wrong value appears, by any route.
+   *
+   * Watching the grid rather than each handler means it cannot be bypassed -
+   * typing, autofill, applying a hint and undo/redo all pass through here -
+   * and it stays true once set, so backing the mistake out does not restore a
+   * clean record.
+   */
+  useEffect(() => {
+    if (conduct.current.clean === false || gridValues.length === 0) return;
+    for (let r = 0; r < gridValues.length; r++) {
+      for (let c = 0; c < gridValues[r].length; c++) {
+        const value = gridValues[r][c];
+        if (value !== '' && Number(value) !== solution?.[r]?.[c]) {
+          conduct.current.clean = false;
+          return;
+        }
+      }
+    }
+  }, [gridValues, solution]);
+
+  /** Called when the player leans on a tool the puzzle could be solved without. */
+  const markAided = () => {
+    conduct.current.unaided = false;
+  };
+
   // Effect to notify parent component of state changes
   useEffect(() => {
     if (onStateChange && gridValues.length > 0 && pencilMarks.length > 0) {
-      onStateChange(gridValues, pencilMarks);
+      onStateChange(gridValues, pencilMarks, { ...conduct.current });
     }
   }, [gridValues, pencilMarks, onStateChange]);
 
@@ -383,6 +424,7 @@ export const useArithmatrixGame = ({
    * deductions the player has made.
    */
   const handleFillAllCandidates = () => {
+    markAided();
     const { size } = puzzleDefinition;
     const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
     let anyUpdated = false;
@@ -423,6 +465,7 @@ export const useArithmatrixGame = ({
    * candidates, or wipes notes, whichever the hint asked for.
    */
   const applyHintAction = (action: HintAction) => {
+    markAided();
     const { size } = puzzleDefinition;
     const nextGridValues = gridValues.map(row => [...row]);
     const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
@@ -584,6 +627,7 @@ export const useArithmatrixGame = ({
 
   // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
   const handleAutofillSingles = () => {
+    markAided();
     cancelAutofill();
     const waves = computeAutofillWaves();
     if (waves.length === 0) return;
@@ -775,6 +819,7 @@ export const useArithmatrixGame = ({
 
   // Check individual cell against solution
   const handleCheckCell = () => {
+    markAided();
     clearErrors();
     const focusedElement = document.activeElement as HTMLInputElement;
 
@@ -895,6 +940,7 @@ export const useArithmatrixGame = ({
 
   // Check entire puzzle against solution
   const handleCheckPuzzle = () => {
+    markAided();
     clearErrors();
     console.log('Checking entire puzzle...');
     const errors = new Set<number>();
@@ -980,6 +1026,7 @@ export const useArithmatrixGame = ({
     handleAutofillSingles,
     handleFillAllCandidates,
     applyHintAction,
+    markAided,
     handleSecretShortcut,
     revertToState,
     clearErrors,
