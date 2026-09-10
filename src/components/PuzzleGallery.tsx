@@ -12,7 +12,7 @@
  * already finished are marked, and can be filtered out.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
   Box,
@@ -80,6 +80,8 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   const [hideCompleted, setHideCompleted] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(() => new Set());
   const [inProgress, setInProgress] = useState<Map<string, SavedGameSummary>>(() => new Map());
+  // See the open effect below: the filters are seeded once, not per open
+  const filtersSeeded = useRef(false);
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
 
@@ -105,9 +107,20 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   // Re-read completions each time it opens - the player has been solving
   // puzzles since the last time this was rendered.
   useEffect(() => {
-    if (opened) {
-      setSolved(completedSignatures());
-      setInProgress(savedGameSummaries());
+    if (!opened) return;
+    setSolved(completedSignatures());
+    setInProgress(savedGameSummaries());
+    /*
+     * The filters belong to the player, not to whatever they are playing.
+     *
+     * They used to be reset from the current puzzle on every open, so picking
+     * something under "Any operations" that happened to be a + - puzzle
+     * narrowed the filter to + - the next time round - the gallery quietly
+     * followed you instead of staying where you left it. Seeded once from
+     * whatever is loaded, then left alone for the session.
+     */
+    if (!filtersSeeded.current) {
+      filtersSeeded.current = true;
       setSize(initialSize);
       setOperationsTier(initialOperationsTier);
     }
