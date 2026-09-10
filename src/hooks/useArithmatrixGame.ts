@@ -30,7 +30,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixTypes';
 import { checkWinCondition, findConflictingCells } from '../utils/arithmatrixUtils';
-import type { HintAction } from '../utils/hints';
+import { boardIsSound, type HintAction } from '../utils/hints';
 import type { GameConduct } from '../utils/achievements';
 
 /*
@@ -287,6 +287,42 @@ export const useArithmatrixGame = ({
     setPencilMarks(prevPencilMarks);
     setHistory(prevHistory => prevHistory.slice(0, -1));
   };
+
+  /**
+   * Winds back to the most recent board that had no mistake on it.
+   *
+   * Undoing one step at a time is the wrong tool when a wrong value or a bad
+   * pencil mark went in a dozen moves ago and everything since was built on
+   * it. This walks the history back to the last sound position in one go, and
+   * everything it passes goes onto the redo stack, so it is no more
+   * destructive than a run of undos.
+   *
+   * Returns false when there is nothing sound to go back to - a mistake made
+   * before the first recorded move, or none at all.
+   */
+  const rewindToLastSound = (): boolean => {
+    if (!solution) return false;
+    for (let i = history.length - 1; i >= 0; i--) {
+      const [pastGrid, pastMarks] = history[i];
+      if (!boardIsSound(pastGrid, pastMarks, solution)) continue;
+
+      // Everything from that point forward becomes redoable, newest last
+      const undone = [...history.slice(i + 1), [gridValues, pencilMarks] as HistoryEntry];
+      setRedoStack(prevRedo => [...prevRedo, ...undone]);
+      setHistory(history.slice(0, i));
+      setGridValues(pastGrid.map(row => [...row]));
+      setPencilMarks(pastMarks.map(row => row.map(cellSet => new Set(cellSet))));
+      clearErrors();
+      return true;
+    }
+    return false;
+  };
+
+  /** Whether {@link rewindToLastSound} has anywhere to go. */
+  const canRewindToSound = (): boolean =>
+    !!solution &&
+    !boardIsSound(gridValues, pencilMarks, solution) &&
+    history.some(([pastGrid, pastMarks]) => boardIsSound(pastGrid, pastMarks, solution));
 
   // Redo functionality
   const handleRedo = () => {
@@ -1087,6 +1123,8 @@ export const useArithmatrixGame = ({
     handleAutofillSingles,
     handleFillAllCandidates,
     applyHintAction,
+    rewindToLastSound,
+    canRewindToSound,
     markAided,
     handleSecretShortcut,
     revertToState,

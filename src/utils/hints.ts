@@ -189,6 +189,37 @@ const regionCellsOf = (step: SolverStep, size: number): CellRef[] => {
 
 const listCells = (cells: CellRef[]) => listNames(cells);
 
+/**
+ * Whether a board is free of mistakes.
+ *
+ * Two kinds count, and they are the same two the hint reports: a placed value
+ * that is not the answer, and a marked cell whose notes cross its own answer
+ * off. Shared so "your board has a mistake" and "rewind to before the
+ * mistake" cannot disagree about what one is.
+ *
+ * A cell with no marks at all is untouched thinking, not a mistake.
+ */
+export const boardIsSound = (
+  gridValues: string[][],
+  pencilMarks: Set<string>[][] | undefined,
+  solution: number[][]
+): boolean => {
+  for (let row = 0; row < gridValues.length; row++) {
+    for (let col = 0; col < gridValues[row].length; col++) {
+      const answer = solution[row]?.[col];
+      if (answer === undefined) continue;
+      const value = gridValues[row][col];
+      if (value !== '') {
+        if (Number(value) !== answer) return false;
+        continue;
+      }
+      const marks = pencilMarks?.[row]?.[col];
+      if (marks && marks.size > 0 && !marks.has(String(answer))) return false;
+    }
+  }
+  return true;
+};
+
 /** Every cell the predicate accepts, in reading order. */
 const cellsWhere = (size: number, accept: (row: number, col: number) => boolean): CellRef[] => {
   const cells: CellRef[] = [];

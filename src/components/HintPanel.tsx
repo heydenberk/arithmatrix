@@ -9,7 +9,13 @@
 
 import React from 'react';
 import { ActionIcon, Badge, Button, Group, Paper, Stack, Text } from '@mantine/core';
-import { IconBulbFilled, IconCheck, IconChevronRight, IconX } from '@tabler/icons-react';
+import {
+  IconArrowBackUp,
+  IconBulbFilled,
+  IconCheck,
+  IconChevronRight,
+  IconX,
+} from '@tabler/icons-react';
 import { Hint } from '../utils/hints';
 
 interface HintPanelProps {
@@ -20,6 +26,11 @@ interface HintPanelProps {
   onClose: () => void;
   /** Carries out the hint's move. Absent when there is nothing to carry out. */
   onApply?: () => void;
+  /**
+   * Winds the board back to before the mistake. Offered only for the hints
+   * that report one, and only when there is a sound position to return to.
+   */
+  onRewind?: () => void;
   compact?: boolean;
 }
 
@@ -29,6 +40,7 @@ const HintPanel: React.FC<HintPanelProps> = ({
   onMore,
   onClose,
   onApply,
+  onRewind,
   compact = false,
 }) => {
   const current = hint.levels[Math.min(level, hint.levels.length - 1)];
@@ -39,6 +51,13 @@ const HintPanel: React.FC<HintPanelProps> = ({
    * without ever seeing the reasoning, which is the opposite of the point.
    */
   const canApply = !hasMore && hint.action && onApply;
+  /*
+   * The precise fix and the rewind are different bargains: clearing the wrong
+   * cells keeps everything else you have done, while rewinding also gives
+   * back the pencil marks as they were before you crossed the answer off. So
+   * both are offered rather than one chosen for the player.
+   */
+  const canRewind = !hasMore && onRewind;
 
   return (
     <Paper
@@ -87,8 +106,20 @@ const HintPanel: React.FC<HintPanelProps> = ({
           {current.body}
         </Text>
 
-        {(hasMore || canApply) && (
-          <Group justify="flex-end">
+        {(hasMore || canApply || canRewind) && (
+          <Group justify="flex-end" gap="xs">
+            {canRewind && (
+              <Button
+                size="compact-xs"
+                radius="xl"
+                variant="light"
+                color="gray"
+                leftSection={<IconArrowBackUp size="0.8rem" />}
+                onClick={onRewind}
+              >
+                Rewind to before it
+              </Button>
+            )}
             {hasMore ? (
               <Button
                 size="compact-xs"
@@ -102,16 +133,18 @@ const HintPanel: React.FC<HintPanelProps> = ({
                 {level === hint.levels.length - 2 ? 'Show the move' : 'Tell me more'}
               </Button>
             ) : (
-              <Button
-                size="compact-xs"
-                radius="xl"
-                variant="filled"
-                color="teal"
-                leftSection={<IconCheck size="0.8rem" />}
-                onClick={onApply}
-              >
-                {hint.action!.label}
-              </Button>
+              canApply && (
+                <Button
+                  size="compact-xs"
+                  radius="xl"
+                  variant="filled"
+                  color="teal"
+                  leftSection={<IconCheck size="0.8rem" />}
+                  onClick={onApply}
+                >
+                  {hint.action!.label}
+                </Button>
+              )
             )}
           </Group>
         )}

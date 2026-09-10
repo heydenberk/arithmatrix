@@ -652,6 +652,17 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
                 }
               : undefined
           }
+          /* Only the hints that report a mistake, and only when there is a
+             sound position to go back to */
+          onRewind={
+            (hint.kind === 'contradiction' || hint.kind === 'stale-marks') &&
+            gameState.canRewindToSound()
+              ? () => {
+                  gameState.rewindToLastSound();
+                  setHint(null);
+                }
+              : undefined
+          }
         />
       </Box>
     ) : null;

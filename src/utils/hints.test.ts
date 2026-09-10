@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeHint, eligibleSteps, stepDifficulty } from './hints';
+import { boardIsSound, computeHint, eligibleSteps, stepDifficulty } from './hints';
 import { solveToStall, solveWithTrace } from './solver';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
@@ -1143,6 +1143,79 @@ describe('a hint stays readable', () => {
           `${step.technique}: ${step.description}`
         ).toBeLessThanOrEqual(2 * record.puzzle.size);
       }
+    }
+  });
+});
+
+describe('what counts as a mistake', () => {
+  const record = RECORDS.find(r => r.metadata.size === 5)!;
+  const size = record.puzzle.size;
+  const solution = record.puzzle.solution;
+  const noMarks = () =>
+    Array.from({ length: size }, () => Array.from({ length: size }, () => new Set<string>()));
+
+  it('accepts an empty board', () => {
+    expect(boardIsSound(emptyGrid(size), noMarks(), solution)).toBe(true);
+  });
+
+  it('accepts a partly filled board that is all correct', () => {
+    const grid = emptyGrid(size);
+    grid[0][0] = String(solution[0][0]);
+    grid[2][3] = String(solution[2][3]);
+    expect(boardIsSound(grid, noMarks(), solution)).toBe(true);
+  });
+
+  it('rejects a wrong value', () => {
+    const grid = emptyGrid(size);
+    grid[1][1] = String((solution[1][1] % size) + 1);
+    expect(boardIsSound(grid, noMarks(), solution)).toBe(false);
+  });
+
+  it('rejects notes that cross the cell’s own answer off', () => {
+    // The case that is easy to miss: nothing is placed, the board looks fine,
+    // and the mistake is an elimination that already happened
+    const marks = noMarks();
+    marks[3][2] = new Set(
+      Array.from({ length: size }, (_, i) => String(i + 1)).filter(
+        v => v !== String(solution[3][2])
+      )
+    );
+    expect(boardIsSound(emptyGrid(size), marks, solution)).toBe(false);
+  });
+
+  it('accepts a cell with no marks as untouched rather than wrong', () => {
+    const marks = noMarks();
+    marks[0][0] = new Set([String(solution[0][0])]);
+    expect(boardIsSound(emptyGrid(size), marks, solution)).toBe(true);
+  });
+
+  it('agrees with the hint about whether the board has a mistake', () => {
+    /*
+     * The rewind and the hint must not disagree - offering "rewind to before
+     * the mistake" on a board the hint thinks is fine, or refusing it on one
+     * the hint has just complained about, would both be nonsense.
+     */
+    const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+    const cases: [string[][], Set<string>[][]][] = [];
+
+    const wrongValue = emptyGrid(size);
+    wrongValue[1][1] = String((solution[1][1] % size) + 1);
+    cases.push([wrongValue, noMarks()]);
+
+    const staleMark = noMarks();
+    staleMark[3][2] = new Set(
+      Array.from({ length: size }, (_, i) => String(i + 1)).filter(
+        v => v !== String(solution[3][2])
+      )
+    );
+    cases.push([emptyGrid(size), staleMark]);
+
+    cases.push([emptyGrid(size), noMarks()]);
+
+    for (const [grid, marks] of cases) {
+      const hint = computeHint(puzzle, grid, marks, solution)!;
+      const complains = hint.kind === 'contradiction' || hint.kind === 'stale-marks';
+      expect(complains).toBe(!boardIsSound(grid, marks, solution));
     }
   });
 });
