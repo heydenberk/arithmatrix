@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import SolveTimeStats from './SolveTimeStats';
 import { Modal, Text, Group, Stack, SegmentedControl, Tooltip, Box, Badge } from '@mantine/core';
 import {
   getAchievements,
@@ -18,6 +19,7 @@ interface AchievementGalleryProps {
 }
 
 type GroupBy = 'size' | 'difficulty';
+type View = 'boards' | 'times';
 
 const DIFFICULTY_LABELS: Record<string, string> = {
   easiest: 'Easiest',
@@ -38,6 +40,7 @@ const LOCKED_COLOR = '#ddd';
 
 const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose }) => {
   const [groupBy, setGroupBy] = useState<GroupBy>('size');
+  const [view, setView] = useState<View>('boards');
 
   const store = useMemo(() => (opened ? getAchievements() : {}), [opened]);
   const progress = useMemo(() => (opened ? getAchievementProgress() : null), [opened]);
@@ -115,8 +118,8 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
       centered
     >
       <Stack gap="md">
-        {/* Tier legend */}
-        <Group gap="sm" justify="center">
+        {/* Tier legend - nothing to do with solve times */}
+        <Group gap="sm" justify="center" display={view === 'boards' ? undefined : 'none'}>
           {TIER_ORDER.map(t => (
             <Group key={t} gap={4}>
               <Box
@@ -151,61 +154,76 @@ const AchievementGallery: React.FC<AchievementGalleryProps> = ({ opened, onClose
         </Group>
 
         <SegmentedControl
-          value={groupBy}
-          onChange={v => setGroupBy(v as GroupBy)}
+          value={view}
+          onChange={v => setView(v as View)}
           data={[
-            { value: 'size', label: 'By Size' },
-            { value: 'difficulty', label: 'By Difficulty' },
+            { value: 'boards', label: 'Boards' },
+            { value: 'times', label: 'Times' },
           ]}
           fullWidth
         />
 
-        {Object.entries(grouped).map(([groupLabel, items]) => (
-          <Box key={groupLabel}>
-            <Text fw={600} size="sm" mb={6}>
-              {groupLabel}
-            </Text>
-            <Group gap={6} wrap="wrap">
-              {items.map(item => {
-                const achievement = item.achievement;
-                const color = achievement ? TIER_COLORS[achievement.tier] : LOCKED_COLOR;
-                const tip = tooltipContent(item);
+        {view === 'times' && <SolveTimeStats opened={opened} />}
 
-                return (
-                  <Tooltip
-                    key={item.key}
-                    label={tip}
-                    multiline
-                    w={220}
-                    style={{ whiteSpace: 'pre-line' }}
-                    position="top"
-                    withArrow
-                  >
-                    <Box
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        backgroundColor: color,
-                        border: achievement
-                          ? '2px solid rgba(0,0,0,0.15)'
-                          : '1px solid rgba(0,0,0,0.1)',
-                        cursor: 'pointer',
-                        transition: 'transform 150ms ease',
-                      }}
-                      onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.3)';
-                      }}
-                      onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
-                        (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
-                      }}
-                    />
-                  </Tooltip>
-                );
-              })}
-            </Group>
-          </Box>
-        ))}
+        {view === 'boards' && (
+          <SegmentedControl
+            value={groupBy}
+            onChange={v => setGroupBy(v as GroupBy)}
+            data={[
+              { value: 'size', label: 'By Size' },
+              { value: 'difficulty', label: 'By Difficulty' },
+            ]}
+            fullWidth
+          />
+        )}
+
+        {view === 'boards' &&
+          Object.entries(grouped).map(([groupLabel, items]) => (
+            <Box key={groupLabel}>
+              <Text fw={600} size="sm" mb={6}>
+                {groupLabel}
+              </Text>
+              <Group gap={6} wrap="wrap">
+                {items.map(item => {
+                  const achievement = item.achievement;
+                  const color = achievement ? TIER_COLORS[achievement.tier] : LOCKED_COLOR;
+                  const tip = tooltipContent(item);
+
+                  return (
+                    <Tooltip
+                      key={item.key}
+                      label={tip}
+                      multiline
+                      w={220}
+                      style={{ whiteSpace: 'pre-line' }}
+                      position="top"
+                      withArrow
+                    >
+                      <Box
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          backgroundColor: color,
+                          border: achievement
+                            ? '2px solid rgba(0,0,0,0.15)'
+                            : '1px solid rgba(0,0,0,0.1)',
+                          cursor: 'pointer',
+                          transition: 'transform 150ms ease',
+                        }}
+                        onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.3)';
+                        }}
+                        onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => {
+                          (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                        }}
+                      />
+                    </Tooltip>
+                  );
+                })}
+              </Group>
+            </Box>
+          ))}
       </Stack>
     </Modal>
   );

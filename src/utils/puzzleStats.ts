@@ -8,6 +8,7 @@
  */
 
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
+import { scoreBandStart } from './puzzleCatalog';
 
 /**
  * Represents a completed puzzle record with all relevant statistics.
@@ -29,6 +30,12 @@ export type CompletedPuzzleStats = {
   difficultyOperations?: number;
   /** The operation tier used for this puzzle */
   operationTier?: string;
+  /**
+   * Whether the solve was unaided and clean. Absent on completions recorded
+   * before this was tracked, which is why the analysis counts those
+   * separately rather than assuming either way.
+   */
+  conduct?: { unaided: boolean; clean: boolean };
   /**
    * Line index of this puzzle in the puzzle database, when known.
    * Absent on completions recorded before indexes were stored; the puzzle's
@@ -86,7 +93,8 @@ export const saveCompletedPuzzle = (
   difficultyLevel: string,
   completionTimeSeconds: number,
   operationTier?: string,
-  puzzleIndex?: number | null
+  puzzleIndex?: number | null,
+  conduct?: { unaided: boolean; clean: boolean }
 ): void => {
   try {
     const stats: CompletedPuzzleStats = {
@@ -98,6 +106,7 @@ export const saveCompletedPuzzle = (
       size: puzzle.size,
       difficultyOperations: puzzle.difficulty_operations,
       operationTier,
+      conduct,
       ...(puzzleIndex === null || puzzleIndex === undefined ? {} : { puzzleIndex }),
     };
 
@@ -218,6 +227,90 @@ export const generateStatsSummary = (): PuzzleStatsSummary => {
 /**
  * Queries puzzles by specific criteria.
  */
+/** One difficulty band's worth of unaided solves, for one size. */
+export type SolveTimeBucket = {
+  size: number;
+  /** Start of the 10-point difficulty band, matching the gallery's grouping. */
+  bandStart: number;
+  count: number;
+  medianSeconds: number;
+  bestSeconds: number;
+};
+
+export type SolveTimeStats = {
+  buckets: SolveTimeBucket[];
+  /** Solves the figures are drawn from. */
+  included: number;
+  /** Left out because a hint, autofill or check was used. */
+  aidedExcluded: number;
+  /** Left out because they predate conduct being recorded. */
+  unknownExcluded: number;
+};
+
+const median = (values: number[]): number => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+};
+
+/**
+ * Solve times against difficulty, from unaided solves only.
+ *
+ * Grouped by size before anything else, because difficulty_score is
+ * normalised within a size: every size's hardest puzzles score 100, so a 4x4
+ * at 90 and a 7x7 at 90 are "hard for their size" rather than comparably
+ * hard. Pooling them would produce a flat line that means nothing.
+ *
+ * Aided solves are excluded rather than flagged - a hint can save minutes, so
+ * one of them in a bucket of three would dominate the median. Solves from
+ * before conduct was recorded cannot be classified either way and are counted
+ * separately, so a thin-looking chart is explained rather than mysterious.
+ */
+export const solveTimeStats = (): SolveTimeStats => {
+  const all = getStoredStats();
+  let aidedExcluded = 0;
+  let unknownExcluded = 0;
+  const grouped = new Map<string, { size: number; bandStart: number; times: number[] }>();
+
+  for (const entry of all) {
+    if (!entry.conduct) {
+      unknownExcluded++;
+      continue;
+    }
+    if (!entry.conduct.unaided) {
+      aidedExcluded++;
+      continue;
+    }
+    const score = entry.difficultyOperations;
+    if (typeof score !== 'number' || !isFinite(score)) {
+      unknownExcluded++;
+      continue;
+    }
+    const bandStart = scoreBandStart(score);
+    const key = `${entry.size}:${bandStart}`;
+    const bucket = grouped.get(key) ?? { size: entry.size, bandStart, times: [] };
+    bucket.times.push(entry.completionTimeSeconds);
+    grouped.set(key, bucket);
+  }
+
+  const buckets = [...grouped.values()]
+    .map(({ size, bandStart, times }) => ({
+      size,
+      bandStart,
+      count: times.length,
+      medianSeconds: median(times),
+      bestSeconds: Math.min(...times),
+    }))
+    .sort((a, b) => a.size - b.size || a.bandStart - b.bandStart);
+
+  return {
+    buckets,
+    included: buckets.reduce((sum, b) => sum + b.count, 0),
+    aidedExcluded,
+    unknownExcluded,
+  };
+};
+
 export const queryPuzzles = (criteria: {
   difficultyLevel?: string;
   size?: number;

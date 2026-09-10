@@ -709,7 +709,8 @@ function App() {
         difficulty,
         completionTimeRef.current,
         operationsTier,
-        currentPuzzleIndex
+        currentPuzzleIndex,
+        conduct
       );
     }
 
