@@ -34,14 +34,17 @@ import type { HintAction } from '../utils/hints';
 import type { GameConduct } from '../utils/achievements';
 
 /*
- * Gap between autofill waves.
+ * Autofill pacing, at two scales.
  *
- * Long enough to read as a chain of consequences rather than one change, short
- * enough that a deep cascade does not become a thing you wait out. The settle
- * animation is a little shorter again, so each wave has finished before the
- * next arrives.
+ * Cells within a wave land in quick succession - they were all settled by the
+ * same state of the board, so they read as one sweep. The pause between waves
+ * is much longer, because that gap is the point: it separates what was already
+ * true from what the previous wave made true.
  */
-const AUTOFILL_WAVE_MS = 200;
+const AUTOFILL_CELL_MS = 55;
+const AUTOFILL_WAVE_GAP_MS = 220;
+/** Matches the settle animation in ArithmatrixGrid.css. */
+const SETTLE_MS = 340;
 
 interface UseArithmatrixGameProps {
   puzzleDefinition: PuzzleDefinition;
@@ -602,27 +605,76 @@ export const useArithmatrixGame = ({
    * types something while the cascade is running - and skips any cell they
    * filled themselves in the meantime.
    */
-  const applyAutofillWave = (wave: Placement[]) => {
+  /**
+   * Notes where the surviving pencil mark currently sits, so the answer can
+   * grow out of it instead of simply appearing.
+   *
+   * Measured rather than computed from the layout constants: the mark's
+   * position depends on the pencil grid, the cage badge inset and the
+   * breakpoint, and a second copy of that arithmetic would drift. Has to run
+   * before the state update, while the mark is still on screen.
+   */
+  const noteSettleOrigin = (row: number, col: number, value: string) => {
+    const input = inputRefs.current?.[row]?.[col];
+    const cell = input?.closest('.arithmatrix-cell') as HTMLElement | null;
+    if (!input || !cell) return;
+    const mark = Array.from(cell.querySelectorAll('.pencil-mark')).find(
+      node => node.textContent?.trim() === value
+    );
+    // A cell filled straight from its cage never had a mark to grow from
+    if (!mark) {
+      cell.style.removeProperty('--settle-dx');
+      cell.style.removeProperty('--settle-dy');
+      cell.style.removeProperty('--settle-scale');
+      return;
+    }
+
+    const markBox = mark.getBoundingClientRect();
+    const inputBox = input.getBoundingClientRect();
+    const markFont = parseFloat(getComputedStyle(mark).fontSize);
+    const inputFont = parseFloat(getComputedStyle(input).fontSize);
+
+    cell.style.setProperty(
+      '--settle-dx',
+      `${markBox.left + markBox.width / 2 - (inputBox.left + inputBox.width / 2)}px`
+    );
+    cell.style.setProperty(
+      '--settle-dy',
+      `${markBox.top + markBox.height / 2 - (inputBox.top + inputBox.height / 2)}px`
+    );
+    cell.style.setProperty('--settle-scale', String(inputFont > 0 ? markFont / inputFont : 0.4));
+  };
+
+  const applyPlacement = ({ row, col, value }: Placement) => {
     const { size } = puzzleDefinition;
+    noteSettleOrigin(row, col, value);
     setGridValues(prev => {
-      const next = prev.map(row => [...row]);
-      for (const { row, col, value } of wave) {
-        if (next[row][col] === '') next[row][col] = value;
-      }
+      if (prev[row]?.[col] !== '') return prev;
+      const next = prev.map(r => [...r]);
+      next[row][col] = value;
       return next;
     });
     setPencilMarks(prev => {
-      const next = prev.map(row => row.map(cellSet => new Set(cellSet)));
-      for (const { row, col, value } of wave) {
-        next[row][col] = new Set<string>();
-        for (let i = 0; i < size; i++) {
-          if (i !== col) next[row][i].delete(value);
-          if (i !== row) next[i][col].delete(value);
-        }
+      const next = prev.map(r => r.map(cellSet => new Set(cellSet)));
+      next[row][col] = new Set<string>();
+      for (let i = 0; i < size; i++) {
+        if (i !== col) next[row][i].delete(value);
+        if (i !== row) next[i][col].delete(value);
       }
       return next;
     });
-    setSettlingCells(new Set(wave.map(({ row, col }) => `${row}-${col}`)));
+
+    const key = `${row}-${col}`;
+    setSettlingCells(prev => new Set(prev).add(key));
+    autofillTimers.current.push(
+      window.setTimeout(() => {
+        setSettlingCells(prev => {
+          const next = new Set(prev);
+          next.delete(key);
+          return next;
+        });
+      }, SETTLE_MS)
+    );
   };
 
   // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
@@ -638,15 +690,24 @@ export const useArithmatrixGame = ({
     clearErrors();
     setHasEnteredValueSinceSelection(true);
 
-    applyAutofillWave(waves[0]);
-    waves.slice(1).forEach((wave, index) => {
-      autofillTimers.current.push(
-        window.setTimeout(() => applyAutofillWave(wave), (index + 1) * AUTOFILL_WAVE_MS)
-      );
-    });
-    autofillTimers.current.push(
-      window.setTimeout(() => setSettlingCells(new Set()), waves.length * AUTOFILL_WAVE_MS)
-    );
+    /*
+     * Cells sweep in reading order within a wave; the wave boundary gets a
+     * pause of its own, so the chain of consequences stays legible however
+     * many cells each round happens to settle.
+     */
+    let at = 0;
+    for (const wave of waves) {
+      const ordered = [...wave].sort((a, b) => a.row - b.row || a.col - b.col);
+      for (const placement of ordered) {
+        if (at === 0) applyPlacement(placement);
+        else {
+          const delay = at;
+          autofillTimers.current.push(window.setTimeout(() => applyPlacement(placement), delay));
+        }
+        at += AUTOFILL_CELL_MS;
+      }
+      at += AUTOFILL_WAVE_GAP_MS;
+    }
   };
 
   // Handle direct number input (overwrite existing values)
