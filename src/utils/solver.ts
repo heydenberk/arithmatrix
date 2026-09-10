@@ -1118,6 +1118,9 @@ class Solver {
       if (intersectingCages.length === 0) continue;
 
       const feasible: number[][] = [];
+      // Which cage actually killed each rejected combination. Reporting all
+      // the intersecting cages as the evidence meant naming most of the board
+      const blockedBy = new Map<number[], CageInfo>();
       for (const comboA of survivorsA) {
         // Build temp candidate state with comboA placed
         const tempGrid = this.grid.map(r => r.slice());
@@ -1155,6 +1158,7 @@ class Solver {
           });
           if (!stillViable) {
             earlyFail = true;
+            blockedBy.set(comboA, cageB);
             break;
           }
         }
@@ -1162,10 +1166,6 @@ class Solver {
       }
 
       if (feasible.length === 0 || feasible.length === survivorsA.length) continue;
-
-      // The cells of the intersecting cages drove the deduction — collect them
-      // for support highlighting.
-      const supportCells: CellRef[] = intersectingCages.flatMap(c => c.cells);
 
       // Translate the narrowed combo set into candidate eliminations on cageA's cells
       for (let pos = 0; pos < cageA.cells.length; pos++) {
@@ -1176,16 +1176,36 @@ class Solver {
         for (const v of this.candidates[cell.row][cell.col]) {
           if (!stillPossible.has(v)) toRemove.push(v);
         }
-        if (toRemove.length > 0) {
-          toRemove.forEach(v => this.candidates[cell.row][cell.col].delete(v));
-          this.recordStep(
-            'cross_cage_feasibility',
-            `Cross-cage feasibility: ${toRemove.sort((a, b) => a - b).join(', ')} at ${cellLabel(cell.row, cell.col)} would leave another cage with no valid combinations.`,
-            [cell],
-            supportCells
-          );
-          return true; // restart from easiest
+        if (toRemove.length === 0) continue;
+
+        /*
+         * The evidence is the cage that actually ran out, not every cage in
+         * the neighbourhood. Only the rejected combinations that would have
+         * put one of these values here are relevant, so only the cages that
+         * killed those are worth naming or lighting up.
+         */
+        const blockers: CageInfo[] = [];
+        for (const combo of survivorsA) {
+          if (!toRemove.includes(combo[pos])) continue;
+          const blocker = blockedBy.get(combo);
+          if (blocker && !blockers.includes(blocker)) blockers.push(blocker);
         }
+        const named = blockers.slice(0, 2).map(cageHeader);
+        const blockerText =
+          named.length === 0
+            ? 'another cage'
+            : named.length === 1
+              ? `the ${named[0]} cage`
+              : `the ${named.join(' or ')} cage`;
+
+        toRemove.forEach(v => this.candidates[cell.row][cell.col].delete(v));
+        this.recordStep(
+          'cross_cage_feasibility',
+          `Cross-cage feasibility: ${andList(toRemove.sort((a, b) => a - b))} at ${cellLabel(cell.row, cell.col)} would leave ${blockerText} with no combination it can still make.`,
+          [cell],
+          (blockers.length > 0 ? blockers : intersectingCages).flatMap(c => c.cells)
+        );
+        return true; // restart from easiest
       }
     }
 

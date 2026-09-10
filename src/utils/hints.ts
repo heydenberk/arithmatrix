@@ -483,7 +483,13 @@ const buildLevels = (
   if (support.length > 0) {
     levels.push({
       title: 'What it follows from',
-      body: `Work from ${listCells(support)}. ${
+      /*
+       * Capped. A technique whose evidence is a whole neighbourhood of cages
+       * once produced "Work from C1, D1, E1, F1, C2, D2..." for twenty-nine
+       * cells - a paragraph nobody reads, when the highlight already shows
+       * exactly which squares are meant.
+       */
+      body: `Work from ${namedOrCounted(support)}. ${
         step.changes.placed.length > 0
           ? support.length === 1
             ? 'That alone settles another cell nearby.'

@@ -1093,3 +1093,56 @@ describe('a hint says what the step actually did', () => {
     expect(explained, 'no cage_combinations hints found to check').toBeGreaterThan(0);
   });
 });
+
+describe('a hint stays readable', () => {
+  it('never lists more cells than anyone would read', () => {
+    /*
+     * cross_cage_feasibility used to report every cell of every cage sharing
+     * a row or column with its target as the evidence - twenty-nine of them
+     * on a 7x7, rendered as a paragraph of coordinates. The evidence is the
+     * one cage that actually ran out.
+     */
+    let checked = 0;
+    for (const record of RECORDS) {
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 3, 7, 12, 18]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        const grid = step.grid.map(row => row.map(v => (v === 0 ? '' : String(v))));
+        const marks = step.candidates.map((row, r) =>
+          row.map((set, c) =>
+            step.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+          )
+        );
+        const hint = computeHint(puzzle, grid, marks, record.puzzle.solution);
+        for (const level of hint?.levels ?? []) {
+          if (level.title === 'The move') continue; // the solver's own enumeration
+          const named = level.body.match(/\b[A-G][1-7]\b/g) ?? [];
+          expect(named.length, `${level.title}: ${level.body}`).toBeLessThanOrEqual(6);
+        }
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(5);
+  });
+
+  it('keeps a step’s supporting cells to something a player can look at', () => {
+    for (const record of RECORDS) {
+      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const step of trace.steps) {
+        /*
+         * A row and a column is the honest evidence for a naked single, so
+         * the ceiling is both lines. A neighbourhood of cages - 29 cells on a
+         * 7x7, which is what this caught - is well past it.
+         */
+        expect(
+          step.supportCells?.length ?? 0,
+          `${step.technique}: ${step.description}`
+        ).toBeLessThanOrEqual(2 * record.puzzle.size);
+      }
+    }
+  });
+});
