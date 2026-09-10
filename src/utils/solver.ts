@@ -1644,6 +1644,69 @@ class Solver {
     return false;
   }
 
+  /**
+   * Every deduction reachable from this position without applying any other.
+   *
+   * runLogicLoop applies techniques in a fixed order and each one changes the
+   * board, so the trace's first step is whichever technique happened to be
+   * checked first - not the easiest move on the board. Offering that as the
+   * hint sent players hunting a hidden single down a whole line while a cage
+   * with two of its three cells already filled sat there settled.
+   *
+   * Running each technique from the same untouched position instead means
+   * every step here is independently valid, so the caller can order them by
+   * how hard they are to see rather than by how the loop is written. That
+   * independence is the whole point: picking a later step out of the *trace*
+   * is what once produced a hint whose premises were not on the board yet.
+   */
+  availableSteps(): SolverStep[] {
+    const runners: Array<() => boolean> = [
+      // A single-cell cage states its value outright - nothing is easier, and
+      // it is not part of the logic loop, so it has to be asked for directly
+      () => {
+        const before = this.steps.length;
+        this.placeStipulatedCages();
+        return this.steps.length > before;
+      },
+      () => this.applyNakedSingles(),
+      () => this.applyHiddenSingles(),
+      () => this.applyCageImpossibleAcrossCages(),
+      () => this.applyCageLockedAcrossCages(),
+      () => this.processCagesByStrength(),
+      () => this.applyMultiCageLineLock(),
+      () => this.applySummation(),
+      () => this.applyCrossCageFeasibility(),
+    ];
+
+    const grid = this.snapshotGrid();
+    const candidates = this.snapshotCandidates();
+    const counts = { ...this.counts };
+    const rawScore = this.rawScore;
+    const stepCount = this.steps.length;
+
+    const found: SolverStep[] = [];
+    for (const run of runners) {
+      this.grid = grid.map(row => row.slice());
+      this.candidates = candidates.map(row => row.map(set => new Set(set)));
+      this.prevGrid = grid.map(row => row.slice());
+      this.prevCandidates = candidates.map(row => row.map(set => new Set(set)));
+      run();
+      // Only the first: the rest of a cascade builds on it and is not
+      // independently available
+      if (this.steps.length > stepCount) found.push(this.steps[stepCount]);
+      this.steps.length = stepCount;
+    }
+
+    // Nothing here happened as far as the solve is concerned
+    this.grid = grid;
+    this.candidates = candidates;
+    this.prevGrid = grid.map(row => row.slice());
+    this.prevCandidates = candidates.map(row => row.map(set => new Set(set)));
+    this.counts = counts;
+    this.rawScore = rawScore;
+    return found;
+  }
+
   private runLogicLoop() {
     // "Always do the easiest thing that makes progress, then restart from the
     // top." After every step in a more expensive technique, we go back to the
@@ -2115,6 +2178,12 @@ export type StallAnalysis = {
    * deduction in `steps` never needs them.
    */
   branchPoints: () => BranchPoint[];
+  /**
+   * Deductions available from the player's position directly, each derived
+   * without applying any of the others - so a caller may pick freely among
+   * them. Lazy: it re-runs every technique.
+   */
+  availableSteps: () => SolverStep[];
 };
 
 /**
@@ -2125,6 +2194,9 @@ export type StallAnalysis = {
  * conclusion drawn inside a branch - so stopping here saves the search and
  * makes the guarantee structural rather than a filter applied afterwards.
  */
+/** A solver sitting at the player's position, before any deduction. */
+const fresh = (puzzle: PuzzleDefinition, options: SolveOptions) => new Solver(puzzle, options);
+
 export function solveToStall(puzzle: PuzzleDefinition, options: SolveOptions = {}): StallAnalysis {
   const solver = new Solver(puzzle, options);
   solver.runToStall();
@@ -2132,6 +2204,7 @@ export function solveToStall(puzzle: PuzzleDefinition, options: SolveOptions = {
     steps: solver.steps,
     grid: solver.grid.map(row => row.slice()),
     branchPoints: () => solver.analyseBranchPoints(),
+    availableSteps: () => fresh(puzzle, options).availableSteps(),
   };
 }
 

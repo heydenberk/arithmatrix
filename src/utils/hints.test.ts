@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeHint } from './hints';
+import { computeHint, stepDifficulty } from './hints';
 import { solveToStall, solveWithTrace } from './solver';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
@@ -657,31 +657,92 @@ describe('the board has to be sound before a hint is worth anything', () => {
   });
 });
 
-describe('a hint is the next step, not the best-looking one', () => {
+describe('a hint is the easiest move on the board', () => {
   /*
-   * The trace is a chain. Skipping a step - even for a better-presented one a
-   * little further on - hands the player a conclusion whose premises are not
-   * on the board yet. This regressed once: a preference for steps carrying
-   * supporting cells picked "the 14+ cage rules out 2 at D4" over the
-   * summation immediately before it, which was what had removed 5 from E4 and
-   * F4 and made the elimination true. The player was left looking at two cells
-   * whose notes still showed 5.
+   * Every step considered is derived from the player's position independently
+   * of the others, which is what makes choosing between them safe. The trace
+   * cannot be reordered the same way: its steps form a chain, and picking a
+   * later one hands over a conclusion whose premises are not yet on the board.
    */
-  it('always shows the earliest deduction available from the position', () => {
+  it('never offers a harder deduction when an easier one is available', () => {
+    let checked = 0;
     for (const record of RECORDS) {
-      const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
-      const grid = emptyGrid(puzzle.size);
-      const hint = computeHint(puzzle, grid, undefined, record.puzzle.solution);
-      if (hint?.kind !== 'deduction') continue;
+      const size = record.puzzle.size;
+      const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+      const trace = solveWithTrace(puzzle, { solution: record.puzzle.solution });
+      for (const i of [0, 2, 5, 9, 14]) {
+        const step = trace.steps[i];
+        if (!step) continue;
+        const grid = step.grid.map(row => row.map(v => (v === 0 ? '' : String(v))));
+        const marks = step.candidates.map((row, r) =>
+          row.map((set, c) =>
+            step.grid[r][c] === 0 ? new Set([...set].map(String)) : new Set<string>()
+          )
+        );
+        const hint = computeHint(puzzle, grid, marks, record.puzzle.solution);
+        if (hint?.kind !== 'deduction') continue;
 
-      const { steps } = solveToStall(puzzle, { solution: record.puzzle.solution });
-      const earliest = steps.find(
-        step =>
-          step.technique !== 'trial_and_error' &&
-          !step.description.startsWith('Repair:') &&
-          step.highlight.some(cell => grid[cell.row][cell.col] === '')
+        const startGrid = step.grid;
+        const startCandidates = step.candidates.map(row => row.map(set => new Set(set)));
+        const { availableSteps } = solveToStall(puzzle, {
+          startGrid,
+          startCandidates,
+          solution: record.puzzle.solution,
+        });
+        const shown = hint.levels[hint.levels.length - 1].body;
+        const chosen = availableSteps().find(s => s.description === shown);
+        expect(chosen, `hint not among the available steps: ${shown}`).toBeTruthy();
+
+        const mine = stepDifficulty(chosen!, startGrid, size);
+        for (const other of availableSteps()) {
+          // Only steps that would actually be offered
+          if (other.technique === 'trial_and_error') continue;
+          if (!other.highlight.some(cell => startGrid[cell.row][cell.col] === 0)) continue;
+          expect(
+            stepDifficulty(other, startGrid, size),
+            `${other.description} is easier than the one shown: ${shown}`
+          ).toBeGreaterThanOrEqual(mine);
+        }
+        checked++;
+      }
+    }
+    expect(checked, 'no deduction hints found to check').toBeGreaterThan(5);
+  });
+
+  it('prefers a nearly-filled cage over a hidden single down an open line', () => {
+    // The case that prompted this: an 8+ cage with two of three cells placed
+    // is arithmetic on numbers you can see; a hidden single is a line search
+    const record = RECORDS.find(r => r.metadata.size === 7)!;
+    const size = record.puzzle.size;
+    const puzzle: PuzzleDefinition = { size, cages: record.puzzle.cages };
+    const grid = emptyGrid(size);
+    const trivialCage = puzzle.cages.find(
+      cage => cage.cells.length === 3 && cage.operation === '+'
+    );
+    if (!trivialCage) return;
+    // Fill all but one cell of it from the solution
+    const flat = trivialCage.cells;
+    for (const idx of flat.slice(1)) {
+      grid[Math.floor(idx / size)][idx % size] = String(
+        record.puzzle.solution[Math.floor(idx / size)][idx % size]
       );
-      expect(hint.levels[hint.levels.length - 1].body).toBe(earliest!.description);
+    }
+    const hint = computeHint(puzzle, grid, undefined, record.puzzle.solution)!;
+    const target = hint.levels[hint.levels.length - 1].targetCells[0];
+    if (!target) return;
+    // Whatever it picks, nothing easier may remain
+    const startGrid = grid.map(row => row.map(v => (v === '' ? 0 : Number(v))));
+    const { availableSteps } = solveToStall(puzzle, {
+      startGrid,
+      solution: record.puzzle.solution,
+    });
+    const shown = hint.levels[hint.levels.length - 1].body;
+    const chosen = availableSteps().find(s => s.description === shown)!;
+    for (const other of availableSteps()) {
+      if (!other.highlight.some(cell => startGrid[cell.row][cell.col] === 0)) continue;
+      expect(stepDifficulty(other, startGrid, size)).toBeGreaterThanOrEqual(
+        stepDifficulty(chosen, startGrid, size)
+      );
     }
   });
 });

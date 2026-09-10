@@ -37,6 +37,7 @@ import {
   SolverStep,
   StallAnalysis,
   TECHNIQUE_LABELS,
+  TECHNIQUE_WEIGHTS,
   TechniqueId,
   countSolutions,
   solveToStall,
@@ -256,26 +257,81 @@ const toStartCandidates = (
 const isRepairStep = (step: SolverStep) => step.description.startsWith('Repair:');
 
 /**
- * The step worth showing: a real deduction, not a guess, and not aimed at a
- * cell the player has already filled.
+ * How much unresolved board a deduction asks the player to hold in their head.
  *
- * Strictly the *first* such step, never a later one that happens to look
- * better. This briefly preferred a step carrying supporting cells over an
- * earlier one without any, on the grounds that evidence can be shown where a
- * bare assertion cannot. That was backwards: the trace is a chain, so skipping
- * a step means presenting a conclusion whose premises are not on the board
- * yet. It picked "the 14+ cage rules out 2 at D4" over the summation on the
- * step before, which is what had removed 5 from E4 and F4 and made it true -
- * leaving a player looking at two cells that still showed 5 in their notes.
+ * The cells it reasons over - the rest of its cage, or the line it searches -
+ * counted by how many are still empty. A cage single whose other two cells are
+ * already filled rests on nothing: it is arithmetic on numbers you can see. A
+ * hidden single in a row rests on every empty cell in that row, because you
+ * have to know what cannot go in each of them.
  */
-const firstDeductiveStep = (steps: SolverStep[], startGrid: number[][]): SolverStep | null =>
-  steps.find(
+export const unknownsBehind = (step: SolverStep, grid: number[][], size: number): number => {
+  const seen = new Set<string>();
+  let unknown = 0;
+  for (const cell of [...(step.supportCells ?? []), ...regionCellsOf(step, size)]) {
+    const key = `${cell.row}-${cell.col}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (grid[cell.row]?.[cell.col] === 0) unknown++;
+  }
+  return unknown;
+};
+
+/**
+ * How hard a deduction is to see: its technique's weight plus the unresolved
+ * cells it rests on.
+ *
+ * Added rather than ranked in tiers. Unknowns alone is fooled by any technique
+ * that does not report its supporting cells - summation reports none, and so
+ * scored as free despite being the hardest thing in the set. Weight alone
+ * cannot see that a cage single with one cell left is easier than a hidden
+ * single down a row of four blanks. The sum is right about both, and degrades
+ * to weight where there is nothing to measure.
+ */
+export const stepDifficulty = (step: SolverStep, grid: number[][], size: number): number =>
+  TECHNIQUE_WEIGHTS[step.technique] + unknownsBehind(step, grid, size);
+
+/**
+ * The step worth showing: the easiest real deduction available right now.
+ *
+ * Every step here was derived from the player's position independently of the
+ * others, which is what makes choosing between them safe. Ordering the *trace*
+ * this way would not be: its steps form a chain, and picking a later one hands
+ * over a conclusion whose premises are not on the board yet - that is how
+ * "the 14+ cage rules out 2 at D4" once got offered ahead of the summation
+ * that made it true.
+ *
+ * Easiest means fewest unknowns to consider first, technique weight second.
+ * Weight alone would rank a hidden single (2) above a cage single (3), even
+ * when the cage has one cell left and the row has four.
+ */
+const easiestDeductiveStep = (
+  steps: SolverStep[],
+  startGrid: number[][],
+  size: number
+): SolverStep | null => {
+  const eligible = steps.filter(
     step =>
       step.technique !== 'trial_and_error' &&
       !isRepairStep(step) &&
       // Nothing to say about a cell that already has a value in it
       step.highlight.some(cell => startGrid[cell.row]?.[cell.col] === 0)
-  ) ?? null;
+  );
+  if (eligible.length === 0) return null;
+  /*
+   * Weight plus unknowns, added rather than ranked in tiers.
+   *
+   * Unknowns alone is fooled by any technique that does not report its
+   * supporting cells - summation reports none, and so scored as free despite
+   * being the hardest thing in the set. Weight alone cannot see that a cage
+   * single with one cell left is easier than a hidden single down a row of
+   * four blanks. The sum is right about both, and degrades to weight where
+   * there is nothing to measure.
+   */
+  return eligible.reduce((best, step) =>
+    stepDifficulty(step, startGrid, size) < stepDifficulty(best, startGrid, size) ? step : best
+  );
+};
 
 /**
  * The move a deductive step makes, ready to apply.
@@ -877,7 +933,12 @@ export const computeHint = (
     };
   }
 
-  const step = firstDeductiveStep(stall.steps, startGrid);
+  /*
+   * Chosen from what is available now, not from the order the solve happened
+   * to take. See easiestDeductiveStep - the trace could not be reordered
+   * safely, this list can.
+   */
+  const step = easiestDeductiveStep(stall.availableSteps(), startGrid, puzzleDefinition.size);
 
   if (!step) return stallHint(puzzleDefinition, stall);
 
