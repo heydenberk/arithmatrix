@@ -129,6 +129,12 @@ export default defineConfig({
     // localStorage.
     environment: 'jsdom',
     include: ['src/**/*.test.ts'],
+    /*
+     * Several suites solve every size and difficulty in the corpus, which is
+     * seconds of real work rather than a hang. The 5s default left them
+     * passing on a laptop and timing out on CI, which is the worst of both.
+     */
+    testTimeout: 30000,
   },
   server: {
     proxy: {

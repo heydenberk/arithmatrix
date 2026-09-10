@@ -689,12 +689,15 @@ describe('a hint is the easiest move on the board', () => {
           startCandidates,
           solution: record.puzzle.solution,
         });
+        // Once: it re-runs every technique, so calling it per comparison
+        // turned this from seconds into a timeout on slower machines
+        const available = availableSteps();
         const shown = hint.levels[hint.levels.length - 1].body;
-        const chosen = availableSteps().find(s => s.description === shown);
+        const chosen = available.find(s => s.description === shown);
         expect(chosen, `hint not among the available steps: ${shown}`).toBeTruthy();
 
         const mine = stepDifficulty(chosen!, startGrid, size);
-        for (const other of availableSteps()) {
+        for (const other of available) {
           // Only steps that would actually be offered
           if (other.technique === 'trial_and_error') continue;
           if (!other.highlight.some(cell => startGrid[cell.row][cell.col] === 0)) continue;
@@ -736,9 +739,10 @@ describe('a hint is the easiest move on the board', () => {
       startGrid,
       solution: record.puzzle.solution,
     });
+    const available = availableSteps();
     const shown = hint.levels[hint.levels.length - 1].body;
-    const chosen = availableSteps().find(s => s.description === shown)!;
-    for (const other of availableSteps()) {
+    const chosen = available.find(s => s.description === shown)!;
+    for (const other of available) {
       if (!other.highlight.some(cell => startGrid[cell.row][cell.col] === 0)) continue;
       expect(stepDifficulty(other, startGrid, size)).toBeGreaterThanOrEqual(
         stepDifficulty(chosen, startGrid, size)
