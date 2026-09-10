@@ -15,7 +15,14 @@
  * - Multi-cell selection and pencil mark support
  */
 
-import React, { useEffect, useMemo, useState, useImperativeHandle, forwardRef } from 'react';
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
 import { Box, Stack } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 import MobileNumberPad from './MobileNumberPad';
@@ -148,6 +155,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
      */
     const [hint, setHint] = useState<Hint | null>(null);
     const [hintLevel, setHintLevel] = useState(0);
+    const lastCellRef = useRef<string>('0-0');
 
     const requestHint = () => {
       if (hint) {
@@ -155,6 +163,13 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         setHintLevel(level => Math.min(level + 1, hint.levels.length - 1));
         return;
       }
+      /*
+       * Drop the selection first. Selected and hinted cells are both drawn as
+       * a highlight, so leaving one selected reads as part of what the hint is
+       * pointing at - and the hint's own cells are the only thing it should be
+       * pointing at.
+       */
+      gameState.setSelectedCells(new Set());
       // The player's marks are part of the position: without them the hint
       // would re-suggest eliminations they have already made and written down.
       setHint(computeHint(puzzleDefinition, gameState.gridValues, gameState.pencilMarks, solution));
@@ -386,6 +401,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       e.target.select();
     };
 
+    // Remembered across a cleared selection; see tabStopKey below
+    useEffect(() => {
+      const selected = [...gameState.selectedCells][0];
+      if (selected) lastCellRef.current = selected;
+    }, [gameState.selectedCells]);
+
     // Guard against rendering if puzzleDefinition is not yet available
     if (
       !puzzleDefinition ||
@@ -481,9 +502,13 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     /*
      * The single tabbable cell: wherever the player last was, else the top-left
      * corner. Tab therefore enters the grid once and arrow keys move within it.
+     *
+     * It has to outlive the selection itself. Opening a hint clears the
+     * selection so the highlight is unambiguous, and without this that would
+     * also throw a keyboard player back to A1.
      */
     const firstSelected = [...gameState.selectedCells][0];
-    const tabStopKey = firstSelected ?? '0-0';
+    const tabStopKey = firstSelected ?? lastCellRef.current;
 
     // The grid element (shared between mobile and desktop)
     const boardElement = (
