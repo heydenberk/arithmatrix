@@ -463,7 +463,16 @@ export const useArithmatrixGame = ({
    * deductions the player has made.
    */
   const handleFillAllCandidates = () => {
-    markAided();
+    /*
+     * Not an aid, so no markAided here.
+     *
+     * This writes the candidates that follow from the values already on the
+     * board - row and column eliminations anyone could do reflexively, given
+     * the patience. It tells the player nothing they could not read off the
+     * grid, and it cannot place a value, so it cannot advance the solve on
+     * its own. Checking is the opposite: it answers a question the board does
+     * not, and that does count.
+     */
     const { size } = puzzleDefinition;
     const nextPencilMarks = pencilMarks.map(row => row.map(cellSet => new Set(cellSet)));
     let anyUpdated = false;
@@ -715,6 +724,8 @@ export const useArithmatrixGame = ({
 
   // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
   const handleAutofillSingles = () => {
+    // Unlike filling candidates, this places values - it moves the solve on,
+    // so it counts
     markAided();
     cancelAutofill();
     const waves = computeAutofillWaves();
