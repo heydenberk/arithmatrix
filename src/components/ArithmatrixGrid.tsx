@@ -232,11 +232,18 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       e.stopPropagation();
       e.preventDefault();
       const cageCellKeys = cage.cells.map(idx => `${Math.floor(idx / size)}-${idx % size}`);
-      gameState.setSelectedCells(prev => {
-        const next = new Set(prev);
-        cageCellKeys.forEach(k => next.add(k));
-        return next;
-      });
+      /*
+       * The same rule the cell-click paths follow: once values have gone into
+       * a selection, the next one starts over instead of piling onto it.
+       * Selecting a cage was the one way in that ignored it, so marking cells
+       * up and then shift-clicking a cage badge kept the spent selection and
+       * marked those cells up a second time.
+       */
+      const startFresh = gameState.hasEnteredValueSinceSelection;
+      if (startFresh) gameState.setHasEnteredValueSinceSelection(false);
+      gameState.setSelectedCells(prev =>
+        startFresh ? new Set(cageCellKeys) : new Set([...prev, ...cageCellKeys])
+      );
       // Match regular shift+click behavior: enter temporary pencil mode so
       // the next number key produces a pencil mark across the whole selection
       // rather than placing a value in just the focused cell.
