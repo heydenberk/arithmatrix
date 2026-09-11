@@ -190,7 +190,15 @@ export const useArithmatrixGame = ({
     }
   }, [gridValues, solution]);
 
-  /** Called when the player leans on a tool the puzzle could be solved without. */
+  /**
+   * Called when the app answers a question the board does not.
+   *
+   * The line is information, not effort. Filling in candidates and autofilling
+   * singles are mechanical - they write what already follows from the grid, or
+   * from the player's own eliminations - so neither costs Unaided however much
+   * typing they save. A hint and a check both tell you something you could not
+   * read off the board, and those do.
+   */
   const markAided = () => {
     conduct.current.unaided = false;
   };
@@ -724,9 +732,20 @@ export const useArithmatrixGame = ({
 
   // Autofill singles: fill cells that are single-cell cages or have exactly one pencil mark
   const handleAutofillSingles = () => {
-    // Unlike filling candidates, this places values - it moves the solve on,
-    // so it counts
-    markAided();
+    /*
+     * Not an aid either, for the same reason as filling candidates.
+     *
+     * It only places a value where the answer is already determined: a
+     * single-cell cage states its value on the face of the board, and a cell
+     * with one pencil mark left was narrowed to it by the player's own
+     * eliminations. Either way the app is transcribing a conclusion rather
+     * than reaching one. That it then strips the value from the row and
+     * column, sometimes settling another cell, is the same reflexive
+     * bookkeeping - no new information enters.
+     *
+     * What remains an aid is anything that answers a question the board does
+     * not: a hint, applying one, and checking.
+     */
     cancelAutofill();
     const waves = computeAutofillWaves();
     if (waves.length === 0) return;
