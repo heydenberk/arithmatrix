@@ -231,6 +231,15 @@ function App() {
   const completionTimeRef = useRef<number>(0); // Ref to avoid re-rendering App every second
   const [initialGridValues, setInitialGridValues] = useState<string[][] | undefined>(undefined);
   const [initialConduct, setInitialConduct] = useState<GameConduct | undefined>(undefined);
+  /*
+   * The running conduct of the puzzle on screen, mirrored up from the grid so
+   * the trophy can show it. Held here rather than read from the hook because
+   * the control bar lives outside the grid component.
+   */
+  const [currentConduct, setCurrentConduct] = useState<GameConduct>({
+    unaided: true,
+    clean: true,
+  });
   const [initialPencilMarks, setInitialPencilMarks] = useState<Set<string>[][] | undefined>(
     undefined
   );
@@ -357,6 +366,7 @@ function App() {
       setInitialGridValues(undefined); // Clear initial state
       setInitialPencilMarks(undefined);
       setInitialConduct(undefined);
+      setCurrentConduct({ unaided: true, clean: true });
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`); // Updated log
 
       try {
@@ -396,6 +406,7 @@ function App() {
         setInitialGridValues(undefined);
         setInitialPencilMarks(undefined);
         setInitialConduct(undefined);
+        setCurrentConduct({ unaided: true, clean: true });
         setGameStartTime(new Date());
       } catch (err) {
         console.error('Failed to fetch puzzle:', err); // Debug log
@@ -506,6 +517,16 @@ function App() {
   ) => {
     latestGridValuesRef.current = gridValues;
     latestPencilMarksRef.current = pencilMarks;
+    /*
+     * Same object means React bails out of the re-render. The grid hands over
+     * a fresh conduct object on every state change, and onStateChange is not a
+     * stable reference, so storing it unconditionally re-rendered, re-ran the
+     * effect and stored it again - an infinite loop that blanked the page.
+     * Conduct only actually changes twice in a puzzle's life.
+     */
+    setCurrentConduct(prev =>
+      prev.unaided === conduct.unaided && prev.clean === conduct.clean ? prev : conduct
+    );
     if (!puzzleDefinition || !solutionGrid) return;
 
     /*
@@ -546,6 +567,7 @@ function App() {
     setInitialGridValues(undefined);
     setInitialPencilMarks(undefined);
     setInitialConduct(undefined);
+    setCurrentConduct({ unaided: true, clean: true });
     // Reset completion time BEFORE incrementing resetKey so Timer sees 0
     setCurrentCompletionTime(0);
     completionTimeRef.current = 0;
@@ -587,6 +609,7 @@ function App() {
     setInitialGridValues(saved.gridValues);
     setInitialPencilMarks(deserializePencilMarks(saved.pencilMarks));
     setInitialConduct(saved.conduct);
+    setCurrentConduct(saved.conduct ?? { unaided: true, clean: true });
 
     // Resume the clock where it stopped
     setGameStartTime(new Date(saved.startedAt));
@@ -640,6 +663,7 @@ function App() {
     setInitialGridValues(inProgress?.gridValues);
     setInitialPencilMarks(inProgress ? deserializePencilMarks(inProgress.pencilMarks) : undefined);
     setInitialConduct(inProgress?.conduct);
+    setCurrentConduct(inProgress?.conduct ?? { unaided: true, clean: true });
 
     // Game state: pick up where a paused puzzle left off, else start clean
     setIsGameWon(false);
@@ -1082,14 +1106,27 @@ function App() {
                     </Badge>
                   </Tooltip>
 
-                  {/* Achievements Trophy */}
-                  <Tooltip label="Achievements" position="bottom">
+                  {/* Achievements. The trophy dulls once a wrong value has
+                      been on the board, so the cost of the mistake is visible
+                      while you play rather than only at the win screen. */}
+                  <Tooltip
+                    label={
+                      currentConduct.clean
+                        ? 'Achievements — clean so far'
+                        : 'Achievements — no longer a clean solve'
+                    }
+                    position="bottom"
+                  >
                     <ActionIcon
                       onClick={() => setShowAchievementGallery(true)}
                       size="lg"
                       radius="xl"
                       variant="gradient"
-                      gradient={{ from: 'yellow', to: 'orange' }}
+                      gradient={
+                        currentConduct.clean
+                          ? { from: 'yellow', to: 'orange' }
+                          : { from: 'gray.5', to: 'gray.6' }
+                      }
                     >
                       <IconTrophy size="1.2rem" />
                     </ActionIcon>
