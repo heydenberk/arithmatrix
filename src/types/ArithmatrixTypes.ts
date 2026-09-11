@@ -54,6 +54,8 @@ export type ArithmatrixGridProps = {
   initialPencilMarks?: Set<string>[][];
   /** Conduct carried over from a resumed game. */
   initialConduct?: GameConduct;
+  /** Named difficulty, for looking up what this board has already earned. */
+  difficulty?: string;
   /** Callback for when grid state changes (for persistence) */
   onStateChange?: (
     gridValues: string[][],

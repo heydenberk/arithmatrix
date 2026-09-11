@@ -23,12 +23,13 @@ import React, {
   useImperativeHandle,
   forwardRef,
 } from 'react';
-import { Box, Stack } from '@mantine/core';
+import { Box, Button, Group, Modal, Stack, Text } from '@mantine/core';
 import './ArithmatrixGrid.css'; // Essential for grid styling and layout
 import MobileNumberPad from './MobileNumberPad';
 import HintPanel from './HintPanel';
 import GridAxisLabels from './GridAxisLabels';
 import { Hint, computeHint } from '../utils/hints';
+import { getAchievements } from '../utils/achievements';
 
 /*
  * Flat geometry, identical at every breakpoint: cells butt up against each
@@ -96,6 +97,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       initialGridValues,
       initialPencilMarks,
       initialConduct,
+      difficulty,
       onStateChange,
       onCheckpointRequested,
       hasCheckpoint,
@@ -158,6 +160,26 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const [hint, setHint] = useState<Hint | null>(null);
     const [hintLevel, setHintLevel] = useState(0);
     const lastCellRef = useRef<string>('0-0');
+
+    /*
+     * Asking before the first aid on a still-unaided puzzle.
+     *
+     * Only the first: once the badge is gone there is nothing left to protect
+     * and a second prompt is just noise. Nor does it ask when the board
+     * already holds Unaided - badges are sticky, so that solve cannot lose
+     * anything either.
+     */
+    const [pendingAid, setPendingAid] = useState<{ what: string; run: () => void } | null>(null);
+
+    const alreadyEarned = useMemo(
+      () => (difficulty ? !!getAchievements()[`${size}-${difficulty}`]?.unaided : false),
+      [size, difficulty]
+    );
+
+    const guardAid = (what: string, run: () => void) => () => {
+      if (gameState.isUnaided() && !alreadyEarned) setPendingAid({ what, run });
+      else run();
+    };
 
     const requestHint = () => {
       if (hint) {
@@ -498,11 +520,11 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         onUndo={gameState.handleUndo}
         canRedo={gameState.redoStack.length > 0}
         onRedo={gameState.handleRedo}
-        onCheckCell={gameState.handleCheckCell}
-        onCheckPuzzle={gameState.handleCheckPuzzle}
+        onCheckCell={guardAid('check a cell', gameState.handleCheckCell)}
+        onCheckPuzzle={guardAid('check the puzzle', gameState.handleCheckPuzzle)}
         onAutofillSingles={gameState.handleAutofillSingles}
         onFillAllCandidates={gameState.handleFillAllCandidates}
-        onHint={requestHint}
+        onHint={guardAid('take a hint', requestHint)}
         hasCheckpoint={hasCheckpoint}
         onCreateCheckpoint={onCreateCheckpoint}
         onRevertToCheckpoint={onRevertToCheckpoint}
@@ -674,8 +696,43 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       </Box>
     ) : null;
 
+    const aidWarning = (
+      <Modal
+        opened={pendingAid !== null}
+        onClose={() => setPendingAid(null)}
+        title={<Text fw={700}>This solve is still unaided</Text>}
+        centered
+        size="sm"
+        zIndex={400}
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            You have solved this far without help. Choosing to {pendingAid?.what} gives that up for
+            this puzzle — the Unaided badge is only awarded for a solve you finish on your own.
+          </Text>
+          <Group justify="flex-end" gap="sm">
+            <Button variant="subtle" color="gray" radius="xl" onClick={() => setPendingAid(null)}>
+              Keep going
+            </Button>
+            <Button
+              radius="xl"
+              color="yellow"
+              onClick={() => {
+                const run = pendingAid?.run;
+                setPendingAid(null);
+                run?.();
+              }}
+            >
+              Go ahead
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+    );
+
     return (
       <Stack align="center" gap={isMobile ? 0 : 'xl'} w="100%">
+        {aidWarning}
         {/* Controls at top on mobile - stays pinned at top */}
         {isMobile && controlsElement}
 
@@ -716,7 +773,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onRedo={gameState.handleRedo}
             onAutofillSingles={gameState.handleAutofillSingles}
             onFillAllCandidates={gameState.handleFillAllCandidates}
-            onHint={requestHint}
+            onHint={guardAid('take a hint', requestHint)}
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}

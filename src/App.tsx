@@ -932,6 +932,7 @@ function App() {
                   initialGridValues={initialGridValues}
                   initialPencilMarks={initialPencilMarks}
                   initialConduct={initialConduct}
+                  difficulty={difficulty}
                   onStateChange={handleGameStateChange}
                   onCheckpointRequested={saveCheckpoint}
                   hasCheckpoint={hasCheckpoint}

@@ -203,6 +203,9 @@ export const useArithmatrixGame = ({
     conduct.current.unaided = false;
   };
 
+  /** Whether this puzzle still has an unaided solve to lose. */
+  const isUnaided = () => conduct.current.unaided;
+
   // Effect to notify parent component of state changes
   useEffect(() => {
     if (onStateChange && gridValues.length > 0 && pencilMarks.length > 0) {
@@ -1156,6 +1159,7 @@ export const useArithmatrixGame = ({
     rewindToLastSound,
     canRewindToSound,
     markAided,
+    isUnaided,
     handleSecretShortcut,
     revertToState,
     clearErrors,
