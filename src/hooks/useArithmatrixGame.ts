@@ -200,7 +200,15 @@ export const useArithmatrixGame = ({
    * read off the board, and those do.
    */
   const markAided = () => {
+    if (!conduct.current.unaided) return;
     conduct.current.unaided = false;
+    /*
+     * Nothing on the board changed, so the usual state-change notification
+     * will not fire on its own. Without this the trophy would keep its colour
+     * until the next move, and a pause taken straight after a hint would save
+     * the puzzle as though no hint had been used.
+     */
+    onStateChange?.(gridValues, pencilMarks, { ...conduct.current });
   };
 
   /** Whether this puzzle still has an unaided solve to lose. */

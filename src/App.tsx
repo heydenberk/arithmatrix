@@ -1106,14 +1106,17 @@ function App() {
                     </Badge>
                   </Tooltip>
 
-                  {/* Achievements. The trophy dulls once a wrong value has
-                      been on the board, so the cost of the mistake is visible
-                      while you play rather than only at the win screen. */}
+                  {/* Achievements. The trophy dulls when an aid is taken -
+                      never when a wrong value lands. Reacting to the mistake
+                      would have made it a free check: type a value, watch the
+                      trophy, and you would know whether the move was right
+                      without paying for a check at all. Reacting to your own
+                      deliberate choice tells you nothing you did not know. */}
                   <Tooltip
                     label={
-                      currentConduct.clean
-                        ? 'Achievements — clean so far'
-                        : 'Achievements — no longer a clean solve'
+                      currentConduct.unaided
+                        ? 'Achievements — unaided so far'
+                        : 'Achievements — hint or check used'
                     }
                     position="bottom"
                   >
@@ -1123,7 +1126,7 @@ function App() {
                       radius="xl"
                       variant="gradient"
                       gradient={
-                        currentConduct.clean
+                        currentConduct.unaided
                           ? { from: 'yellow', to: 'orange' }
                           : { from: 'gray.5', to: 'gray.6' }
                       }
