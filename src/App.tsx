@@ -543,7 +543,13 @@ function App() {
       return;
     }
 
-    if (hasAnyProgress(gridValues, pencilMarks)) {
+    /*
+     * A hint taken before a single mark went down is still something to
+     * remember. Progress alone as the test meant the board was deleted
+     * instead of saved, so reloading handed the puzzle back as unaided to
+     * someone who had already looked at a hint.
+     */
+    if (hasAnyProgress(gridValues, pencilMarks) || !conduct.unaided || !conduct.clean) {
       saveGame(
         puzzleDefinition,
         solutionGrid,
