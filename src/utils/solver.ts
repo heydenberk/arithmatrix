@@ -9,6 +9,7 @@
  */
 
 import type { Cage, PuzzleDefinition } from '../types/ArithmatrixTypes';
+import { cellName as cellNameOf } from './arithmatrixUtils';
 
 export type TechniqueId =
   | 'stipulated'
@@ -180,7 +181,7 @@ const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
-const cellLabel = (row: number, col: number) => `${colLetter(col)}${row + 1}`;
+const cellLabel = (row: number, col: number) => cellNameOf(row, col);
 
 /**
  * "row 4", "columns E, F and G" - named the way the board labels them.

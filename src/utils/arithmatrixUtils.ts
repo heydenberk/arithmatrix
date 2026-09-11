@@ -19,6 +19,17 @@ import { Cage, PuzzleDefinition } from '../types/ArithmatrixTypes';
  * @param puzzleDefinition - The complete puzzle definition
  * @returns Map from cage index to color index (0-11)
  */
+/**
+ * How a cell is named wherever the player is shown one.
+ *
+ * Column letter then row number - the same coordinates the axis labels put on
+ * the grid and the hints use in their prose. The solver and the hint engine
+ * each grew their own copy of this; screen readers had a third, saying "Cell
+ * 7, 6" while a hint was talking about F7.
+ */
+export const cellName = (row: number, col: number): string =>
+  `${String.fromCharCode('A'.charCodeAt(0) + col)}${row + 1}`;
+
 export const generateCageColorMap = (puzzleDefinition: PuzzleDefinition): Map<number, number> => {
   if (!puzzleDefinition) return new Map<number, number>();
 
@@ -335,7 +346,8 @@ export const validateCageConstraint = (cage: Cage, cageValues: number[]): boolea
       if (cageValues.length !== 2) return false;
       result = Math.abs(cageValues[0] - cageValues[1]);
       break;
-    case '/': { // Assumes exactly two cells
+    case '/': {
+      // Assumes exactly two cells
       if (cageValues.length !== 2) return false;
       const maxVal = Math.max(cageValues[0], cageValues[1]);
       const minVal = Math.min(cageValues[0], cageValues[1]);

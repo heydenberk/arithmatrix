@@ -31,6 +31,7 @@
  */
 
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
+import { cellName as cellNameOf } from './arithmatrixUtils';
 import {
   BranchPoint,
   CellRef,
@@ -146,8 +147,7 @@ const TECHNIQUE_NUDGES: Record<TechniqueId, (region: string) => string> = {
   trial_and_error: () => 'No forced move is available — this position needs a guess.',
 };
 
-const columnLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
-const cellName = (cell: CellRef) => `${columnLetter(cell.col)}${cell.row + 1}`;
+const cellName = (cell: CellRef) => cellNameOf(cell.row, cell.col);
 
 /**
  * The line a deduction is about, read out of the solver's own description.

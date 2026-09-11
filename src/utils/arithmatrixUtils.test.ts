@@ -13,6 +13,7 @@ import {
   getBorderClasses,
   getCageInfo,
   validateCageConstraint,
+  cellName,
 } from './arithmatrixUtils';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
@@ -184,5 +185,23 @@ describe('generateCageColorMap', () => {
         }
       }
     }
+  });
+});
+
+describe('cellName', () => {
+  /*
+   * One definition, used by the solver's descriptions, the hint engine's prose
+   * and the screen-reader labels. They disagreed before: a hint said "F7"
+   * while the cell announced itself as "Cell 7, 6".
+   */
+  it('names a cell by column letter and row number', () => {
+    expect(cellName(0, 0)).toBe('A1');
+    expect(cellName(6, 5)).toBe('F7');
+    expect(cellName(3, 6)).toBe('G4');
+  });
+
+  it('counts rows from one, so the label matches the grid', () => {
+    expect(cellName(0, 2)).toBe('C1');
+    expect(cellName(6, 0)).toBe('A7');
   });
 });

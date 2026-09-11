@@ -16,6 +16,7 @@
 import React, { useEffect, useRef } from 'react';
 import { ArithmatrixCellProps } from '../types/ArithmatrixTypes';
 import { TouchGestureRecognizer, isTouchDevice, triggerHapticFeedback } from '../utils/touchUtils';
+import { cellName } from '../utils/arithmatrixUtils';
 
 const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
   rowIndex,
@@ -134,7 +135,9 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
       className={cellClasses}
       onClick={onClick}
       role="gridcell"
-      aria-label={`Cell ${rowIndex + 1}, ${colIndex + 1}${cageInfo ? `, ${cageInfo.text}` : ''}${hasValue ? `, value ${cellValue}` : ', empty'}`}
+      /* Named the way the hints and the axis labels name it, so "the 14+ cage
+         rules out 2 at D4" can be found rather than counted out */
+      aria-label={`${cellName(rowIndex, colIndex)}${cageInfo ? `, ${cageInfo.text}` : ''}${hasValue ? `, value ${cellValue}` : ', empty'}`}
       aria-selected={isSelected}
       aria-invalid={hasError}
       aria-colindex={colIndex + 1}
@@ -178,7 +181,7 @@ const ArithmatrixCell: React.FC<ArithmatrixCellProps> = ({
            */
           tabIndex={isTabStop ? 0 : -1}
           disabled={!shouldShowContent} // Disable input when timer is paused
-          aria-label={`Enter number for cell ${rowIndex + 1}, ${colIndex + 1}`}
+          aria-label={`Enter number for ${cellName(rowIndex, colIndex)}`}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
