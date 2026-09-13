@@ -1,6 +1,6 @@
 # Arithmatrix Puzzle Game
 
-A beautiful, interactive web-based Arithmatrix (KenKen) puzzle game with modern glass morphism UI, comprehensive mobile support, and a Python backend for puzzle generation.
+A beautiful, interactive web-based Arithmatrix (KenKen) puzzle game with modern glass morphism UI, comprehensive mobile support, and a TypeScript puzzle generator that shares its solver with the game's hints.
 
 ## Quick Start
 
@@ -11,8 +11,8 @@ npm install
 # Start frontend dev server (http://localhost:5173)
 npm run dev
 
-# Start both frontend and backend
-npm run start:dev
+# Regenerate or top up the puzzle corpus (seeded, parallel)
+npm run generate:batch -- --count 50 --tiers add,add-sub,no-div,all --max-time 600
 
 # Build for production
 npm run build
@@ -43,13 +43,8 @@ neknek/
 │   │   └── touchUtils.ts            # Mobile touch handling
 │   └── constants/          # Configuration constants
 │       └── gameConstants.ts         # Sizes, difficulties, paths
-├── backend/                # Flask Python backend
-│   ├── app.py              # Flask API server (port 5001)
-│   ├── arithmatrix.py      # Core puzzle generation algorithm
-│   ├── solver.py           # Technique solver, uniqueness counter, Deadline
-│   ├── validation.py       # Structural checks on a puzzle definition
-│   ├── generate_batch.py   # Parallel batch generation CLI
-│   └── latin_square.py     # Latin square generation
+├── generation/         # Seeded puzzle generation (pure): rng, latin square, carve, operations, coordinator
+├── scripts/                # Node tooling: generate-batch, rescore-corpus, calibrate-scoring, pin-scoring-fixtures
 ├── public/                 # Static assets
 │   ├── all_puzzles.jsonl   # Main puzzle database (~7MB, 4000+ puzzles)
 │   └── manifest.json       # PWA manifest
@@ -67,10 +62,6 @@ neknek/
 - Mantine 8 (UI components)
 - Tabler Icons
 
-**Backend:**
-- Python 3.11
-- Flask
-
 **Deployment:**
 - GitHub Pages at `/arithmatrix/`
 
@@ -79,8 +70,8 @@ neknek/
 ```bash
 # Development
 npm run dev              # Frontend dev server
-npm run backend:dev      # Backend API server
-npm run start:dev        # Both frontend + backend
+npm run generate:batch   # Generate puzzles (see scripts/generate-batch.ts for flags)
+npx tsx scripts/rescore-corpus.ts   # Re-score public/all_puzzles.jsonl in place under the current engine
 
 # Code Quality
 npm run lint             # Check linting
@@ -113,8 +104,8 @@ npm run preview          # Preview production build
 - localStorage persists game state
 
 ### Puzzle Data
-- Puzzles stored in `public/all_puzzles.jsonl`
-- Each puzzle has `actual_difficulty` field (human-centered)
+- Puzzles stored in `public/all_puzzles.jsonl` (fetched as `?v=CORPUS_VERSION` to bust the PWA cache)
+- Each record has `actual_difficulty` (band within its size), `difficulty_score` (cross-size 0-100), `raw_score`, `scoring_version`, and for generated-in-TS records a `seed`
 - Filtered at load time by size and difficulty
 
 ### Mobile Support
@@ -143,14 +134,15 @@ npm run preview          # Preview production build
 | `src/hooks/useArithmatrixGame.ts` | All game logic, validation, history |
 | `src/components/ArithmatrixGrid.tsx` | Grid rendering with cage colors |
 | `src/utils/arithmatrixUtils.ts` | Validation, graph coloring algorithm |
-| `backend/arithmatrix.py` | Core puzzle generation (984 lines) |
+| `src/utils/solver.ts` | Technique solver, uniqueness counter, `scorePuzzle`/`assessPuzzle` |
+| `src/utils/difficulty.ts` | Scoring model and `SCORING_VERSION`; calibration in `scoringCalibration.ts` |
+| `src/generation/` | Seeded generator and batch coordinator |
 | `public/all_puzzles.jsonl` | Puzzle database (production) |
 
 ## Debugging
 
 - Puzzle stats available at `window.puzzleStats` in browser console
 - React DevTools for component inspection
-- Backend runs on port 5001 with debug mode
 
 ## Known Patterns
 
@@ -158,13 +150,7 @@ npm run preview          # Preview production build
 Uses graph coloring algorithm with 7 colors to ensure adjacent cages have different colors. See `assignCageColors()` in `arithmatrixUtils.ts`.
 
 ### Difficulty System
-Uses "human-centered" difficulty based on:
-- Cage complexity (operation type + size)
-- Constraint density
-- Arithmetic difficulty
-- Structural complexity
-
-Old `DIFFICULTY_BOUNDS` constant is deprecated - puzzles now filtered by `actual_difficulty` metadata field.
+Technique-based: the solver rates a puzzle by the cheapest reasoning that solves it (`src/utils/difficulty.ts`, `SCORING_VERSION`). The 0-100 `difficulty_score` is on one cross-size scale; the named band (`actual_difficulty`) is assigned within a size by quantile. Any change to ratings: bump `SCORING_VERSION`, run `scripts/calibrate-scoring.ts`, `scripts/rescore-corpus.ts`, `scripts/pin-scoring-fixtures.ts`, and bump `CORPUS_VERSION` in `gameConstants.ts`.
 
 ### Touch Gestures
 - Tap: select cell

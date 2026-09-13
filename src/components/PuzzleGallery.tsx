@@ -187,7 +187,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
         onClick={() => handleSelect(entry)}
         aria-label={
           `${paused ? 'Resume' : 'Play'} ${entry.size}×${entry.size} puzzle, ` +
-          `difficulty ${entry.score.toFixed(1)}` +
+          `${entry.difficulty}, difficulty ${entry.score.toFixed(1)}` +
           (paused ? `, paused at ${formatCompletionTime(paused.elapsedTime)}` : '') +
           (isSolved ? ', completed' : '')
         }
@@ -218,6 +218,10 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
         </Box>
         <Text size="xs" fw={700} ta="center" mt={2} c="gray.7">
           {entry.score.toFixed(1)}
+        </Text>
+        {/* The band is per size while the number is not, so it goes on the tile */}
+        <Text size="10px" ta="center" fw={600} lh={1.1} c={`${TIER_COLOR[entry.difficulty]}.8`}>
+          {entry.difficulty}
         </Text>
         {paused ? (
           <Text size="10px" ta="center" c="yellow.8" fw={600} lh={1.1}>
@@ -388,9 +392,6 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
               <Text size="sm" fw={700}>
                 {band.label}
               </Text>
-              <Badge size="sm" variant="light" color={TIER_COLOR[band.tier]}>
-                {band.tier}
-              </Badge>
               <Text size="xs" c="dimmed">
                 {band.entries.length}
               </Text>

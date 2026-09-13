@@ -301,6 +301,29 @@ carving) are not justified by the profile.
 
 ### Phase 4 - Re-score, migrate, retire (B Phase 5)
 
+*Status (2026-09-13): shipped.* `scripts/calibrate-scoring.ts` derives
+`src/utils/scoringCalibration.ts` from the corpus under the current engine:
+per-size raw quantiles (bands) and cross-size anchors q20..q80 = 6.4, 8.4,
+11.4, 34.5 with max 4293.7 (number). `normalizeScore(raw)` is now one scale -
+linear through the anchors, log-compressed above q80 so only the corpus
+maximum reads 100; `difficultyLevel(raw, size)` assigns the band within the
+size. `scripts/rescore-corpus.ts` re-scored all 4000 records in place: every
+record validated (structure, one solution, trace reaches it); 3399 keep their
+band, 601 move, mostly one step and mostly at 4x4-6x6 where the version-1
+bands were widest; order preserved, the duplicate pair kept (decision 5).
+Records now carry `raw_score`, `scoring_version: 2`, `rescored_at`.
+Display consumers (1c): `tierForScore` deleted; gallery sections keep numeric
+labels and each tile shows its own band; playback and dev panel take the band
+from raw + size. Persisted scores (2b): `CompletedPuzzleStats.scoringVersion`,
+`migrateScores` re-keys by cage signature (index only as a verified shortcut)
+on catalog load, a restored puzzle takes the score of the record it resolves
+to, and the Times chart excludes and names anything still on another version.
+Cache: the corpus is fetched as `all_puzzles.jsonl?v=CORPUS_VERSION` and the
+workbox pattern keeps caching it under that key. CI: `src/utils/corpus.test.ts`
+validates every record and checks labels against the model, replacing the
+Python validator nobody ran. Python generation, solver, Flask API, their tests
+and CI step are removed; the TUI (`tui/`) never depended on them.
+
 1. Re-score the corpus with the canonical engine, in place, preserving record
    order (the browser uses index as identity; saved games use cage signature).
    1b. Replace `normalizeScore` with the cross-size absolute mapping (decision 6):
@@ -365,7 +388,7 @@ carving) are not justified by the profile.
    entry is why devices still hold the pre-`cb8fc36` corpus).
 4. Remove Python generation and scoring.
 
-This phase closes both standing v1 blockers. Item 3 closes the stranded stale
+Done. This phase closes both standing v1 blockers. Item 3 closes the stranded stale
 corpus. Re-scoring alone would **not** close the other: `normalizeScore` in
 `solver.ts:217-225` is per-size quantile normalisation with `Math.min(100, …)`
 saturation, and re-scoring under that model keeps both properties. It is item

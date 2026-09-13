@@ -39,12 +39,12 @@ for (let i = 0; i < lines.length; i++) {
   if (sizeFilter && rec.puzzle.size !== sizeFilter) continue;
   if ((rec.metadata.operations_tier ?? 'all') !== opsFilter) continue;
   const r = solveWithTrace(rec.puzzle);
-  const score = normalizeScore(r.rawScore, rec.puzzle.size);
+  const score = normalizeScore(r.rawScore);
   rows.push({
     idx: i,
     size: rec.puzzle.size,
     targetLevel: rec.metadata.actual_difficulty,
-    newLevel: difficultyLevel(score),
+    newLevel: difficultyLevel(r.rawScore, rec.puzzle.size),
     score,
     raw: r.rawScore,
     cages: rec.puzzle.cages.length,

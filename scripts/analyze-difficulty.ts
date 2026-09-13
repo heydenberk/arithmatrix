@@ -47,8 +47,8 @@ let last = 0;
 for (let i = 0; i < lines.length; i++) {
   const raw = JSON.parse(lines[i]);
   const r = solveWithTrace(raw.puzzle);
-  const newScore = normalizeScore(r.rawScore, raw.puzzle.size);
-  const newLevel = difficultyLevel(newScore);
+  const newScore = normalizeScore(r.rawScore);
+  const newLevel = difficultyLevel(r.rawScore, raw.puzzle.size);
   const oldLevel = raw.metadata.actual_difficulty as Level;
   records.push({
     idx: i,

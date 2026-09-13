@@ -136,8 +136,8 @@ const DevPanel = ({ onClose, onLoadPuzzleByIndex }: Props) => {
       for (let j = 0; j < batch.length; j++) {
         const rec = batch[j];
         const r = solveWithTrace(rec.puzzle);
-        const newScore = normalizeScore(r.rawScore, rec.puzzle.size);
-        const newLevel = difficultyLevel(newScore);
+        const newScore = normalizeScore(r.rawScore);
+        const newLevel = difficultyLevel(r.rawScore, rec.puzzle.size);
         collected.push({
           idx: i + j,
           size: rec.puzzle.size,

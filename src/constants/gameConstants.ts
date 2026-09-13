@@ -45,7 +45,14 @@ export const BLUR_VALUES = {
 } as const;
 
 // File paths using Vite base so it works on project pages
-export const PUZZLE_DATA_FILE = `${import.meta.env.BASE_URL}all_puzzles.jsonl`;
+/**
+ * Bumped whenever the shipped corpus changes in a way a stale copy would
+ * mislead - a re-score, a regeneration. The query string busts the PWA's
+ * CacheFirst entry, which otherwise served a 30-day-old corpus regardless of
+ * what was deployed.
+ */
+export const CORPUS_VERSION = 2;
+export const PUZZLE_DATA_FILE = `${import.meta.env.BASE_URL}all_puzzles.jsonl?v=${CORPUS_VERSION}`;
 
 // CSS class names (for consistent styling)
 export const CSS_CLASSES = {

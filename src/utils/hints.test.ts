@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { boardIsSound, computeHint, eligibleSteps, stepDifficulty } from './hints';
-import { solveToStall, solveWithTrace } from './solver';
+import { solveToStall, solveWithTrace, type SolverStep } from './solver';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 type Record_ = {
@@ -737,12 +737,17 @@ describe('a hint is the easiest move on the board', () => {
         for (const a of offered) {
           for (const b of offered) {
             if (a === b) continue;
-            const inA = new Set(
-              a.changes.eliminated.flatMap(c => c.values.map(v => `${c.row}:${c.col}:${v}`))
-            );
-            const inB = new Set(
-              b.changes.eliminated.flatMap(c => c.values.map(v => `${c.row}:${c.col}:${v}`))
-            );
+            // What a step does, the way the selector sees it: a placement is
+            // an atom of its own, so a single that also strikes its value
+            // from a line is not a weaker version of a step that only
+            // eliminates there
+            const atoms = (s: SolverStep) =>
+              new Set([
+                ...s.changes.placed.map(c => `p:${c.row}:${c.col}:${c.value}`),
+                ...s.changes.eliminated.flatMap(c => c.values.map(v => `${c.row}:${c.col}:${v}`)),
+              ]);
+            const inA = atoms(a);
+            const inB = atoms(b);
             if (inA.size === 0 || inA.size >= inB.size) continue;
             const contained = [...inA].every(x => inB.has(x));
             expect(contained, `${a.description} is contained by ${b.description}`).toBe(false);

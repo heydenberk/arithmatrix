@@ -163,8 +163,10 @@ const SolverPlayback = ({
   const cageColorMap = useMemo(() => generateCageColorMap(puzzleDefinition), [puzzleDefinition]);
 
   // Score readout
-  const normalized = normalizeScore(cumulativeScore, size);
-  const level = difficultyLevel(normalized);
+  // The trace so far, rated: this grows step by step and starts from the
+  // player's board, so it need not equal the puzzle's stored difficulty
+  const normalized = normalizeScore(cumulativeScore);
+  const level = difficultyLevel(cumulativeScore, size);
 
   const headerText = currentStep
     ? `Step ${stepIndex + 1} of ${totalSteps}`

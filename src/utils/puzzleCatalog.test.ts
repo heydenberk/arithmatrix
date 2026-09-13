@@ -12,7 +12,6 @@ import {
   groupByScoreBand,
   pickRandomEntry,
   scoreBandStart,
-  tierForScore,
   type CatalogEntry,
 } from './puzzleCatalog';
 
@@ -66,18 +65,6 @@ describe('canonicalCagesSig', () => {
   });
 });
 
-describe('tierForScore', () => {
-  it('matches the bands the gallery groups by', () => {
-    expect(tierForScore(0)).toBe('easiest');
-    expect(tierForScore(19.9)).toBe('easiest');
-    expect(tierForScore(20)).toBe('easy');
-    expect(tierForScore(40)).toBe('medium');
-    expect(tierForScore(60)).toBe('hard');
-    expect(tierForScore(80)).toBe('expert');
-    expect(tierForScore(100)).toBe('expert');
-  });
-});
-
 describe('scoreBandStart', () => {
   it('floors to a ten-point band', () => {
     expect(scoreBandStart(0)).toBe(0);
@@ -116,7 +103,6 @@ describe('groupByScoreBand', () => {
   it('labels a band with its range and tier', () => {
     const [band] = groupByScoreBand([entry({ score: 45 })]);
     expect(band.label).toBe('40–50');
-    expect(band.tier).toBe('medium');
   });
 
   it('sorts entries within a band by score', () => {

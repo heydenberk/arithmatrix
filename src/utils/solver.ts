@@ -2243,12 +2243,11 @@ export type ScoreResult = {
  */
 export function scorePuzzle(puzzle: PuzzleDefinition, options: SolveOptions = {}): ScoreResult {
   const result = new Solver(puzzle, { ...options, mode: 'score' }).solve(false);
-  const score = normalizeScore(result.rawScore, puzzle.size);
   return {
     techniqueCounts: result.techniqueCounts,
     rawScore: result.rawScore,
-    score,
-    level: difficultyLevel(score),
+    score: normalizeScore(result.rawScore),
+    level: difficultyLevel(result.rawScore, puzzle.size),
     solved: result.solved,
     scoringVersion: SCORING_VERSION,
   };

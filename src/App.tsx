@@ -39,8 +39,9 @@ import {
   OPERATION_TIER_LABELS,
 } from './constants/gameConstants';
 import { RawPuzzleRecord, canonicalCagesSig, loadCatalog } from './utils/puzzleCatalog';
+import { SCORING_VERSION } from './utils/difficulty';
 import { checkWinCondition } from './utils/arithmatrixUtils';
-import { saveCompletedPuzzle, bindStatsToWindow } from './utils/puzzleStats';
+import { saveCompletedPuzzle, bindStatsToWindow, migrateScores } from './utils/puzzleStats';
 import {
   evaluateAchievement,
   saveAchievement,
@@ -156,6 +157,34 @@ function App() {
   // Initialize puzzle stats system
   useEffect(() => {
     bindStatsToWindow();
+  }, []);
+
+  // Once the catalog is in, bring persisted scores up to the current scoring
+  // model: completed-solve records are re-keyed to the corpus by cage
+  // signature, and a puzzle restored from a save takes the score of the
+  // record it resolves to rather than the one stored with it.
+  useEffect(() => {
+    let cancelled = false;
+    loadCatalog()
+      .then(catalog => {
+        if (cancelled) return;
+        const updated = migrateScores(
+          catalog.map(e => ({ index: e.index, size: e.size, cagesSig: e.cagesSig, score: e.score }))
+        );
+        if (updated > 0)
+          console.info(`Re-scored ${updated} completed puzzle(s) to scoring v${SCORING_VERSION}`);
+        setPuzzleDefinition(prev => {
+          if (!prev) return prev;
+          const sig = canonicalCagesSig(prev.cages);
+          const entry = catalog.find(e => e.size === prev.size && e.cagesSig === sig);
+          if (!entry || entry.score === prev.difficulty_operations) return prev;
+          return { ...prev, difficulty_operations: entry.score };
+        });
+      })
+      .catch(e => console.warn('score migration skipped', e));
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // If the URL pins a specific puzzle, load exactly that one. A saved game in

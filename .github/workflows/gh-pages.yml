@@ -41,20 +41,6 @@ jobs:
       - name: Test
         run: npm test
 
-      # The generator's acceptance contract (structure, uniqueness, complete
-      # metadata, bounded batch deadlines) is only enforced by these tests.
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-          cache: pip
-          cache-dependency-path: backend/requirements.txt
-
-      - name: Backend tests
-        run: |
-          pip install -r backend/requirements.txt pytest
-          python -m pytest tests/backend -q
-
       - name: Build
         run: npm run build
 

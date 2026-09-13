@@ -87,11 +87,14 @@ const SolveTimeStats: React.FC<{ opened: boolean }> = ({ opened }) => {
           ))
       )}
 
-      {(stats.aidedExcluded > 0 || stats.unknownExcluded > 0) && (
+      {(stats.aidedExcluded > 0 || stats.unknownExcluded > 0 || stats.versionExcluded > 0) && (
         <Text size="xs" c="dimmed">
           {stats.included} unaided {stats.included === 1 ? 'solve' : 'solves'} counted
           {stats.aidedExcluded > 0 && `; ${stats.aidedExcluded} left out as aided`}
-          {stats.unknownExcluded > 0 && `; ${stats.unknownExcluded} from before this was recorded`}.
+          {stats.unknownExcluded > 0 && `; ${stats.unknownExcluded} from before this was recorded`}
+          {stats.versionExcluded > 0 &&
+            `; ${stats.versionExcluded} scored under an older model and not in this puzzle set`}
+          .
         </Text>
       )}
     </Stack>

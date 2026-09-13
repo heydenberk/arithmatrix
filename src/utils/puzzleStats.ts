@@ -9,6 +9,8 @@
 
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 import { scoreBandStart } from './puzzleCatalog';
+import { SCORING_VERSION } from './difficulty';
+import { canonicalCagesSig } from './cageSignature';
 
 /**
  * Represents a completed puzzle record with all relevant statistics.
@@ -26,8 +28,15 @@ export type CompletedPuzzleStats = {
   difficultyLevel: string;
   /** The puzzle size (e.g., 4, 5, 6, 7) */
   size: number;
-  /** Number of difficulty operations (measure of complexity) */
+  /** The puzzle's difficulty score at the time of the solve (0-100). */
   difficultyOperations?: number;
+  /**
+   * Which scoring model `difficultyOperations` came from. Absent means the
+   * original per-size model; those are re-keyed to the corpus and recomputed
+   * on load (see migrateScores), and excluded from the Times chart until they
+   * are, so one bucket never mixes two meanings of the same number.
+   */
+  scoringVersion?: number;
   /** The operation tier used for this puzzle */
   operationTier?: string;
   /**
@@ -105,6 +114,7 @@ export const saveCompletedPuzzle = (
       difficultyLevel,
       size: puzzle.size,
       difficultyOperations: puzzle.difficulty_operations,
+      scoringVersion: SCORING_VERSION,
       operationTier,
       conduct,
       ...(puzzleIndex === null || puzzleIndex === undefined ? {} : { puzzleIndex }),
@@ -238,6 +248,8 @@ export type SolveTimeBucket = {
 };
 
 export type SolveTimeStats = {
+  /** Solves whose score is from another scoring model and could not be re-keyed. */
+  versionExcluded: number;
   buckets: SolveTimeBucket[];
   /** Solves the figures are drawn from. */
   included: number;
@@ -270,6 +282,7 @@ export const solveTimeStats = (): SolveTimeStats => {
   const all = getStoredStats();
   let aidedExcluded = 0;
   let unknownExcluded = 0;
+  let versionExcluded = 0;
   const grouped = new Map<string, { size: number; bandStart: number; times: number[] }>();
 
   for (const entry of all) {
@@ -284,6 +297,10 @@ export const solveTimeStats = (): SolveTimeStats => {
     const score = entry.difficultyOperations;
     if (typeof score !== 'number' || !isFinite(score)) {
       unknownExcluded++;
+      continue;
+    }
+    if (entry.scoringVersion !== SCORING_VERSION) {
+      versionExcluded++;
       continue;
     }
     const bandStart = scoreBandStart(score);
@@ -308,7 +325,48 @@ export const solveTimeStats = (): SolveTimeStats => {
     included: buckets.reduce((sum, b) => sum + b.count, 0),
     aidedExcluded,
     unknownExcluded,
+    versionExcluded,
   };
+};
+
+/** What migrateScores needs to know about a corpus record. */
+export type ScoreSource = { index: number; size: number; cagesSig: string; score: number };
+
+/**
+ * Bring stored solves up to the current scoring model.
+ *
+ * Each entry is re-keyed to the corpus by cage signature - never by index
+ * alone, since devices may hold an older corpus in which every index names a
+ * different puzzle. The stored index is only a shortcut, accepted when the
+ * record there has the same size and signature. Entries that match nothing
+ * are left as they are and stay excluded from the Times chart. Returns how
+ * many were updated.
+ */
+export const migrateScores = (sources: ScoreSource[]): number => {
+  const stats = getStoredStats();
+  const bySig = new Map(sources.map(s => [`${s.size}|${s.cagesSig}`, s]));
+  const byIndex = new Map(sources.map(s => [s.index, s]));
+  let updated = 0;
+  for (const entry of stats) {
+    if (entry.scoringVersion === SCORING_VERSION) continue;
+    const sig = `${entry.size}|${canonicalCagesSig(entry.puzzle.cages)}`;
+    const viaIndex = entry.puzzleIndex !== undefined ? byIndex.get(entry.puzzleIndex) : undefined;
+    const source =
+      viaIndex && `${viaIndex.size}|${viaIndex.cagesSig}` === sig ? viaIndex : bySig.get(sig);
+    if (!source) continue;
+    entry.difficultyOperations = source.score;
+    entry.scoringVersion = SCORING_VERSION;
+    entry.puzzleIndex = source.index;
+    updated++;
+  }
+  if (updated > 0) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stats));
+    } catch (error) {
+      console.error('Failed to save migrated puzzle stats:', error);
+    }
+  }
+  return updated;
 };
 
 export const queryPuzzles = (criteria: {

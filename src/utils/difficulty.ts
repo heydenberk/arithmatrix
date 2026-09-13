@@ -9,6 +9,8 @@
  * so persisted scores can be told apart from fresh ones.
  */
 
+import { CROSS_SIZE_ANCHORS, CROSS_SIZE_MAX, SIZE_BAND_QUANTILES } from './scoringCalibration';
+
 export type TechniqueId =
   | 'stipulated'
   | 'naked_single'
@@ -40,8 +42,9 @@ export const DIFFICULTY_ORDER: readonly DifficultyLevel[] = [
  * score persisted before 2026-09 are version 1.
  *
  * Version 2: cheapest-first restart after every single deduction, placement
- * or elimination, with deterministic traversal. See docs/GENERATION_SYNTHESIS.md
- * decision 3.
+ * or elimination, with deterministic traversal (decision 3), and the display
+ * score on one cross-size scale with bands assigned per size (decision 6).
+ * See docs/GENERATION_SYNTHESIS.md.
  */
 export const SCORING_VERSION = 2;
 
@@ -116,47 +119,46 @@ export function bottleneckRaw(counts: Record<TechniqueId, number>): number {
   return hard + Math.sqrt(cheap);
 }
 
-// Per-size raw-score quantile boundaries (q20, q40, q60, q80) defining the
-// five tiers: easiest = bottom 20% … expert = top 20%. Quantile bucketing is
-// used because the bottleneck raw is bimodal (flows vs hits-walls), so fixed
-// thresholds would leave "medium" nearly empty. Derived from the version-1
-// corpus; to be re-derived when the corpus is re-scored (Phase 4).
-const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
-  4: [5.4, 5.7, 6.1, 6.6],
-  5: [7.5, 8.0, 8.4, 9.2],
-  6: [10.2, 11.3, 12.4, 33.2],
-  7: [13.6, 22.6, 73.5, 183.1],
-};
-
 function interp(x: number, x0: number, x1: number, y0: number, y1: number): number {
   if (x1 <= x0) return y0;
   return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
 }
 
 /**
- * Map a bottleneck raw score to a 0-100 display score by piecewise-linear
- * interpolation through the per-size quantile boundaries, so the tier cutoffs
- * land at exactly 20/40/60/80.
+ * The 0-100 display score, the same mapping for every size (decision 6 in
+ * docs/GENERATION_SYNTHESIS.md).
  *
- * Per-size: a 60 on a 4x4 and a 60 on a 7x7 are not comparable, and the top
- * band saturates at 100. Both are known; the replacement is decision 6 in
- * docs/GENERATION_SYNTHESIS.md and lands with the corpus re-score.
+ * Piecewise-linear through the cross-size raw-score quantiles so the corpus
+ * as a whole lands at 20/40/60/80, then log-compressed above q80 so the top
+ * fifth spreads over 80-100 instead of pinning at 100: only a raw score at or
+ * beyond the largest the corpus has ever produced reads 100. A 4x4 is a small
+ * puzzle by this measure and reads low; that is the point of the number.
+ * Band membership is a separate, per-size question - see difficultyLevel.
  */
-export function normalizeScore(rawScore: number, size: number): number {
+export function normalizeScore(rawScore: number): number {
   if (rawScore <= 0) return 0;
-  const [q20, q40, q60, q80] = SIZE_QUANTILES[size] ?? SIZE_QUANTILES[7];
+  const [q20, q40, q60, q80] = CROSS_SIZE_ANCHORS;
   if (rawScore < q20) return interp(rawScore, 0, q20, 0, 20);
   if (rawScore < q40) return interp(rawScore, q20, q40, 20, 40);
   if (rawScore < q60) return interp(rawScore, q40, q60, 40, 60);
   if (rawScore < q80) return interp(rawScore, q60, q80, 60, 80);
-  const span = Math.max(1e-9, q80 - q60);
-  return Math.min(100, 80 + ((rawScore - q80) / span) * 20);
+  const scale = Math.max(1e-9, q80 - q60);
+  const top = Math.log1p((CROSS_SIZE_MAX - q80) / scale);
+  if (top <= 0) return 100;
+  return Math.min(100, 80 + (20 * Math.log1p((rawScore - q80) / scale)) / top);
 }
 
-export function difficultyLevel(score: number): DifficultyLevel {
-  if (score < 20) return 'easiest';
-  if (score < 40) return 'easy';
-  if (score < 60) return 'medium';
-  if (score < 80) return 'hard';
+/**
+ * The named band, within a size: bottom fifth of that size's raw scores is
+ * easiest, top fifth expert. Per-size so every (size, band) bucket stays
+ * populated whatever the cross-size number says. Unknown sizes use the 7x7
+ * table.
+ */
+export function difficultyLevel(rawScore: number, size: number): DifficultyLevel {
+  const [q20, q40, q60, q80] = SIZE_BAND_QUANTILES[size] ?? SIZE_BAND_QUANTILES[7];
+  if (rawScore < q20) return 'easiest';
+  if (rawScore < q40) return 'easy';
+  if (rawScore < q60) return 'medium';
+  if (rawScore < q80) return 'hard';
   return 'expert';
 }

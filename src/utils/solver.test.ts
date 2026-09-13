@@ -28,6 +28,7 @@ type Record_ = {
     actual_difficulty: string;
     operations_tier?: string;
     difficulty_score?: number;
+    raw_score?: number;
   };
 };
 
@@ -96,9 +97,9 @@ describe('solveWithTrace on the real puzzle database', () => {
     // A tier that does not match its own score means the corpus and the
     // scoring anchors have drifted apart.
     for (const record of RECORDS) {
-      const score = record.metadata.difficulty_score;
-      if (score === undefined) continue;
-      expect(difficultyLevel(score)).toBe(record.metadata.actual_difficulty);
+      const raw = record.metadata.raw_score;
+      if (raw === undefined) continue;
+      expect(difficultyLevel(raw, record.metadata.size)).toBe(record.metadata.actual_difficulty);
     }
   });
 
@@ -233,40 +234,48 @@ describe('solveWithTrace from a partial grid', () => {
 });
 
 describe('difficultyLevel', () => {
-  it('bands scores the way the gallery groups them', () => {
-    expect(difficultyLevel(0)).toBe('easiest');
-    expect(difficultyLevel(19.9)).toBe('easiest');
-    expect(difficultyLevel(20)).toBe('easy');
-    expect(difficultyLevel(39.9)).toBe('easy');
-    expect(difficultyLevel(40)).toBe('medium');
-    expect(difficultyLevel(59.9)).toBe('medium');
-    expect(difficultyLevel(60)).toBe('hard');
-    expect(difficultyLevel(79.9)).toBe('hard');
-    expect(difficultyLevel(80)).toBe('expert');
-    expect(difficultyLevel(100)).toBe('expert');
+  it('bands a raw score within its size at the calibrated quantiles', () => {
+    // 4x4 anchors are ~5.2/5.5/5.9/6.4; 7x7's ~12.9/22/73/181. The same raw
+    // score is a different band on a different size - by design.
+    expect(difficultyLevel(0, 4)).toBe('easiest');
+    expect(difficultyLevel(5.3, 4)).toBe('easy');
+    expect(difficultyLevel(5.7, 4)).toBe('medium');
+    expect(difficultyLevel(6.1, 4)).toBe('hard');
+    expect(difficultyLevel(7, 4)).toBe('expert');
+    expect(difficultyLevel(7, 7)).toBe('easiest');
+    expect(difficultyLevel(50, 7)).toBe('medium');
+    expect(difficultyLevel(1000, 7)).toBe('expert');
+  });
+
+  it('falls back to the 7x7 table for an unknown size', () => {
+    expect(difficultyLevel(50, 9)).toBe(difficultyLevel(50, 7));
   });
 });
 
 describe('normalizeScore', () => {
   it('maps nothing to zero', () => {
-    expect(normalizeScore(0, 6)).toBe(0);
-    expect(normalizeScore(-5, 6)).toBe(0);
+    expect(normalizeScore(0)).toBe(0);
+    expect(normalizeScore(-5)).toBe(0);
   });
 
   it('increases with raw score', () => {
-    const scores = [1, 5, 10, 25, 50, 100, 400].map(raw => normalizeScore(raw, 6));
+    const scores = [1, 5, 10, 25, 50, 100, 400, 4000].map(raw => normalizeScore(raw));
     for (let i = 1; i < scores.length; i++) {
-      expect(scores[i]).toBeGreaterThanOrEqual(scores[i - 1]);
+      expect(scores[i]).toBeGreaterThan(scores[i - 1]);
     }
   });
 
-  it('never exceeds 100', () => {
-    expect(normalizeScore(100000, 4)).toBeLessThanOrEqual(100);
-    expect(normalizeScore(100000, 7)).toBeLessThanOrEqual(100);
+  it('spreads the top fifth over 80-100 instead of pinning it', () => {
+    // A hard 7x7 and the hardest 7x7 ever generated must not read the same
+    expect(normalizeScore(180)).toBeGreaterThan(80);
+    expect(normalizeScore(180)).toBeLessThan(95);
+    expect(normalizeScore(900)).toBeGreaterThan(normalizeScore(180));
+    expect(normalizeScore(100000)).toBe(100);
   });
 
-  it('falls back to the 7x7 curve for an unknown size', () => {
-    expect(normalizeScore(50, 9)).toBe(normalizeScore(50, 7));
+  it('is one scale: no size argument, so no size can read differently', () => {
+    expect(normalizeScore(50)).toBe(normalizeScore(50));
+    expect(normalizeScore.length).toBe(1);
   });
 });
 

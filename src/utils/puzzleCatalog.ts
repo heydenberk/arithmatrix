@@ -39,6 +39,8 @@ export type RawPuzzleRecord = {
     size: number;
     actual_difficulty: DifficultyLevel;
     difficulty_score?: number;
+    raw_score?: number;
+    scoring_version?: number;
     operations_tier?: string;
     operation_count?: number;
     generation_time?: number;
@@ -140,18 +142,7 @@ export type ScoreBand = {
   /** Lower bound of the band, e.g. 40 for the 40-50 band. */
   start: number;
   label: string;
-  /** The named tier this band sits in, for context in the heading. */
-  tier: DifficultyLevel;
   entries: CatalogEntry[];
-};
-
-/** The named tier a numeric score corresponds to. */
-export const tierForScore = (score: number): DifficultyLevel => {
-  if (score < 20) return 'easiest';
-  if (score < 40) return 'easy';
-  if (score < 60) return 'medium';
-  if (score < 80) return 'hard';
-  return 'expert';
 };
 
 /**
@@ -174,7 +165,9 @@ export const groupByScoreBand = (entries: CatalogEntry[]): ScoreBand[] => {
     .map(([start, bandEntries]) => ({
       start,
       label: `${start}–${start + SCORE_BAND_SIZE}`,
-      tier: tierForScore(start),
+      // No band-wide tier: the number is on one scale for every size while
+      // the named band is assigned within a size, so one numeric section can
+      // hold several bands. Each entry carries its own `difficulty`.
       entries: bandEntries.sort((a, b) => a.score - b.score),
     }));
 };

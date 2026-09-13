@@ -6,7 +6,9 @@
  */
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { solveTimeStats } from './puzzleStats';
+import { getStoredStats, migrateScores, solveTimeStats } from './puzzleStats';
+import { SCORING_VERSION } from './difficulty';
+import { canonicalCagesSig } from './cageSignature';
 
 const KEY = 'arithmatrix_puzzle_stats';
 
@@ -15,17 +17,22 @@ type Entry = {
   difficultyOperations?: number;
   completionTimeSeconds: number;
   conduct?: { unaided: boolean; clean: boolean };
+  scoringVersion?: number;
+  puzzleIndex?: number;
+  cages?: { cells: number[]; operation: string; value: number }[];
 };
 
 const store = (entries: Entry[]) =>
   localStorage.setItem(
     KEY,
     JSON.stringify(
-      entries.map((e, i) => ({
+      entries.map(({ cages, ...e }, i) => ({
         id: `p${i}`,
         completedAt: new Date().toISOString(),
         difficultyLevel: 'medium',
-        puzzle: { size: e.size, cages: [] },
+        puzzle: { size: e.size, cages: cages ?? [] },
+        // Current model unless a test says otherwise
+        scoringVersion: SCORING_VERSION,
         ...e,
       }))
     )
@@ -43,7 +50,31 @@ describe('solveTimeStats', () => {
       included: 0,
       aidedExcluded: 0,
       unknownExcluded: 0,
+      versionExcluded: 0,
     });
+  });
+
+  it('leaves out scores from another scoring model and says how many', () => {
+    store([
+      { size: 4, difficultyOperations: 25, completionTimeSeconds: 60, conduct: UNAIDED },
+      {
+        size: 4,
+        difficultyOperations: 25,
+        completionTimeSeconds: 5,
+        conduct: UNAIDED,
+        scoringVersion: 1,
+      },
+      {
+        size: 4,
+        difficultyOperations: 25,
+        completionTimeSeconds: 5,
+        conduct: UNAIDED,
+        scoringVersion: undefined,
+      },
+    ]);
+    const stats = solveTimeStats();
+    expect(stats.included).toBe(1);
+    expect(stats.versionExcluded).toBe(2);
   });
 
   it('leaves out aided solves and says how many', () => {
@@ -110,5 +141,71 @@ describe('solveTimeStats', () => {
     const stats = solveTimeStats();
     expect(stats.buckets).toHaveLength(0);
     expect(stats.unknownExcluded).toBe(1);
+  });
+});
+
+describe('migrateScores', () => {
+  const cagesA = [{ cells: [0, 1, 2, 3], operation: '+', value: 10 }];
+  const cagesB = [{ cells: [0, 1, 2, 3], operation: '*', value: 24 }];
+  const sources = [
+    { index: 0, size: 2, cagesSig: canonicalCagesSig(cagesA), score: 42 },
+    { index: 1, size: 2, cagesSig: canonicalCagesSig(cagesB), score: 77 },
+  ];
+
+  it('re-keys by cage signature and stamps the version', () => {
+    store([
+      {
+        size: 2,
+        difficultyOperations: 10,
+        completionTimeSeconds: 1,
+        cages: cagesA,
+        scoringVersion: undefined,
+      },
+    ]);
+    expect(migrateScores(sources)).toBe(1);
+    const [entry] = getStoredStats();
+    expect(entry.difficultyOperations).toBe(42);
+    expect(entry.scoringVersion).toBe(SCORING_VERSION);
+    expect(entry.puzzleIndex).toBe(0);
+  });
+
+  it('does not trust an index that names a different puzzle', () => {
+    // A save from an older corpus: index 1 there was puzzle A, here it is B
+    store([
+      {
+        size: 2,
+        difficultyOperations: 10,
+        completionTimeSeconds: 1,
+        cages: cagesA,
+        puzzleIndex: 1,
+        scoringVersion: undefined,
+      },
+    ]);
+    migrateScores(sources);
+    const [entry] = getStoredStats();
+    expect(entry.difficultyOperations).toBe(42);
+    expect(entry.puzzleIndex).toBe(0);
+  });
+
+  it('leaves an entry it cannot match alone, still excluded from the chart', () => {
+    store([
+      {
+        size: 2,
+        difficultyOperations: 10,
+        completionTimeSeconds: 1,
+        conduct: UNAIDED,
+        cages: [{ cells: [0, 1, 2, 3], operation: '+', value: 99 }],
+        scoringVersion: undefined,
+      },
+    ]);
+    expect(migrateScores(sources)).toBe(0);
+    expect(getStoredStats()[0].difficultyOperations).toBe(10);
+    expect(solveTimeStats().versionExcluded).toBe(1);
+  });
+
+  it('is a no-op for entries already on the current model', () => {
+    store([{ size: 2, difficultyOperations: 10, completionTimeSeconds: 1, cages: cagesA }]);
+    expect(migrateScores(sources)).toBe(0);
+    expect(getStoredStats()[0].difficultyOperations).toBe(10);
   });
 });

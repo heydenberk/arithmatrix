@@ -43,8 +43,8 @@ for (let i = 0; i < lines.length; i++) {
   const t0 = performance.now();
   const r = solveWithTrace(raw.puzzle);
   const ms = performance.now() - t0;
-  const newScore = normalizeScore(r.rawScore, raw.puzzle.size);
-  const newLevel = difficultyLevel(newScore);
+  const newScore = normalizeScore(r.rawScore);
+  const newLevel = difficultyLevel(r.rawScore, raw.puzzle.size);
   const targetLevel = raw.metadata.actual_difficulty as Level;
   rows.push({
     idx: i,

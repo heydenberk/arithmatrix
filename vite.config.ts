@@ -92,7 +92,9 @@ export default defineConfig({
         // Cache puzzle data at runtime
         runtimeCaching: [
           {
-            urlPattern: /\.jsonl$/,
+            // The corpus URL carries ?v=<CORPUS_VERSION>, so a new corpus is a new
+            // cache key; the old entry expires on its own
+            urlPattern: /\.jsonl(\?.*)?$/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'puzzle-data-cache',
