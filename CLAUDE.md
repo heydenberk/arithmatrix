@@ -46,7 +46,9 @@ neknek/
 ├── backend/                # Flask Python backend
 │   ├── app.py              # Flask API server (port 5001)
 │   ├── arithmatrix.py      # Core puzzle generation algorithm
-│   ├── puzzle_generator.py # KenkenGenerator class
+│   ├── solver.py           # Technique solver, uniqueness counter, Deadline
+│   ├── validation.py       # Structural checks on a puzzle definition
+│   ├── generate_batch.py   # Parallel batch generation CLI
 │   └── latin_square.py     # Latin square generation
 ├── public/                 # Static assets
 │   ├── all_puzzles.jsonl   # Main puzzle database (~7MB, 4000+ puzzles)

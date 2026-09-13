@@ -1,9 +1,10 @@
 import json
 import logging
 import os
-import random  # Import random for size selection within difficulty
+import random
 from flask import Flask, jsonify, request
-from .arithmatrix import generate_arithmatrix_puzzle
+from .arithmatrix import DIFFICULTY_ORDER, OPERATIONS_TIERS, generate_arithmatrix_puzzle
+from .solver import Deadline
 
 app = Flask(__name__)
 
@@ -33,115 +34,68 @@ if os.path.exists(PUZZLES_FILE):
             ALL_PUZZLES.append(json.loads(line))
 
 
+VALID_SIZES = (4, 5, 6, 7)
+VALID_DIFFICULTIES = tuple(DIFFICULTY_ORDER)
+
+# On-demand generation has to answer within a request; a 7x7 expert can take
+# far longer than this, in which case the client gets an explicit failure.
+GENERATION_BUDGET_SECONDS = 20.0
+
+
 @app.route("/api/puzzle")
 def get_puzzle():
+    """A puzzle for (size, difficulty, tier): from the shipped corpus when it
+    has one, generated on demand otherwise.
+
+    Lookup is by `metadata.actual_difficulty` and `metadata.operations_tier`,
+    the fields the corpus actually carries. This used to import a
+    `_get_difficulty_range` helper that no longer existed and filter on a score
+    range, so every request with the corpus loaded returned HTTP 500.
+    """
     app.logger.info(f"Received request for puzzle, args: {request.args}")
 
-    # --- Difficulty Handling ---
     difficulty = request.args.get("difficulty", "medium").lower()
-    valid_difficulties = ["easiest", "easy", "medium", "hard", "expert"]
-    if difficulty not in valid_difficulties:
-        app.logger.warning(f"Invalid difficulty requested: {difficulty}")
-        return jsonify(
-            {
-                "error": "Invalid difficulty parameter. Must be easiest, easy, medium, hard, or expert."
-            }
-        ), 400
-    app.logger.info(f"Validated difficulty: {difficulty}")
+    if difficulty not in VALID_DIFFICULTIES:
+        return jsonify({"error": f"Invalid difficulty parameter. Must be one of {', '.join(VALID_DIFFICULTIES)}."}), 400
 
-    # Determine operations based on difficulty
-    include_mul_div = difficulty in ["medium", "hard"]
-    allowed_operations = ["+", "-"]
-    if include_mul_div:
-        allowed_operations.extend(["*", "/"])
-    app.logger.info(f"Difficulty '{difficulty}' -> Operations: {allowed_operations}")
-    # --------------------------
+    tier = request.args.get("tier", "all").lower()
+    if tier not in OPERATIONS_TIERS:
+        return jsonify({"error": f"Invalid tier parameter. Must be one of {', '.join(OPERATIONS_TIERS)}."}), 400
 
-    # --- Size Handling ---
-    size = 4  # Default size
     try:
-        size_str = request.args.get("size", "4")  # Still accept size parameter
-        size = int(size_str)
-        # Adjust max size based on difficulty? Maybe later. For now, keep range.
-        if not 3 <= size <= 8:
-            app.logger.warning(f"Invalid size requested: {size_str}")
-            raise ValueError("Size out of range (3-8)")
-        app.logger.info(f"Validated size: {size}")
+        size = int(request.args.get("size", "4"))
     except (ValueError, TypeError):
-        return jsonify(
-            {
-                "error": "Invalid or missing size parameter. Must be integer between 3 and 8."
-            }
-        ), 400
-    # --------------------------
+        size = 0
+    if size not in VALID_SIZES:
+        return jsonify({"error": f"Invalid or missing size parameter. Must be one of {', '.join(map(str, VALID_SIZES))}."}), 400
 
-    # --- Generation ---
+    matching = [
+        record
+        for record in ALL_PUZZLES
+        if record["puzzle"]["size"] == size
+        and record["metadata"].get("actual_difficulty") == difficulty
+        and record["metadata"].get("operations_tier", "all") == tier
+    ]
+    if matching:
+        app.logger.info(f"Serving one of {len(matching)} corpus puzzles for {size}x{size} {difficulty} {tier}")
+        return jsonify(random.choice(matching)["puzzle"])
+
+    app.logger.info(f"No corpus puzzle for {size}x{size} {difficulty} {tier}; generating")
     try:
-        app.logger.info(
-            f"Attempting generation for size {size}, difficulty '{difficulty}'..."
+        puzzle = generate_arithmatrix_puzzle(
+            size,
+            difficulty=difficulty,
+            allowed_operations=OPERATIONS_TIERS[tier],
+            deadline=Deadline.after(GENERATION_BUDGET_SECONDS),
         )
-        if ALL_PUZZLES:
-            app.logger.info(f"Found {len(ALL_PUZZLES)} puzzles in database.")
-
-            # Get difficulty range for the requested size and difficulty
-            from .arithmatrix import _get_difficulty_range
-
-            min_score, max_score = _get_difficulty_range(size, difficulty)
-            app.logger.info(
-                f"Target difficulty range for {size}x{size} {difficulty}: {min_score} - {max_score}"
-            )
-
-            # Filter puzzles by size and difficulty score range
-            matching_puzzles = [
-                puzzle
-                for puzzle in ALL_PUZZLES
-                if puzzle["puzzle"]["size"] == size
-                and min_score <= puzzle["puzzle"]["difficulty_operations"] <= max_score
-            ]
-
-            if matching_puzzles:
-                app.logger.info(
-                    f"Found {len(matching_puzzles)} matching puzzles for {size}x{size} {difficulty}"
-                )
-                puzzle_definition = random.choice(matching_puzzles)["puzzle"]
-            else:
-                app.logger.warning(
-                    f"No puzzles found for {size}x{size} {difficulty} in range {min_score}-{max_score}"
-                )
-                # Fall back to generating a new puzzle
-                puzzle_definition = generate_arithmatrix_puzzle(
-                    size, difficulty=difficulty, max_attempts=500
-                )
-        else:
-            app.logger.info("No puzzles found in database, generating new puzzle.")
-            puzzle_definition = generate_arithmatrix_puzzle(
-                size, difficulty=difficulty, max_attempts=500
-            )
-
-        if puzzle_definition is None:
-            app.logger.error(
-                f"Generation returned None for size {size}, difficulty '{difficulty}'."
-            )
-            return jsonify(
-                {"error": "Failed to generate puzzle for the requested settings."}
-            ), 500
-
-        # Add difficulty and actual size info to response? Maybe not necessary for client?
-        # Let's keep the response format simple for now.
-        generated_size = puzzle_definition.get("size", "Unknown")
-        app.logger.info(
-            f"Successfully generated puzzle. Returning size: {generated_size}"
-        )
-        return jsonify(puzzle_definition)
-
     except Exception as e:
-        app.logger.exception(
-            f"Exception during puzzle generation for size {size}, difficulty '{difficulty}': {e}"
-        )
-        return jsonify(
-            {"error": "An internal error occurred during puzzle generation."}
-        ), 500
-    # -----------------
+        app.logger.exception(f"Exception during puzzle generation for {size}x{size} {difficulty}: {e}")
+        return jsonify({"error": "An internal error occurred during puzzle generation."}), 500
+
+    if puzzle is None:
+        app.logger.error(f"Generation produced nothing for {size}x{size} {difficulty} {tier} within budget")
+        return jsonify({"error": "Could not generate a puzzle for the requested settings in time."}), 503
+    return jsonify(puzzle)
 
 
 if __name__ == "__main__":

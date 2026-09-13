@@ -40,7 +40,7 @@ Currently all puzzles use all four arithmetic operations. We want users to be ab
 
 ### Puzzle generation
 
-The backend `KenkenGenerator` already accepts an `operations` parameter but it's currently unused during cage assignment. Changes needed:
+Operation tiers are honoured by `generate_arithmatrix_puzzle(allowed_operations=...)`. Changes needed:
 
 - Modify `assign_operations()` in `backend/arithmatrix.py` to respect allowed operation lists (skip disallowed operations and fall back to simpler ones)
 - Generate puzzle batches for each tier/size/difficulty combination

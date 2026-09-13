@@ -24,10 +24,51 @@ linearly mapped to 0-100 via size-specific anchors. Difficulty buckets:
 """
 
 import math
+import time
 from dataclasses import dataclass, field
 from enum import IntEnum
 from typing import Dict, List, Optional, Set, Tuple
 import itertools
+
+
+class DeadlineExceeded(Exception):
+    """Raised from inside a solve or a solution count once its deadline passes."""
+
+
+class Deadline:
+    """An absolute wall-clock cutoff, checked from inside the expensive loops.
+
+    A single `count_solutions` or `solve` on a loose 7x7 can run for tens of
+    seconds, so a deadline checked only between attempts leaves the batch
+    runner unable to stop on time. Both loops call `check()` regularly; the
+    cost of the clock read is amortised by `every`. `time.time()` rather than
+    monotonic so a deadline can be handed to a worker process unchanged.
+    """
+
+    __slots__ = ("at", "every", "_ticks")
+
+    def __init__(self, at: float, every: int = 512):
+        self.at = at
+        self.every = every
+        self._ticks = 0
+
+    @classmethod
+    def after(cls, seconds: float) -> "Deadline":
+        return cls(time.time() + seconds)
+
+    def expired(self) -> bool:
+        return time.time() >= self.at
+
+    def check(self) -> None:
+        self._ticks += 1
+        if self._ticks >= self.every:
+            self._ticks = 0
+            if time.time() >= self.at:
+                raise DeadlineExceeded()
+
+    def check_now(self) -> None:
+        if time.time() >= self.at:
+            raise DeadlineExceeded()
 
 
 class Technique(IntEnum):
@@ -100,6 +141,11 @@ class SolveStats:
     solution_count: int = 0
     is_valid: bool = False
     size: int = 0
+    # The trace reached a complete grid satisfying every constraint (and equal
+    # to the puzzle's stored solution when it has one). Independent of
+    # `is_valid`, which is the uniqueness verdict; a solver run with
+    # `verify_uniqueness=False` reports `solved` but never `is_valid`.
+    solved: bool = False
 
     def record(self, technique: Technique):
         self.techniques_used[technique] = self.techniques_used.get(technique, 0) + 1
@@ -249,10 +295,11 @@ def _precompute_combinations(cage: dict, size: int) -> List[Tuple[int, ...]]:
 class ArithmatrixSolver:
     """Technique-based solver matching src/utils/solver.ts."""
 
-    def __init__(self, puzzle: dict):
+    def __init__(self, puzzle: dict, deadline: Optional[Deadline] = None):
         self.puzzle: dict = puzzle
         self.size: int = puzzle["size"]
         self.cages: List[dict] = puzzle["cages"]
+        self.deadline = deadline
 
         # Cage cells as (row, col)
         self.cage_cells: List[List[Tuple[int, int]]] = [
@@ -837,6 +884,8 @@ class ArithmatrixSolver:
         """Easiest-first restart. After any successful technique we go back
         to the top — cheaper techniques re-run before any more expensive one."""
         while True:
+            if self.deadline is not None:
+                self.deadline.check_now()
             if self._cascade_easy_techniques():
                 continue
             if self._apply_cage_impossible():
@@ -923,7 +972,16 @@ class ArithmatrixSolver:
         if not self._is_complete() and self._is_valid():
             self._backtrack(1)
 
-        solution_count = count_solutions(self.puzzle, 2) if verify_uniqueness else 0
+        self.stats.solved = self._is_complete() and self._verify_solution()
+        stored = self.puzzle.get("solution")
+        if self.stats.solved and stored is not None:
+            self.stats.solved = all(
+                self.grid[r][c] == stored[r][c] for r in range(self.size) for c in range(self.size)
+            )
+
+        solution_count = (
+            count_solutions(self.puzzle, 2, deadline=self.deadline) if verify_uniqueness else 0
+        )
         self.stats.solution_count = solution_count
         self.stats.is_valid = verify_uniqueness and solution_count == 1
         return self.stats
@@ -934,7 +992,7 @@ class ArithmatrixSolver:
 # --------------------------------------------------------------------------- #
 
 
-def count_solutions(puzzle: dict, cap: int = 2) -> int:
+def count_solutions(puzzle: dict, cap: int = 2, deadline: Optional[Deadline] = None) -> int:
     """Count a puzzle's solutions, stopping at `cap`.
 
     Deliberately independent of the traced solver: plain backtracking over
@@ -988,6 +1046,8 @@ def count_solutions(puzzle: dict, cap: int = 2) -> int:
         nonlocal found
         if found >= cap:
             return
+        if deadline is not None:
+            deadline.check()
         if pos == size * size:
             found += 1
             return
@@ -1012,104 +1072,15 @@ def count_solutions(puzzle: dict, cap: int = 2) -> int:
     return found
 
 
-def solve_puzzle(puzzle: dict) -> SolveStats:
-    return ArithmatrixSolver(puzzle).solve()
+def solve_puzzle(
+    puzzle: dict, verify_uniqueness: bool = True, deadline: Optional[Deadline] = None
+) -> SolveStats:
+    return ArithmatrixSolver(puzzle, deadline=deadline).solve(verify_uniqueness=verify_uniqueness)
 
 
 def get_difficulty(puzzle: dict) -> Tuple[str, float]:
     stats = solve_puzzle(puzzle)
     return stats.difficulty_level, stats.difficulty_score
-
-
-def estimate_difficulty_fast(puzzle: dict) -> Tuple[str, float]:
-    """Fast heuristic without running the full solver.
-
-    Used by the generator to filter candidate puzzles before paying the cost
-    of a full solve. Hand-tuned approximation — should not be relied on as a
-    final difficulty rating; that's what `solve_puzzle` is for.
-    """
-    size = puzzle["size"]
-    cages = puzzle["cages"]
-
-    single_cells = sum(1 for c in cages if len(c["cells"]) == 1)
-    two_cells = sum(1 for c in cages if len(c["cells"]) == 2)
-    large_cells = sum(1 for c in cages if len(c["cells"]) >= 4)
-
-    total_combos = 0
-    for cage in cages:
-        n_cells = len(cage["cells"])
-        op = cage["operation"]
-        target = cage["value"]
-        if n_cells == 1:
-            total_combos += 1
-        elif op == "+":
-            total_combos += _count_addition_combos(n_cells, target, size)
-        elif op == "*":
-            total_combos += _count_multiplication_combos(n_cells, target, size)
-        elif op == "-":
-            total_combos += sum(
-                1 for a in range(1, size + 1) for b in range(1, size + 1)
-                if abs(a - b) == target
-            )
-        elif op in ("/", "÷"):
-            total_combos += sum(
-                1 for a in range(1, size + 1) for b in range(1, size + 1)
-                if (b != 0 and a == b * target) or (a != 0 and b == a * target)
-            )
-
-    n_cages = max(1, len(cages))
-    gimme_ratio = single_cells / n_cages
-    constraint_ratio = (single_cells + two_cells) / n_cages
-    non_single_cages = max(1, n_cages - single_cells)
-    avg_combos = (total_combos - single_cells) / non_single_cages
-
-    base = {4: 40, 5: 50, 6: 60, 7: 70}.get(size, 60)
-    score = base - (gimme_ratio * 40)
-    score += large_cells * 8
-    if avg_combos > 10:
-        score += min(15, (avg_combos - 10) * 1.5)
-    elif avg_combos < 5:
-        score -= (5 - avg_combos) * 3
-    if constraint_ratio < 0.5:
-        score += 10
-    score = max(0.0, min(100.0, score))
-
-    if score <= 15:
-        level = "easiest"
-    elif score <= 30:
-        level = "easy"
-    elif score <= 50:
-        level = "medium"
-    elif score <= 70:
-        level = "hard"
-    else:
-        level = "expert"
-    return level, score
-
-
-def _count_addition_combos(n_cells: int, target: int, size: int) -> int:
-    count = 0
-    if n_cells <= 3:
-        for combo in itertools.combinations_with_replacement(range(1, size + 1), n_cells):
-            if sum(combo) == target:
-                count += len(set(itertools.permutations(combo)))
-    else:
-        count = max(1, target // n_cells)
-    return count
-
-
-def _count_multiplication_combos(n_cells: int, target: int, size: int) -> int:
-    count = 0
-    if n_cells <= 3:
-        for combo in itertools.combinations_with_replacement(range(1, size + 1), n_cells):
-            p = 1
-            for v in combo:
-                p *= v
-            if p == target:
-                count += len(set(itertools.permutations(combo)))
-    else:
-        count = 3
-    return count
 
 
 if __name__ == "__main__":

@@ -1,8 +1,7 @@
 import logging
 import random
-import string
 from collections import deque
-from typing import Literal
+from typing import Literal, Optional
 
 import numpy as np
 import json
@@ -11,10 +10,23 @@ logger = logging.getLogger(__name__)
 
 try:
     from .latin_square import get_latin_square
-    from .solver import solve_puzzle, estimate_difficulty_fast as _estimate_fast, SolveStats
+    from .solver import Deadline, DeadlineExceeded, SolveStats, count_solutions, solve_puzzle
+    from .validation import validate_puzzle
 except ImportError:
     from latin_square import get_latin_square
-    from solver import solve_puzzle, estimate_difficulty_fast as _estimate_fast, SolveStats
+    from solver import Deadline, DeadlineExceeded, SolveStats, count_solutions, solve_puzzle
+    from validation import validate_puzzle
+
+DIFFICULTY_ORDER = ["easiest", "easy", "medium", "hard", "expert"]
+
+# Which operation symbols a bucket's cages may use. The public tier names are
+# part of the corpus format (metadata.operations_tier) and the gallery filter.
+OPERATIONS_TIERS = {
+    "add": ["+"],
+    "add-sub": ["+", "-"],
+    "no-div": ["+", "-", "*"],
+    "all": ["+", "-", "*", "/"],
+}
 
 
 def weighted_partition_sample(weights, target_sum, max_attempts=10000):
@@ -51,6 +63,8 @@ def weighted_partition_sample(weights, target_sum, max_attempts=10000):
             allowed_values = [values[i] for i in allowed_indices]
             allowed_probs = [probabilities[i] for i in allowed_indices]
             norm = sum(allowed_probs)
+            if norm == 0:
+                break  # only zero-weight sizes fit; this attempt cannot finish
             adjusted_probs = [p / norm for p in allowed_probs]
             choice = random.choices(allowed_values, weights=adjusted_probs)[0]
             result.append(choice)
@@ -68,11 +82,14 @@ def carve_square(square, cage_sizes, max_attempts=100):
 
     Args:
         square: A numpy array representing the Latin square
-        cage_sizes: A dictionary mapping cage letters (A, B, C, ...) to their sizes
+        cage_sizes: A dictionary mapping cage ids (positive integers) to their sizes
         max_attempts: Maximum attempts to find a valid carving
 
     Returns:
-        A numpy array with ASCII uppercase letters marking each cage
+        A numpy int array with each cell holding its cage id; 0 never appears in
+        a successful result because every cage is placed or the carve fails.
+        Ids used to be letters, which capped a board at 26 cages and silently
+        dropped the rest.
     """
     n = square.shape[0]
 
@@ -153,7 +170,7 @@ def carve_square(square, cage_sizes, max_attempts=100):
 
     def attempt_carving():
         """Attempt to carve the entire square"""
-        result = np.full((n, n), "", dtype="U1")
+        result = np.zeros((n, n), dtype=int)
         used = np.zeros((n, n), dtype=bool)
 
         for cage_letter, size in sorted_cages:
@@ -204,9 +221,8 @@ def get_cage_values(original_square, caged_square):
     cage_values = {}
     n = original_square.shape[0]
 
-    # Get all unique cage letters (excluding empty strings)
-    unique_letters = set(caged_square.flatten())
-    unique_letters.discard("")  # Remove empty string if present
+    unique_letters = {int(v) for v in caged_square.flatten()}
+    unique_letters.discard(0)  # 0 marks an uncarved cell
 
     # For each cage letter, collect all the numbers in those positions
     for letter in unique_letters:
@@ -394,9 +410,8 @@ def create_arithmatrix_puzzle(original_square, caged_square, cage_operations):
     # Convert operation symbols
     operation_map = {"": "", "+": "+", "-": "-", "*": "*", "÷": "/"}
 
-    # Get all unique cage letters
-    unique_letters = set(caged_square.flatten())
-    unique_letters.discard("")  # Remove empty string if present
+    unique_letters = {int(v) for v in caged_square.flatten()}
+    unique_letters.discard(0)  # 0 marks an uncarved cell
 
     cages = []
 
@@ -431,103 +446,138 @@ def create_arithmatrix_puzzle(original_square, caged_square, cage_operations):
     return puzzle
 
 
+def evaluate_candidate(puzzle: dict, deadline: Optional[Deadline] = None) -> Optional[SolveStats]:
+    """Accept or reject one candidate; the single place that decides.
+
+    Order is by cost. Structural validation is microseconds. `count_solutions`
+    is the expensive step, and it is also the one that rejects most often, so
+    it runs before the technique trace rather than after it - the trace of a
+    puzzle that turns out to have two solutions is wasted work. The trace then
+    runs with uniqueness verification off (it would only repeat the count),
+    and acceptance is:
+
+        count_solutions == 1  AND  the trace completed to the stored solution
+
+    `stats.is_valid` and `solution_count` are set from the count so callers
+    that read them keep working; with verification off the solver itself
+    reports neither.
+
+    Returns the stats on acceptance, None on rejection. `DeadlineExceeded`
+    propagates - the caller decides what a deadline means for it.
+    """
+    errors = validate_puzzle(puzzle)
+    if errors:
+        logger.warning("Rejected malformed candidate: %s", "; ".join(errors[:3]))
+        return None
+
+    if count_solutions(puzzle, 2, deadline=deadline) != 1:
+        logger.info("Rejected candidate: not uniquely solvable")
+        return None
+
+    stats = solve_puzzle(puzzle, verify_uniqueness=False, deadline=deadline)
+    if not stats.solved:
+        # The counter says one solution exists but the trace did not reach it.
+        # That is a solver defect, not a bad puzzle; surface it rather than
+        # quietly counting it as a rejection.
+        logger.error("Trace failed to reach the unique solution; solver defect suspected")
+        return None
+
+    stats.solution_count = 1
+    stats.is_valid = True
+    return stats
+
+
+def _annotate(puzzle: dict, stats: SolveStats) -> dict:
+    puzzle["actual_difficulty"] = stats.difficulty_level
+    puzzle["difficulty_score"] = stats.difficulty_score
+    puzzle["techniques_used"] = {t.name: c for t, c in stats.techniques_used.items()}
+    return puzzle
+
+
 def generate_arithmatrix_puzzle(
     size,
     difficulty: Literal["easiest", "easy", "medium", "hard", "expert"] = "medium",
     max_attempts=500,
     max_difficulty_attempts=50,
-    use_heuristic=True,
     allowed_operations=None,
-):
+    deadline: Optional[Deadline] = None,
+) -> Optional[dict]:
     """
-    Generate a complete Arithmatrix puzzle of the specified size and difficulty.
+    Generate a uniquely solvable Arithmatrix puzzle of the given size, aiming
+    for the given difficulty.
 
-    Uses a technique-based solver to measure difficulty:
-    - easiest: Solvable with naked singles only
-    - easy: Needs hidden singles
-    - medium: Needs basic cage arithmetic
-    - hard: Needs advanced cage reasoning
-    - expert: Requires trial and error (backtracking)
+    Every candidate goes through `evaluate_candidate`; nothing is returned that
+    has not passed it. When no candidate hits the target difficulty within
+    `max_difficulty_attempts`, the accepted candidate closest to the target is
+    returned instead, labelled with its *actual* difficulty. When nothing was
+    accepted at all, or the deadline passed first, the result is None: an
+    explicit failure, never an unvalidated puzzle. (This used to fall through
+    to a "last resort" that returned whatever it had, uniqueness or not, and
+    without technique metadata - the source of 2696 corpus records with empty
+    `techniques_used`.)
+
+    There is no longer a heuristic pre-filter. The one this had rejected every
+    easy 6x6 and 7x7 candidate and passed every hard one, so it only ever
+    forced requests onto the unsafe path.
 
     Args:
-        size: The size of the square (e.g., 7 for a 7x7 puzzle)
+        size: Grid size
         difficulty: Target difficulty level
-        max_attempts: Maximum attempts for carving the square into cages
-        max_difficulty_attempts: Maximum attempts to find a puzzle at target difficulty
+        max_attempts: Carving attempts per candidate
+        max_difficulty_attempts: Candidates to try before settling for the closest
+        allowed_operations: Operation symbols the cages may use, or None for all
+        deadline: Optional wall-clock cutoff, honoured inside the solver loops
 
     Returns:
-        A dictionary containing the complete puzzle structure with difficulty metadata
+        The puzzle dict with `actual_difficulty`, `difficulty_score` and
+        `techniques_used`, or None.
     """
-    # Difficulty level ordering for "close match" logic
-    difficulty_order = ["easiest", "easy", "medium", "hard", "expert"]
-    target_idx = difficulty_order.index(difficulty)
+    target_idx = DIFFICULTY_ORDER.index(difficulty)
 
-    best_puzzle = None
+    best_puzzle: Optional[dict] = None
     best_distance = float("inf")
-    heuristic_filtered = 0
+    rejected = 0
 
     for attempt in range(max_difficulty_attempts):
         logger.info(f"Attempt {attempt + 1} of {max_difficulty_attempts}")
+        if deadline is not None and deadline.expired():
+            logger.info("Deadline reached before a candidate hit the target")
+            break
         try:
-            # Generate a basic puzzle (cage-size distribution depends on target difficulty)
             puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations, difficulty)
-
-            # Use heuristic for initial filtering
-            if use_heuristic:
-                est_level, est_score = _estimate_fast(puzzle)
-                est_idx = difficulty_order.index(est_level)
-
-                # Skip if estimate is more than 1 level away from target
-                if abs(est_idx - target_idx) > 1:
-                    heuristic_filtered += 1
-                    logger.info(f"Filtered by heuristic: {est_level} (target: {difficulty})")
-                    continue
-
-            # Full solve to get actual difficulty
-            stats = solve_puzzle(puzzle)
-
-            if not stats.is_valid:
-                logger.info("Invalid puzzle (no unique solution)")
-                continue
-
-            actual_level = stats.difficulty_level
-            actual_score = stats.difficulty_score
-            actual_idx = difficulty_order.index(actual_level)
-
-            logger.info(f"Solved: {actual_level} (score: {actual_score:.1f})")
-
-            # Add difficulty metadata
-            puzzle["actual_difficulty"] = actual_level
-            puzzle["difficulty_score"] = actual_score
-            puzzle["techniques_used"] = {t.name: c for t, c in stats.techniques_used.items()}
-
-            # Check for exact match
-            if actual_level == difficulty:
-                logger.info(f"Found matching puzzle! (filtered {heuristic_filtered} by heuristic)")
-                return puzzle
-
-            # Track closest match
-            distance = abs(actual_idx - target_idx)
-            if distance < best_distance:
-                best_distance = distance
-                best_puzzle = puzzle
-
-        except Exception as e:
-            logger.error(f"Error in attempt {attempt}: {e}")
+        except ValueError as e:
+            # Carving could not tile this partition; an ordinary re-roll.
+            logger.info(f"Carve failed: {e}")
+            rejected += 1
             continue
 
-    # Return best match or generate one more
+        try:
+            stats = evaluate_candidate(puzzle, deadline)
+        except DeadlineExceeded:
+            logger.info("Deadline reached mid-solve")
+            break
+        if stats is None:
+            rejected += 1
+            continue
+
+        _annotate(puzzle, stats)
+        logger.info(f"Solved: {stats.difficulty_level} (score: {stats.difficulty_score:.1f})")
+
+        if stats.difficulty_level == difficulty:
+            logger.info(f"Found matching puzzle after {attempt + 1} candidates ({rejected} rejected)")
+            return puzzle
+
+        distance = abs(DIFFICULTY_ORDER.index(stats.difficulty_level) - target_idx)
+        if distance < best_distance:
+            best_distance = distance
+            best_puzzle = puzzle
+
     if best_puzzle is not None:
-        logger.info(f"Returning closest match: {best_puzzle.get('actual_difficulty')}")
+        logger.info(f"Returning closest match: {best_puzzle['actual_difficulty']} (target {difficulty})")
         return best_puzzle
 
-    # Last resort: return any valid puzzle
-    logger.info("Falling back to basic generation")
-    puzzle = _generate_basic_puzzle(size, max_attempts, allowed_operations, difficulty)
-    stats = solve_puzzle(puzzle)
-    puzzle["actual_difficulty"] = stats.difficulty_level if stats.is_valid else "unknown"
-    puzzle["difficulty_score"] = stats.difficulty_score
-    return puzzle
+    logger.warning(f"No acceptable {size}x{size} puzzle found for {difficulty} ({rejected} candidates rejected)")
+    return None
 
 
 # Cage-size weights for [1-cell, 2-cell, 3-cell, 4-cell, 5-cell] cages,
@@ -554,8 +604,10 @@ _CAGE_SIZE_WEIGHTS = {
 def _max_single_cages(size: int) -> int:
     """Hard cap on single-cell (stipulated) cages: ~10% of cells, min 1.
 
-    Yields 1 (4x4), 2 (5x5), 3 (6x6), 4 (7x7) — enough for a gentle foothold,
-    far from the ~22% the unconstrained weights used to produce.
+    Yields 2 (4x4), 2 (5x5), 4 (6x6), 5 (7x7) — enough for a gentle foothold,
+    far from the ~22% the unconstrained weights used to produce. The shipped
+    corpus was generated under this table, so it is the rule; an older
+    docstring here claimed 1/2/3/4.
     """
     return max(1, round(0.10 * size * size))
 
@@ -580,7 +632,7 @@ def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None, diff
             continue
         if sum(1 for s in partition if s == 1) > max_singles:
             continue  # too many stipulated cells; re-roll
-        cage_sizes = dict(zip(string.ascii_uppercase, partition))
+        cage_sizes = {cage_id: cage_size for cage_id, cage_size in enumerate(partition, start=1)}
         try:
             caged_square = carve_square(square, cage_sizes, max_attempts=max_attempts)
             break
@@ -589,6 +641,10 @@ def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None, diff
             continue
     else:
         raise last_err or ValueError("carve_square failed for all re-rolled cage-size combinations")
+
+    uncovered = int((caged_square == 0).sum())
+    if uncovered:
+        raise ValueError(f"carve_square left {uncovered} cell(s) without a cage")
 
     # Get the values in each cage
     cage_values = get_cage_values(square, caged_square)
@@ -600,18 +656,6 @@ def _generate_basic_puzzle(size, max_attempts=500, allowed_operations=None, diff
     puzzle = create_arithmatrix_puzzle(square, caged_square, cage_operations)
 
     return puzzle
-
-
-def estimate_difficulty_fast(puzzle):
-    """
-    Estimate puzzle difficulty using cage structure heuristics.
-    Much faster than full solve - use for initial filtering.
-
-    Returns:
-        tuple: (difficulty_level, score) where level is one of
-               'easiest', 'easy', 'medium', 'hard', 'expert'
-    """
-    return _estimate_fast(puzzle)
 
 
 def solve_arithmatrix_puzzle(puzzle):
