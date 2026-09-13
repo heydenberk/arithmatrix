@@ -8,7 +8,7 @@
  * by the UI at user-controlled speed.
  */
 
-import type { Cage, PuzzleDefinition } from '../types/ArithmatrixTypes';
+import type { PuzzleDefinition } from '../types/ArithmatrixTypes';
 import { cellName as cellNameOf } from './arithmatrixUtils';
 import {
   SCORING_VERSION,
@@ -2005,7 +2005,7 @@ export function countSolutions(
   const legal = (pos: number): number => {
     const row = Math.floor(pos / size);
     const col = pos % size;
-    let mask = FULL & ~rowMask[row] & ~colMask[col];
+    const mask = FULL & ~rowMask[row] & ~colMask[col];
     const ci = cageOf[pos];
     if (ci < 0 || mask === 0) return mask;
     const cage = cages[ci];
