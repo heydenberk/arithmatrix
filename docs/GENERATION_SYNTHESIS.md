@@ -211,6 +211,27 @@ Keeps the existing generator safe to run for any corpus top-up before the port.
 
 ### Phase 1 - Canonical TypeScript engine (B Phase 2)
 
+*Status (2026-09-13): shipped.* `src/utils/difficulty.ts` holds the model
+(weights, `bottleneckRaw`, quantiles, `normalizeScore`, `difficultyLevel`,
+`SCORING_VERSION = 2`); `src/utils/puzzleValidation.ts` mirrors
+`backend/validation.py`; `solver.ts` re-exports both. The engine already had
+no React or DOM imports, so the split is by concern, not by runtime.
+Scheduling is now cheapest-first restart after every single deduction
+(decision 3): naked and hidden singles return after one placement,
+`processCagesByStrength` after one cage, and `recordStep` no longer re-runs the
+cheap techniques from inside a dearer one. `SolveOptions.mode: 'score'` skips
+per-step snapshots and the worked cage explanations; `scorePuzzle()` and
+`assessPuzzle()` (structure -> count -> rate, mirroring
+`evaluate_candidate`) are the new entry points. `SolverResult` carries
+`solved` and `scoringVersion`. Fixtures: `src/utils/__fixtures__/scoring-v2.json`
+pins counts and raw score for one corpus puzzle per size x band
+(`scripts/pin-scoring-fixtures.ts` regenerates it); `solver.parity.test.ts`
+holds score mode to trace mode and both to the pins. Measured on every fifth
+corpus record (800): 76% keep their stored band under version 2, 177 read
+easier, 13 harder - the expected direction, since the change charges the
+cheaper technique; score mode is 1.6x faster than the trace; parity failures 0.
+All 83 hint tests pass unchanged.
+
 1. Split `solver.ts` into engine / difficulty model / presentation adapters so
    the engine runs without React, DOM or Node-only imports.
 2. Settle the deduction scheduling policy (decision 3 below), implement it once,

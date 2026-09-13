@@ -10,50 +10,30 @@
 
 import type { Cage, PuzzleDefinition } from '../types/ArithmatrixTypes';
 import { cellName as cellNameOf } from './arithmatrixUtils';
+import {
+  SCORING_VERSION,
+  TECHNIQUE_WEIGHTS,
+  bottleneckRaw,
+  difficultyLevel,
+  emptyCounts,
+  normalizeScore,
+  type DifficultyLevel,
+  type TechniqueId,
+} from './difficulty';
+import { validatePuzzle } from './puzzleValidation';
 
-export type TechniqueId =
-  | 'stipulated'
-  | 'naked_single'
-  | 'cage_impossible'
-  | 'hidden_single'
-  | 'cage_single'
-  | 'cage_locked'
-  | 'cage_intersection'
-  | 'cage_combinations'
-  | 'multi_cage_line_lock'
-  | 'summation'
-  | 'cross_cage_feasibility'
-  | 'trial_and_error';
-
-export const TECHNIQUE_WEIGHTS: Record<TechniqueId, number> = {
-  stipulated: 0,
-  naked_single: 1,
-  cage_impossible: 2,
-  hidden_single: 2,
-  cage_single: 3,
-  cage_locked: 3,
-  cage_intersection: 4,
-  cage_combinations: 5,
-  multi_cage_line_lock: 8,
-  summation: 9,
-  cross_cage_feasibility: 10,
-  trial_and_error: 15,
-};
-
-export const TECHNIQUE_LABELS: Record<TechniqueId, string> = {
-  stipulated: 'Stipulated',
-  naked_single: 'Naked single',
-  cage_impossible: 'Math impossible',
-  hidden_single: 'Hidden single',
-  cage_single: 'Cage single',
-  cage_locked: 'Cage locked',
-  cage_intersection: 'Cage intersection',
-  cage_combinations: 'Cage combinations',
-  multi_cage_line_lock: 'Multi-cage lock',
-  summation: 'Summation',
-  cross_cage_feasibility: 'Cross-cage feasibility',
-  trial_and_error: 'Trial and error',
-};
+// The difficulty model lives in ./difficulty; re-exported so existing callers
+// keep one import
+export {
+  DIFFICULTY_ORDER,
+  SCORING_VERSION,
+  TECHNIQUE_LABELS,
+  TECHNIQUE_WEIGHTS,
+  bottleneckRaw,
+  difficultyLevel,
+  normalizeScore,
+} from './difficulty';
+export type { DifficultyLevel, TechniqueId } from './difficulty';
 
 export type CellRef = { row: number; col: number };
 
@@ -140,44 +120,13 @@ export type SolverResult = {
   rawScore: number;
   solutionCount: number;
   isValid: boolean;
-};
-
-// Techniques a human experiences as genuine bottlenecks (weight >= 8). They
-// drive difficulty at full weight; cheaper techniques are volume-compressed
-// (see bottleneckRaw). Mirrors _HARD_TECHNIQUES in backend/solver.py.
-const HARD_TECHNIQUES: ReadonlySet<TechniqueId> = new Set<TechniqueId>([
-  'multi_cage_line_lock',
-  'summation',
-  'cross_cage_feasibility',
-  'trial_and_error',
-]);
-
-/**
- * Bottleneck-aware raw difficulty magnitude: hard techniques at full weight,
- * cheaper bulk square-root compressed so a long cascade of cheap deductions
- * (e.g. many naked singles) can't dominate. Mirrors SolveStats.raw_score.
- */
-export function bottleneckRaw(counts: Record<TechniqueId, number>): number {
-  let hard = 0;
-  let cheap = 0;
-  for (const t of Object.keys(counts) as TechniqueId[]) {
-    const contribution = TECHNIQUE_WEIGHTS[t] * counts[t];
-    if (HARD_TECHNIQUES.has(t)) hard += contribution;
-    else cheap += contribution;
-  }
-  return hard + Math.sqrt(cheap);
-}
-
-// Per-size raw-score quantile boundaries (q20, q40, q60, q80) defining the
-// five tiers: easiest = bottom 20% … expert = top 20%. Quantile bucketing is
-// used because the bottleneck raw is bimodal (flows vs hits-walls), so fixed
-// thresholds would leave "medium" nearly empty. Mirrors SIZE_QUANTILES in
-// backend/solver.py; recompute with scripts/calibrate-quantiles.py.
-const SIZE_QUANTILES: Record<number, [number, number, number, number]> = {
-  4: [5.4, 5.7, 6.1, 6.6],
-  5: [7.5, 8.0, 8.4, 9.2],
-  6: [10.2, 11.3, 12.4, 33.2],
-  7: [13.6, 22.6, 73.5, 183.1],
+  /**
+   * The trace reached a complete grid satisfying every constraint - and equal
+   * to `options.solution` when one was given. Independent of `isValid`, which
+   * is the uniqueness verdict.
+   */
+  solved: boolean;
+  scoringVersion: number;
 };
 
 const colLetter = (col: number) => String.fromCharCode('A'.charCodeAt(0) + col);
@@ -204,35 +153,6 @@ const lineNames = (indexes: number[], orientation: 'row' | 'col'): string => {
   return `${noun}s ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 };
 
-function interp(x: number, x0: number, x1: number, y0: number, y1: number): number {
-  if (x1 <= x0) return y0;
-  return y0 + ((x - x0) / (x1 - x0)) * (y1 - y0);
-}
-
-/**
- * Map a bottleneck raw score to a 0-100 display score by piecewise-linear
- * interpolation through the per-size quantile boundaries, so the tier cutoffs
- * land at exactly 20/40/60/80. Mirrors SolveStats.difficulty_score.
- */
-export function normalizeScore(rawScore: number, size: number): number {
-  if (rawScore <= 0) return 0;
-  const [q20, q40, q60, q80] = SIZE_QUANTILES[size] ?? SIZE_QUANTILES[7];
-  if (rawScore < q20) return interp(rawScore, 0, q20, 0, 20);
-  if (rawScore < q40) return interp(rawScore, q20, q40, 20, 40);
-  if (rawScore < q60) return interp(rawScore, q40, q60, 40, 60);
-  if (rawScore < q80) return interp(rawScore, q60, q80, 60, 80);
-  const span = Math.max(1e-9, q80 - q60);
-  return Math.min(100, 80 + ((rawScore - q80) / span) * 20);
-}
-
-export function difficultyLevel(score: number): 'easiest' | 'easy' | 'medium' | 'hard' | 'expert' {
-  if (score < 20) return 'easiest';
-  if (score < 40) return 'easy';
-  if (score < 60) return 'medium';
-  if (score < 80) return 'hard';
-  return 'expert';
-}
-
 type CageInfo = {
   index: number;
   cells: CellRef[];
@@ -257,6 +177,13 @@ export type SolveOptions = {
    *  for a cell (which would make the puzzle unsolvable from here) and
    *  restores those candidates, emitting a step describing the fix. */
   solution?: number[][];
+  /**
+   * 'trace' (default) builds a SolverStep per deduction - description, both
+   * snapshots, the diff - for playback and hints. 'score' keeps only the
+   * technique counts, for rating a puzzle. Same deductions in the same order
+   * either way; the parity tests hold them to it.
+   */
+  mode?: 'trace' | 'score';
 };
 
 class Solver {
@@ -271,6 +198,8 @@ class Solver {
   solution: number[][] | null;
   /** The puzzle as handed in, for the independent uniqueness count. */
   puzzle: PuzzleDefinition;
+  /** Whether steps are built at all; see SolveOptions.mode and recordStep. */
+  private readonly tracing: boolean;
   /** Set while exploring a hypothetical branch; see recordStep. */
   private muted = false;
   private mutedSteps = 0;
@@ -283,22 +212,10 @@ class Solver {
     const startGrid = options.startGrid;
     const startCandidates = options.startCandidates;
     this.solution = options.solution ?? null;
+    this.tracing = (options.mode ?? 'trace') === 'trace';
     this.size = puzzle.size;
     this.steps = [];
-    this.counts = {
-      stipulated: 0,
-      naked_single: 0,
-      cage_impossible: 0,
-      hidden_single: 0,
-      cage_single: 0,
-      cage_locked: 0,
-      cage_intersection: 0,
-      cage_combinations: 0,
-      multi_cage_line_lock: 0,
-      summation: 0,
-      cross_cage_feasibility: 0,
-      trial_and_error: 0,
-    };
+    this.counts = emptyCounts();
     this.rawScore = 0;
 
     // Build cages with cell coords and precomputed combinations
@@ -483,10 +400,14 @@ class Solver {
      */
     if (this.muted) {
       this.mutedSteps += 1;
-    } else {
-      const delta = TECHNIQUE_WEIGHTS[technique];
-      this.counts[technique] += 1;
-      this.rawScore = bottleneckRaw(this.counts);
+      return;
+    }
+    const delta = TECHNIQUE_WEIGHTS[technique];
+    this.counts[technique] += 1;
+    this.rawScore = bottleneckRaw(this.counts);
+    // Score mode stops here: the snapshots and the diff are what a step costs,
+    // and a rating has no use for them
+    if (this.tracing) {
       const grid = this.snapshotGrid();
       const candidates = this.snapshotCandidates();
       const changes = this.changesSince(grid, candidates);
@@ -505,30 +426,21 @@ class Solver {
         cumulativeCounts: { ...this.counts },
       });
     }
-
-    // Whenever a complex deduction narrows things, the cheapest follow-up
-    // techniques (naked + hidden singles) should fire immediately as the next
-    // steps. We skip the cascade for naked_single and hidden_single themselves
-    // to avoid recursion — those are exhaustively driven by the cascade itself.
-    if (technique !== 'naked_single' && technique !== 'hidden_single') {
-      this.cascadeEasyTechniques();
-    }
+    // Nothing else happens here. The cheap techniques used to be re-run from
+    // inside this method after every dearer step, which meant a cage
+    // technique's scan continued with the next cage while cheaper cage
+    // techniques had not been retried. Scheduling is runLogicLoop's alone.
   }
 
   /**
-   * Run naked + hidden singles until neither can find another deduction. This
-   * is the "go back to the easiest thing" cascade that runs after every more
-   * advanced deduction. Returns true if anything was placed.
+   * Naked and hidden singles until neither finds another. Each call to the
+   * two places one value and returns, so after every single the board is
+   * rescanned for naked singles first - the cheapest deduction is always the
+   * one charged. Returns true if anything was placed.
    */
   private cascadeEasyTechniques(): boolean {
     let any = false;
-    while (true) {
-      let did = false;
-      if (this.applyNakedSingles()) did = true;
-      if (this.applyHiddenSingles()) did = true;
-      if (!did) break;
-      any = true;
-    }
+    while (this.applyNakedSingles() || this.applyHiddenSingles()) any = true;
     return any;
   }
 
@@ -592,7 +504,6 @@ class Solver {
   }
 
   private applyNakedSingles(): boolean {
-    let progress = false;
     for (let r = 0; r < this.size; r++) {
       for (let c = 0; c < this.size; c++) {
         if (this.grid[r][c] === 0 && this.candidates[r][c].size === 1) {
@@ -616,15 +527,14 @@ class Solver {
             [{ row: r, col: c }],
             evidence
           );
-          progress = true;
+          return true; // one deduction, then rescan from the cheapest
         }
       }
     }
-    return progress;
+    return false;
   }
 
   private applyHiddenSingles(): boolean {
-    let progress = false;
     // Rows
     for (let r = 0; r < this.size; r++) {
       for (let num = 1; num <= this.size; num++) {
@@ -650,7 +560,7 @@ class Solver {
             [{ row: r, col }],
             evidence
           );
-          progress = true;
+          return true;
         }
       }
     }
@@ -679,16 +589,16 @@ class Solver {
             [{ row, col: c }],
             evidence
           );
-          progress = true;
+          return true;
         }
       }
     }
-    return progress;
+    return false;
   }
 
   /**
    * Compute the combinations that are still viable for a cage given the current
-   * grid + candidate state. Matches the filter in applyCageConstraints.
+   * grid + candidate state.
    */
   private survivingCombos(cage: CageInfo): number[][] {
     const placed: Array<{ pos: number; value: number }> = [];
@@ -709,116 +619,6 @@ class Solver {
       }
       return true;
     });
-  }
-
-  /**
-   * Cage intersection ("pointing pairs" for KenKen).
-   *
-   * If every surviving combination of a cage forces value v to appear in at
-   * least one cell in row R (or column C) of the cage, then v must end up in
-   * the cage within that line — so v can be eliminated from every non-cage
-   * cell in line R.
-   *
-   * Easy case: 6- vertical cage at size 7. Combos are (1,7) and (7,1); every
-   * combo places one 1 and one 7 in the shared column, so 1 and 7 can be
-   * eliminated from every other cell in that column.
-   *
-   * Hard case (elbow): 252× cage with cells in an L. Uniqueness rules force
-   * the two 6s in (6,7,6) into the two non-adjacent corners — locking 6 into
-   * both rows AND both columns the cage touches.
-   */
-  private applyCageIntersection(): boolean {
-    let progress = false;
-
-    for (const cage of this.cages) {
-      // Nothing to do if all cells are placed
-      if (cage.cells.every(({ row, col }) => this.grid[row][col] !== 0)) continue;
-
-      const survivors = this.survivingCombos(cage);
-      if (survivors.length === 0) continue;
-
-      const rowsTouched = new Set(cage.cells.map(c => c.row));
-      const colsTouched = new Set(cage.cells.map(c => c.col));
-
-      for (let v = 1; v <= this.size; v++) {
-        // For each row/col the cage touches, find the minimum number of times
-        // v appears in cage cells of that line across all surviving combos.
-        // If min >= 1, v is guaranteed to appear in that line within the cage.
-        const minVPerRow = new Map<number, number>();
-        const minVPerCol = new Map<number, number>();
-
-        for (const r of rowsTouched) {
-          let min = Infinity;
-          for (const combo of survivors) {
-            let count = 0;
-            cage.cells.forEach((cell, pos) => {
-              if (cell.row === r && combo[pos] === v) count++;
-            });
-            if (count < min) min = count;
-          }
-          minVPerRow.set(r, min === Infinity ? 0 : min);
-        }
-        for (const c of colsTouched) {
-          let min = Infinity;
-          for (const combo of survivors) {
-            let count = 0;
-            cage.cells.forEach((cell, pos) => {
-              if (cell.col === c && combo[pos] === v) count++;
-            });
-            if (count < min) min = count;
-          }
-          minVPerCol.set(c, min === Infinity ? 0 : min);
-        }
-
-        // Eliminate v from non-cage cells in each constrained row
-        for (const [r, min] of minVPerRow.entries()) {
-          if (min < 1) continue;
-          const eliminations: CellRef[] = [];
-          for (let c = 0; c < this.size; c++) {
-            const inCage = cage.cells.some(cell => cell.row === r && cell.col === c);
-            if (inCage) continue;
-            if (this.grid[r][c] === 0 && this.candidates[r][c].has(v)) {
-              this.candidates[r][c].delete(v);
-              eliminations.push({ row: r, col: c });
-            }
-          }
-          if (eliminations.length > 0) {
-            const cellList = eliminations.map(e => cellLabel(e.row, e.col)).join(', ');
-            this.recordStep(
-              'cage_intersection',
-              `Cage intersection: the ${cageHeader(cage)} cage must contain ${v} in row ${r + 1}, eliminating ${v} from ${cellList}.`,
-              eliminations
-            );
-            progress = true;
-          }
-        }
-
-        // Eliminate v from non-cage cells in each constrained column
-        for (const [c, min] of minVPerCol.entries()) {
-          if (min < 1) continue;
-          const eliminations: CellRef[] = [];
-          for (let r = 0; r < this.size; r++) {
-            const inCage = cage.cells.some(cell => cell.row === r && cell.col === c);
-            if (inCage) continue;
-            if (this.grid[r][c] === 0 && this.candidates[r][c].has(v)) {
-              this.candidates[r][c].delete(v);
-              eliminations.push({ row: r, col: c });
-            }
-          }
-          if (eliminations.length > 0) {
-            const cellListStr = eliminations.map(e => cellLabel(e.row, e.col)).join(', ');
-            this.recordStep(
-              'cage_intersection',
-              `Cage intersection: the ${cageHeader(cage)} cage must contain ${v} in column ${colLetter(c)}, eliminating ${v} from ${cellListStr}.`,
-              eliminations
-            );
-            progress = true;
-          }
-        }
-      }
-    }
-
-    return progress;
   }
 
   /**
@@ -1231,6 +1031,7 @@ class Solver {
    * missing option is missing for a reason, whether or not it is spelled out.
    */
   private explainCageElimination(cage: CageInfo, pos: number, removed: number[]): string {
+    if (!this.tracing) return '';
     const others = cage.cells.filter((_, i) => i !== pos);
     if (others.length === 0) return '';
 
@@ -1437,21 +1238,11 @@ class Solver {
     const ordered = [...this.cages].sort(
       (a, b) => this.survivingCombos(a).length - this.survivingCombos(b).length
     );
-    let progress = false;
     for (const cage of ordered) {
-      if (this.narrowCage(cage)) progress = true;
-      if (this.intersectCage(cage)) progress = true;
+      if (this.narrowCage(cage)) return true;
+      if (this.intersectCage(cage)) return true;
     }
-    return progress;
-  }
-
-  /** Legacy wrappers (unused but kept for clarity in case external callers exist). */
-  private applyCageConstraints(): boolean {
-    let progress = false;
-    for (const cage of this.cages) {
-      if (this.narrowCage(cage)) progress = true;
-    }
-    return progress;
+    return false;
   }
 
   private isValid(): boolean {
@@ -1541,6 +1332,11 @@ class Solver {
     // at 2, which is all it takes to answer it.
     const solutionCount = verifyUniqueness ? countSolutions(this.puzzle, 2) : 0;
 
+    let solved = this.isComplete() && this.verifySolution();
+    if (solved && this.solution) {
+      solved = this.grid.every((row, r) => row.every((v, c) => v === this.solution![r][c]));
+    }
+
     return {
       steps: this.steps,
       finalGrid: this.snapshotGrid(),
@@ -1549,6 +1345,8 @@ class Solver {
       solutionCount,
       // Only meaningful when uniqueness was actually verified
       isValid: verifyUniqueness && solutionCount === 1,
+      solved,
+      scoringVersion: SCORING_VERSION,
     };
   }
 
@@ -1817,9 +1615,12 @@ class Solver {
     // top." After every step in a more expensive technique, we go back to the
     // cheapest techniques — a single deduction in one technique can unlock new
     // work in cheaper techniques that should be done first.
+    // Every technique returns after its first deduction, and the cheap ones
+    // are rescanned before anything dearer is tried again, so the rating is
+    // the cheapest reasoning that gets there. Traversal is fixed - row-major
+    // cells, ascending values, cages by definition order or surviving-combo
+    // count - so the same position always yields the same next step.
     outer: while (true) {
-      // Easy techniques are exhaustive cascades; complex techniques stop on
-      // first progress so we re-check the cheap ones between every deduction.
       if (this.cascadeEasyTechniques()) continue outer;
       // Math-impossible eliminations are cheap (depend only on the cage's
       // arithmetic, not on row/col state) — fire them before processing
@@ -2323,4 +2124,55 @@ export function solveWithTrace(
     : (startGridOrOptions ?? {});
   const solver = new Solver(puzzle, options);
   return solver.solve();
+}
+
+/** A rating with no trace: counts, raw score, display score and band. */
+export type ScoreResult = {
+  techniqueCounts: Record<TechniqueId, number>;
+  rawScore: number;
+  score: number;
+  level: DifficultyLevel;
+  solved: boolean;
+  scoringVersion: number;
+};
+
+/**
+ * Rate a puzzle without building a trace. Same deductions in the same order
+ * as solveWithTrace - the parity tests hold the two to identical counts and
+ * final grids - minus the per-step snapshots that make a trace cost what it
+ * does. Uniqueness is not checked here; see assessPuzzle.
+ */
+export function scorePuzzle(puzzle: PuzzleDefinition, options: SolveOptions = {}): ScoreResult {
+  const result = new Solver(puzzle, { ...options, mode: 'score' }).solve(false);
+  const score = normalizeScore(result.rawScore, puzzle.size);
+  return {
+    techniqueCounts: result.techniqueCounts,
+    rawScore: result.rawScore,
+    score,
+    level: difficultyLevel(score),
+    solved: result.solved,
+    scoringVersion: SCORING_VERSION,
+  };
+}
+
+export type PuzzleAssessment = {
+  /** Structural problems; when non-empty nothing else here is meaningful. */
+  errors: string[];
+  solutionCount: number;
+  unique: boolean;
+  rating: ScoreResult | null;
+};
+
+/**
+ * The acceptance test for a puzzle, in cost order: structure, then the
+ * independent solution count, then the rating - and the rating only for a
+ * puzzle with exactly one solution, since rating one with two is wasted work.
+ * Mirrors backend/arithmatrix.evaluate_candidate.
+ */
+export function assessPuzzle(puzzle: PuzzleDefinition, solution?: number[][]): PuzzleAssessment {
+  const errors = validatePuzzle(puzzle, solution);
+  if (errors.length > 0) return { errors, solutionCount: 0, unique: false, rating: null };
+  const solutionCount = countSolutions(puzzle, 2);
+  if (solutionCount !== 1) return { errors, solutionCount, unique: false, rating: null };
+  return { errors, solutionCount, unique: true, rating: scorePuzzle(puzzle, { solution }) };
 }

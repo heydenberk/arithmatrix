@@ -1,0 +1,425 @@
+{
+  "scoringVersion": 2,
+  "fixtures": [
+    {
+      "index": 0,
+      "size": 4,
+      "storedLevel": "easiest",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 14,
+        "cage_impossible": 6,
+        "hidden_single": 0,
+        "cage_single": 0,
+        "cage_locked": 0,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 5.09902,
+      "solved": true
+    },
+    {
+      "index": 200,
+      "size": 4,
+      "storedLevel": "easy",
+      "techniqueCounts": {
+        "stipulated": 1,
+        "naked_single": 12,
+        "cage_impossible": 5,
+        "hidden_single": 3,
+        "cage_single": 0,
+        "cage_locked": 0,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 5.291503,
+      "solved": true
+    },
+    {
+      "index": 400,
+      "size": 4,
+      "storedLevel": "medium",
+      "techniqueCounts": {
+        "stipulated": 1,
+        "naked_single": 12,
+        "cage_impossible": 7,
+        "hidden_single": 3,
+        "cage_single": 0,
+        "cage_locked": 1,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 5.91608,
+      "solved": true
+    },
+    {
+      "index": 600,
+      "size": 4,
+      "storedLevel": "hard",
+      "techniqueCounts": {
+        "stipulated": 0,
+        "naked_single": 11,
+        "cage_impossible": 8,
+        "hidden_single": 5,
+        "cage_single": 0,
+        "cage_locked": 1,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 6.324555,
+      "solved": true
+    },
+    {
+      "index": 800,
+      "size": 4,
+      "storedLevel": "expert",
+      "techniqueCounts": {
+        "stipulated": 1,
+        "naked_single": 13,
+        "cage_impossible": 7,
+        "hidden_single": 2,
+        "cage_single": 0,
+        "cage_locked": 3,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 6.324555,
+      "solved": true
+    },
+    {
+      "index": 1000,
+      "size": 5,
+      "storedLevel": "easiest",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 22,
+        "cage_impossible": 7,
+        "hidden_single": 1,
+        "cage_single": 0,
+        "cage_locked": 1,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 6.403124,
+      "solved": true
+    },
+    {
+      "index": 1200,
+      "size": 5,
+      "storedLevel": "easy",
+      "techniqueCounts": {
+        "stipulated": 1,
+        "naked_single": 19,
+        "cage_impossible": 12,
+        "hidden_single": 5,
+        "cage_single": 0,
+        "cage_locked": 1,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 7.483315,
+      "solved": true
+    },
+    {
+      "index": 1400,
+      "size": 5,
+      "storedLevel": "medium",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 20,
+        "cage_impossible": 14,
+        "hidden_single": 3,
+        "cage_single": 0,
+        "cage_locked": 3,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 7.937254,
+      "solved": true
+    },
+    {
+      "index": 1600,
+      "size": 5,
+      "storedLevel": "hard",
+      "techniqueCounts": {
+        "stipulated": 1,
+        "naked_single": 18,
+        "cage_impossible": 16,
+        "hidden_single": 6,
+        "cage_single": 0,
+        "cage_locked": 4,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 8.602325,
+      "solved": true
+    },
+    {
+      "index": 1800,
+      "size": 5,
+      "storedLevel": "expert",
+      "techniqueCounts": {
+        "stipulated": 1,
+        "naked_single": 15,
+        "cage_impossible": 10,
+        "hidden_single": 7,
+        "cage_single": 2,
+        "cage_locked": 4,
+        "cage_intersection": 0,
+        "cage_combinations": 1,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 8.485281,
+      "solved": true
+    },
+    {
+      "index": 2000,
+      "size": 6,
+      "storedLevel": "easiest",
+      "techniqueCounts": {
+        "stipulated": 4,
+        "naked_single": 24,
+        "cage_impossible": 14,
+        "hidden_single": 8,
+        "cage_single": 0,
+        "cage_locked": 0,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 8.246211,
+      "solved": true
+    },
+    {
+      "index": 2200,
+      "size": 6,
+      "storedLevel": "easy",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 28,
+        "cage_impossible": 24,
+        "hidden_single": 6,
+        "cage_single": 0,
+        "cage_locked": 5,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 10.148892,
+      "solved": true
+    },
+    {
+      "index": 2400,
+      "size": 6,
+      "storedLevel": "medium",
+      "techniqueCounts": {
+        "stipulated": 3,
+        "naked_single": 30,
+        "cage_impossible": 13,
+        "hidden_single": 3,
+        "cage_single": 0,
+        "cage_locked": 7,
+        "cage_intersection": 3,
+        "cage_combinations": 4,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 10.723805,
+      "solved": true
+    },
+    {
+      "index": 2600,
+      "size": 6,
+      "storedLevel": "hard",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 29,
+        "cage_impossible": 26,
+        "hidden_single": 5,
+        "cage_single": 0,
+        "cage_locked": 2,
+        "cage_intersection": 7,
+        "cage_combinations": 10,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 13.228757,
+      "solved": true
+    },
+    {
+      "index": 2800,
+      "size": 6,
+      "storedLevel": "expert",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 27,
+        "cage_impossible": 12,
+        "hidden_single": 7,
+        "cage_single": 0,
+        "cage_locked": 5,
+        "cage_intersection": 2,
+        "cage_combinations": 12,
+        "multi_cage_line_lock": 7,
+        "summation": 2,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 86.165525,
+      "solved": true
+    },
+    {
+      "index": 3000,
+      "size": 7,
+      "storedLevel": "easiest",
+      "techniqueCounts": {
+        "stipulated": 4,
+        "naked_single": 37,
+        "cage_impossible": 28,
+        "hidden_single": 8,
+        "cage_single": 0,
+        "cage_locked": 11,
+        "cage_intersection": 0,
+        "cage_combinations": 0,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 11.916375,
+      "solved": true
+    },
+    {
+      "index": 3200,
+      "size": 7,
+      "storedLevel": "easy",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 39,
+        "cage_impossible": 29,
+        "hidden_single": 8,
+        "cage_single": 0,
+        "cage_locked": 14,
+        "cage_intersection": 5,
+        "cage_combinations": 3,
+        "multi_cage_line_lock": 0,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 13.784049,
+      "solved": true
+    },
+    {
+      "index": 3400,
+      "size": 7,
+      "storedLevel": "medium",
+      "techniqueCounts": {
+        "stipulated": 3,
+        "naked_single": 36,
+        "cage_impossible": 24,
+        "hidden_single": 10,
+        "cage_single": 0,
+        "cage_locked": 8,
+        "cage_intersection": 6,
+        "cage_combinations": 26,
+        "multi_cage_line_lock": 7,
+        "summation": 0,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 72.792856,
+      "solved": true
+    },
+    {
+      "index": 3600,
+      "size": 7,
+      "storedLevel": "hard",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 37,
+        "cage_impossible": 23,
+        "hidden_single": 7,
+        "cage_single": 1,
+        "cage_locked": 11,
+        "cage_intersection": 3,
+        "cage_combinations": 22,
+        "multi_cage_line_lock": 12,
+        "summation": 4,
+        "cross_cage_feasibility": 0,
+        "trial_and_error": 0
+      },
+      "rawScore": 147.968719,
+      "solved": true
+    },
+    {
+      "index": 3800,
+      "size": 7,
+      "storedLevel": "expert",
+      "techniqueCounts": {
+        "stipulated": 2,
+        "naked_single": 126,
+        "cage_impossible": 19,
+        "hidden_single": 36,
+        "cage_single": 4,
+        "cage_locked": 37,
+        "cage_intersection": 15,
+        "cage_combinations": 29,
+        "multi_cage_line_lock": 9,
+        "summation": 6,
+        "cross_cage_feasibility": 17,
+        "trial_and_error": 11
+      },
+      "rawScore": 484.748684,
+      "solved": true
+    }
+  ]
+}
