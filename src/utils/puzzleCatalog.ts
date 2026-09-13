@@ -15,6 +15,7 @@
  * content-based identity that can be matched instead.
  */
 
+import { canonicalCagesSig } from './cageSignature';
 import { PUZZLE_DATA_FILE } from '../constants/gameConstants';
 import { getStoredStats } from './puzzleStats';
 
@@ -66,11 +67,8 @@ export type CatalogEntry = {
  * Cell lists and the cage list itself are both sorted, so the signature is
  * independent of the order cages happen to be stored in.
  */
-export const canonicalCagesSig = (cages: CatalogCage[]): string =>
-  cages
-    .map(c => `${c.value}/${c.operation}/${[...c.cells].sort((a, b) => a - b).join(',')}`)
-    .sort()
-    .join('|');
+// The signature lives in its own module so the Node generator can use it
+export { canonicalCagesSig } from './cageSignature';
 
 const toEntry = (record: RawPuzzleRecord, index: number): CatalogEntry => ({
   index,

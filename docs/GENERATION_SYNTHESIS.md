@@ -243,6 +243,31 @@ All 83 hint tests pass unchanged.
 
 ### Phase 2 - Node generation and batch (B Phase 3)
 
+*Status (2026-09-13): shipped.* `src/generation/` holds the pure, seeded
+pipeline - `rng.ts` (SplitMix32 + `mixSeed`), `latinSquare.ts` (isotopy
+moves, no pool), `partition.ts` (weights and the 2/2/4/5 singles cap as an
+explicit table: JS `Math.round(2.5)` is 3 where Python's is 2), `carve.ts`
+(numeric ids), `operations.ts` (randomised, difficulty-conditioned: pair
+weights for + - * /, product chance and product cap by tier), `generate.ts`
+(`generatePuzzle` -> `assessPuzzle`; nothing returned that has not passed it),
+`bucketPlan.ts` and `coordinator.ts` (IO-free; runner injected). Node-only
+code is under `scripts/generation/` (worker via a tsx bootstrap, worker pool)
+and `scripts/generate-batch.ts` (`npm run generate:batch`): pending accounting,
+near-miss routing one level only, dedupe by cage signature, deadline in every
+task plus a grace period then `worker.terminate()`, checkpoint to
+`<output>.partial.jsonl` with `--resume`, atomic publish, exit code 2 on
+shortfall. Every record carries `seed`, `candidates`, `raw_score`,
+`scoring_version` and `generator_version: "v5-ts"`; a task's seed is
+`mixSeed(runSeed, size, difficulty, tier, attempt)` so completion order cannot
+change the puzzle (tested by running the same batch with reversed runner
+delays). `src/utils/cageSignature.ts` was split out of `puzzleCatalog.ts`,
+whose Vite-only `import.meta.env` import made it unusable under Node; the
+engine gained `src/utils/deadline.ts`, honoured inside `countSolutions` and the
+logic loop. Measured: 24 buckets x 2 across all four sizes in 7.6 s on 4
+workers; an 8 s limit on a 7x7 expert bucket returned in 8 s wall with the
+straggler stopping itself inside the grace period. The Python generator is
+still present for Phase 4's re-score comparison and is retired after it.
+
 1. Port Latin squares (lazy per-worker pool), partition, carve, and a
    *randomised, difficulty-conditioned* `assignOperations` (A item 6).
 2. Seeded workers; record the seed on every accepted puzzle.

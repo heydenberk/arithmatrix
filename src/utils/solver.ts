@@ -21,6 +21,7 @@ import {
   type TechniqueId,
 } from './difficulty';
 import { validatePuzzle } from './puzzleValidation';
+import type { Deadline } from './deadline';
 
 // The difficulty model lives in ./difficulty; re-exported so existing callers
 // keep one import
@@ -184,6 +185,8 @@ export type SolveOptions = {
    * either way; the parity tests hold them to it.
    */
   mode?: 'trace' | 'score';
+  /** Wall-clock cutoff, honoured inside the logic loop and the backtracker. */
+  deadline?: Deadline;
 };
 
 class Solver {
@@ -200,6 +203,7 @@ class Solver {
   puzzle: PuzzleDefinition;
   /** Whether steps are built at all; see SolveOptions.mode and recordStep. */
   private readonly tracing: boolean;
+  private readonly deadline: Deadline | null;
   /** Set while exploring a hypothetical branch; see recordStep. */
   private muted = false;
   private mutedSteps = 0;
@@ -213,6 +217,7 @@ class Solver {
     const startCandidates = options.startCandidates;
     this.solution = options.solution ?? null;
     this.tracing = (options.mode ?? 'trace') === 'trace';
+    this.deadline = options.deadline ?? null;
     this.size = puzzle.size;
     this.steps = [];
     this.counts = emptyCounts();
@@ -1330,7 +1335,9 @@ class Solver {
     // Uniqueness is a separate question from "did we reach a solution", and the
     // trace above may have guessed to get there. Count independently, capped
     // at 2, which is all it takes to answer it.
-    const solutionCount = verifyUniqueness ? countSolutions(this.puzzle, 2) : 0;
+    const solutionCount = verifyUniqueness
+      ? countSolutions(this.puzzle, 2, undefined, this.deadline ?? undefined)
+      : 0;
 
     let solved = this.isComplete() && this.verifySolution();
     if (solved && this.solution) {
@@ -1621,6 +1628,7 @@ class Solver {
     // cells, ascending values, cages by definition order or surviving-combo
     // count - so the same position always yields the same next step.
     outer: while (true) {
+      this.deadline?.checkNow();
       if (this.cascadeEasyTechniques()) continue outer;
       // Math-impossible eliminations are cheap (depend only on the cage's
       // arithmetic, not on row/col state) — fire them before processing
@@ -1959,7 +1967,12 @@ function permutations<T>(arr: T[]): T[][] {
  *
  * Pass cap = 2 to answer "is this unique?" - the only question worth asking.
  */
-export function countSolutions(puzzle: PuzzleDefinition, cap = 2, startGrid?: number[][]): number {
+export function countSolutions(
+  puzzle: PuzzleDefinition,
+  cap = 2,
+  startGrid?: number[][],
+  deadline?: Deadline
+): number {
   const size = puzzle.size;
   const cageOf = new Map<number, Cage>();
   for (const cage of puzzle.cages) {
@@ -2031,6 +2044,7 @@ export function countSolutions(puzzle: PuzzleDefinition, cap = 2, startGrid?: nu
 
   const recurse = (pos: number): void => {
     if (found >= cap) return;
+    deadline?.check();
     if (pos === size * size) {
       found += 1;
       return;
@@ -2169,10 +2183,19 @@ export type PuzzleAssessment = {
  * puzzle with exactly one solution, since rating one with two is wasted work.
  * Mirrors backend/arithmatrix.evaluate_candidate.
  */
-export function assessPuzzle(puzzle: PuzzleDefinition, solution?: number[][]): PuzzleAssessment {
+export function assessPuzzle(
+  puzzle: PuzzleDefinition,
+  solution?: number[][],
+  deadline?: Deadline
+): PuzzleAssessment {
   const errors = validatePuzzle(puzzle, solution);
   if (errors.length > 0) return { errors, solutionCount: 0, unique: false, rating: null };
-  const solutionCount = countSolutions(puzzle, 2);
+  const solutionCount = countSolutions(puzzle, 2, undefined, deadline);
   if (solutionCount !== 1) return { errors, solutionCount, unique: false, rating: null };
-  return { errors, solutionCount, unique: true, rating: scorePuzzle(puzzle, { solution }) };
+  return {
+    errors,
+    solutionCount,
+    unique: true,
+    rating: scorePuzzle(puzzle, { solution, deadline }),
+  };
 }

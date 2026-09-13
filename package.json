@@ -12,6 +12,7 @@
     "backend:dev": "backend/.venv/bin/flask --app backend.app run --debug --port 5001",
     "start:dev": "concurrently \"npm:dev\" \"npm:backend:dev\"",
     "tui": "python3 -m tui",
+    "generate:batch": "tsx scripts/generate-batch.ts",
     "lint": "eslint src --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,md}\"",
