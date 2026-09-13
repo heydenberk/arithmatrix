@@ -1974,56 +1974,126 @@ export function countSolutions(
   deadline?: Deadline
 ): number {
   const size = puzzle.size;
-  const cageOf = new Map<number, Cage>();
-  for (const cage of puzzle.cages) {
-    for (const cell of cage.cells) cageOf.set(cell, cage);
-  }
+  const total = size * size;
+  const FULL = ((1 << (size + 1)) - 1) & ~1; // bits 1..size
 
-  const grid: number[][] = Array.from({ length: size }, () => Array(size).fill(0));
-  const rowMask = new Array(size).fill(0);
-  const colMask = new Array(size).fill(0);
+  // Per-cage running state, updated as cells are placed and undone
+  const cages = puzzle.cages;
+  const cageOf = new Int16Array(total).fill(-1);
+  const cageLen = cages.map(c => c.cells.length);
+  const cageSum = new Array<number>(cages.length).fill(0);
+  const cageProd = new Array<number>(cages.length).fill(1);
+  const cageFilled = new Array<number>(cages.length).fill(0);
+  // For - and / cages: the value already placed, or 0
+  const cagePlaced = new Array<number>(cages.length).fill(0);
+  cages.forEach((cage, idx) => {
+    for (const cell of cage.cells) cageOf[cell] = idx;
+  });
+
+  const grid = new Array<number>(total).fill(0);
+  const rowMask = new Array<number>(size).fill(0);
+  const colMask = new Array<number>(size).fill(0);
   let found = 0;
 
-  /** Checks a cage given what is filled so far; partial cages prune, not fail. */
-  const cageSatisfiedFor = (cage: Cage): boolean => {
-    const values: number[] = [];
-    for (const cell of cage.cells) {
-      const v = grid[Math.floor(cell / size)][cell % size];
-      if (v !== 0) values.push(v);
-    }
-    const complete = values.length === cage.cells.length;
-
-    if (cage.cells.length === 1 || cage.operation === '=' || cage.operation === '') {
-      return !complete || values[0] === cage.value;
-    }
+  /*
+   * Values a cell may still take, as a bitmask: not in its row or column, and
+   * consistent with what its cage already holds. The cage part is where the
+   * pruning comes from - a + cage with 3 to go and 20 left to make cannot take
+   * a 1, and the partner in a - or / cage is one of two specific values, so
+   * the search never walks into a cage it cannot finish.
+   */
+  const legal = (pos: number): number => {
+    const row = Math.floor(pos / size);
+    const col = pos % size;
+    let mask = FULL & ~rowMask[row] & ~colMask[col];
+    const ci = cageOf[pos];
+    if (ci < 0 || mask === 0) return mask;
+    const cage = cages[ci];
+    const remaining = cageLen[ci] - cageFilled[ci] - 1; // cells left after this one
     switch (cage.operation) {
+      case '':
+      case '=':
+        return mask & (1 << cage.value);
       case '+': {
-        const sum = values.reduce((a, b) => a + b, 0);
-        // Every remaining cell adds at least 1
-        return complete ? sum === cage.value : sum < cage.value;
+        const need = cage.value - cageSum[ci];
+        const lo = need - remaining * size;
+        const hi = need - remaining;
+        let out = 0;
+        for (let v = Math.max(1, lo); v <= Math.min(size, hi); v++) out |= 1 << v;
+        return mask & out;
       }
       case '*': {
-        const product = values.reduce((a, b) => a * b, 1);
-        return complete ? product === cage.value : cage.value % product === 0;
+        if (cage.value % cageProd[ci] !== 0) return 0;
+        const need = cage.value / cageProd[ci];
+        let out = 0;
+        for (let v = 1; v <= size; v++) {
+          if (need % v !== 0) continue;
+          const rest = need / v;
+          if (remaining === 0 ? rest === 1 : rest >= 1 && rest <= size ** remaining) out |= 1 << v;
+        }
+        return mask & out;
       }
-      case '-':
-        return !complete || (values.length === 2 && Math.abs(values[0] - values[1]) === cage.value);
+      case '-': {
+        const other = cagePlaced[ci];
+        let out = 0;
+        if (other) {
+          if (other + cage.value <= size) out |= 1 << (other + cage.value);
+          if (other - cage.value >= 1) out |= 1 << (other - cage.value);
+        } else {
+          for (let v = 1; v <= size; v++)
+            if (v + cage.value <= size || v - cage.value >= 1) out |= 1 << v;
+        }
+        return mask & out;
+      }
       case '/': {
-        if (!complete) return true;
-        if (values.length !== 2) return false;
-        const hi = Math.max(values[0], values[1]);
-        const lo = Math.min(values[0], values[1]);
-        return lo !== 0 && hi === cage.value * lo;
+        const other = cagePlaced[ci];
+        let out = 0;
+        if (other) {
+          if (other * cage.value <= size) out |= 1 << (other * cage.value);
+          if (other % cage.value === 0 && other / cage.value >= 1) out |= 1 << (other / cage.value);
+        } else {
+          for (let v = 1; v <= size; v++)
+            if (v * cage.value <= size || v % cage.value === 0) out |= 1 << v;
+        }
+        return mask & out;
       }
       default:
-        return !complete || values[0] === cage.value;
+        return mask;
+    }
+  };
+
+  const place = (pos: number, value: number) => {
+    grid[pos] = value;
+    const bit = 1 << value;
+    rowMask[Math.floor(pos / size)] |= bit;
+    colMask[pos % size] |= bit;
+    const ci = cageOf[pos];
+    if (ci >= 0) {
+      cageSum[ci] += value;
+      cageProd[ci] *= value;
+      cageFilled[ci] += 1;
+      if (cagePlaced[ci] === 0) cagePlaced[ci] = value;
+    }
+  };
+  const unplace = (pos: number) => {
+    const value = grid[pos];
+    grid[pos] = 0;
+    const bit = 1 << value;
+    rowMask[Math.floor(pos / size)] &= ~bit;
+    colMask[pos % size] &= ~bit;
+    const ci = cageOf[pos];
+    if (ci >= 0) {
+      cageSum[ci] -= value;
+      cageProd[ci] /= value;
+      cageFilled[ci] -= 1;
+      if (cagePlaced[ci] === value && cageFilled[ci] === 0) cagePlaced[ci] = 0;
     }
   };
 
   /*
    * Seed the player's placements. A value that already conflicts with another
-   * placement makes the position unreachable, which is exactly the answer a
-   * caller wants: zero solutions from here.
+   * placement, or a cage that can no longer be completed, makes the position
+   * unreachable - which is exactly the answer a caller wants: zero from here.
    */
   if (startGrid) {
     for (let row = 0; row < size; row++) {
@@ -2032,50 +2102,65 @@ export function countSolutions(
         if (!value) continue;
         const bit = 1 << value;
         if (rowMask[row] & bit || colMask[col] & bit) return 0;
-        grid[row][col] = value;
-        rowMask[row] |= bit;
-        colMask[col] |= bit;
+        place(row * size + col, value);
       }
     }
-    for (const cage of puzzle.cages) {
-      if (!cageSatisfiedFor(cage)) return 0;
+    for (let ci = 0; ci < cages.length; ci++) {
+      const cage = cages[ci];
+      if (cageFilled[ci] === cageLen[ci]) {
+        const values = cage.cells.map(c => grid[c]);
+        if (!cageSatisfied(cage.operation, cage.value, values)) return 0;
+      } else if (cageFilled[ci] > 0) {
+        // Some empty cell of the cage must still be able to take a value
+        if (cage.cells.every(c => grid[c] !== 0 || legal(c) === 0)) return 0;
+      }
     }
   }
 
-  const recurse = (pos: number): void => {
+  const popcount = (m: number): number => {
+    let n = 0;
+    while (m) {
+      m &= m - 1;
+      n++;
+    }
+    return n;
+  };
+
+  const recurse = (): void => {
     if (found >= cap) return;
     deadline?.check();
-    if (pos === size * size) {
+
+    // Most constrained cell first; a cell with nothing left ends the branch
+    let best = -1;
+    let bestMask = 0;
+    let bestCount = Infinity;
+    for (let pos = 0; pos < total; pos++) {
+      if (grid[pos] !== 0) continue;
+      const mask = legal(pos);
+      const count = popcount(mask);
+      if (count === 0) return;
+      if (count < bestCount) {
+        best = pos;
+        bestMask = mask;
+        bestCount = count;
+        if (count === 1) break;
+      }
+    }
+    if (best < 0) {
       found += 1;
       return;
     }
-    const row = Math.floor(pos / size);
-    const col = pos % size;
-    // Cells the caller placed are fixed; step over them
-    if (grid[row][col] !== 0) {
-      recurse(pos + 1);
-      return;
-    }
-    const cage = cageOf.get(pos);
 
     for (let value = 1; value <= size; value++) {
-      const bit = 1 << value;
-      if (rowMask[row] & bit || colMask[col] & bit) continue;
-
-      grid[row][col] = value;
-      rowMask[row] |= bit;
-      colMask[col] |= bit;
-
-      if (!cage || cageSatisfiedFor(cage)) recurse(pos + 1);
-
-      grid[row][col] = 0;
-      rowMask[row] &= ~bit;
-      colMask[col] &= ~bit;
+      if (!(bestMask & (1 << value))) continue;
+      place(best, value);
+      recurse();
+      unplace(best);
       if (found >= cap) return;
     }
   };
 
-  recurse(0);
+  recurse();
   return found;
 }
 

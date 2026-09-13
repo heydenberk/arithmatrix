@@ -278,6 +278,19 @@ still present for Phase 4's re-score comparison and is retired after it.
 
 ### Phase 3 - Optimise on candidates (A items 2, 5; B Phase 4)
 
+*Status (2026-09-13): shipped.* `scripts/bench-generation.ts` times the
+acceptance path on fresh seeded candidates, not corpus survivors.
+`countSolutions` now picks the cell with the fewest legal values at every
+node and prunes on running cage state - sum bounds for +, divisibility and a
+size^remaining bound for *, the two specific partner values for - and / once
+one cell is placed. `src/utils/countSolutions.test.ts` holds it to the previous
+backtracker's counts on corpus puzzles, fresh unique and non-unique
+candidates, partial and wrong grids, and the cap. 7x7 candidates: p50 6.0 ->
+0.3 ms, p95 166 -> 4.5 ms, max 180 -> 16 ms; accepted puzzles/s 20.6 -> 49.1.
+The rating trace is now the dominant cost (7x7 p95 ~100 ms) and is left alone:
+all 80 buckets fill in about 3 s, so items 3.3-3.4 (combination caching,
+carving) are not justified by the profile.
+
 1. Benchmark harness that times *fresh candidates*, not corpus records, reporting
    accepted-unique-puzzles/second and p50/p95/p99 per bucket.
 2. `countSolutions`: MRV cell choice, incremental cage sums/products with bounds,
