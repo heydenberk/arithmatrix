@@ -16,12 +16,13 @@ import {
   IconBoltFilled,
   IconBulbFilled,
   IconDotsVertical,
-  IconBookmark,
   IconTrash,
   IconDownload,
   IconTrophy,
   IconRefresh,
   IconRestore,
+  IconFlag,
+  IconFlagFilled,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { useLongPress } from '../hooks/useLongPress';
@@ -97,8 +98,10 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   // Generate number buttons based on grid size
   const numberButtons = Array.from({ length: gridSize }, (_, i) => i + 1);
 
-  const buttonSize = 36;
-  const iconSize = '1.1rem';
+  // Nine controls across: 34px keeps the row inside a 360px viewport with its
+  // 12px padding (9 x 34 + gaps = 338 of 336 available would not, at 36)
+  const buttonSize = 34;
+  const iconSize = '1.05rem';
 
   return (
     <Box className="mobile-number-pad-fixed">
@@ -206,6 +209,44 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
           </ActionIcon>
         )}
 
+        {/* Checkpoint: set/update, and revert. Same pair as the desktop bar;
+            these lived in the menu, where the revert was missing altogether */}
+        {onCreateCheckpoint && (
+          <Group gap={4} wrap="nowrap">
+            <ActionIcon
+              onClick={() => handleButtonPress(onCreateCheckpoint)}
+              size={buttonSize}
+              radius="xl"
+              variant={hasCheckpoint ? 'gradient' : 'light'}
+              gradient={hasCheckpoint ? { from: 'pink', to: 'red' } : undefined}
+              color={hasCheckpoint ? undefined : 'gray'}
+              aria-label={hasCheckpoint ? 'Update checkpoint' : 'Save checkpoint'}
+            >
+              {hasCheckpoint ? <IconFlagFilled size={iconSize} /> : <IconFlag size={iconSize} />}
+            </ActionIcon>
+            {onRevertToCheckpoint && (
+              <ActionIcon
+                onClick={() => handleButtonPress(onRevertToCheckpoint)}
+                disabled={!hasCheckpoint}
+                size={buttonSize}
+                radius="xl"
+                variant={hasCheckpoint ? 'light' : 'outline'}
+                color="red"
+                aria-label="Revert to checkpoint"
+                style={{
+                  opacity: !hasCheckpoint ? 0.5 : 1,
+                  borderColor: !hasCheckpoint ? '#d1d5db' : undefined,
+                }}
+              >
+                <IconRestore
+                  size={iconSize}
+                  style={{ color: !hasCheckpoint ? '#9ca3af' : undefined }}
+                />
+              </ActionIcon>
+            )}
+          </Group>
+        )}
+
         {/* Right: Erase + More Menu */}
         <Group gap={4} wrap="nowrap">
           <ActionIcon
@@ -238,28 +279,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
               </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
-              <Menu.Item
-                leftSection={<IconBookmark size="1rem" />}
-                onClick={() => {
-                  if (onCreateCheckpoint) {
-                    handleButtonPress(onCreateCheckpoint);
-                  }
-                  setMenuOpened(false);
-                }}
-              >
-                {hasCheckpoint ? 'Update Checkpoint' : 'Set Checkpoint'}
-              </Menu.Item>
-              {hasCheckpoint && onRevertToCheckpoint && (
-                <Menu.Item
-                  leftSection={<IconRestore size="1rem" />}
-                  onClick={() => {
-                    handleButtonPress(onRevertToCheckpoint);
-                    setMenuOpened(false);
-                  }}
-                >
-                  Revert to Checkpoint
-                </Menu.Item>
-              )}
               {hasCheckpoint && onClearCheckpoint && (
                 <Menu.Item
                   leftSection={<IconTrash size="1rem" />}
