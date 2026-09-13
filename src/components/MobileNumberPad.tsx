@@ -21,6 +21,7 @@ import {
   IconDownload,
   IconTrophy,
   IconRefresh,
+  IconRestore,
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { useLongPress } from '../hooks/useLongPress';
@@ -45,6 +46,8 @@ interface MobileNumberPadProps {
   canRedo: boolean;
   hasCheckpoint?: boolean;
   onCreateCheckpoint?: () => void;
+  /** Put the board back to the checkpoint. Desktop had this; mobile did not. */
+  onRevertToCheckpoint?: () => void;
   onClearCheckpoint?: () => void;
   onInstall?: () => void;
   onShowAchievements?: () => void;
@@ -65,6 +68,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   canRedo,
   hasCheckpoint,
   onCreateCheckpoint,
+  onRevertToCheckpoint,
   onClearCheckpoint,
   onInstall,
   onShowAchievements,
@@ -245,6 +249,17 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
               >
                 {hasCheckpoint ? 'Update Checkpoint' : 'Set Checkpoint'}
               </Menu.Item>
+              {hasCheckpoint && onRevertToCheckpoint && (
+                <Menu.Item
+                  leftSection={<IconRestore size="1rem" />}
+                  onClick={() => {
+                    handleButtonPress(onRevertToCheckpoint);
+                    setMenuOpened(false);
+                  }}
+                >
+                  Revert to Checkpoint
+                </Menu.Item>
+              )}
               {hasCheckpoint && onClearCheckpoint && (
                 <Menu.Item
                   leftSection={<IconTrash size="1rem" />}

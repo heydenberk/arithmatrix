@@ -778,6 +778,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}
             onCreateCheckpoint={onCreateCheckpoint}
+            onRevertToCheckpoint={onRevertToCheckpoint}
             onClearCheckpoint={onClearCheckpoint}
             onInstall={onInstall}
             onShowAchievements={onShowAchievements}
