@@ -19,6 +19,7 @@ import {
   IconFlag,
   IconFlagFilled,
   IconRestore,
+  IconTrophy,
 } from '@tabler/icons-react';
 import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
@@ -42,6 +43,8 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   timerElement,
   onReset,
   onNewGame,
+  onShowAchievements,
+  unaided = true,
 }) => {
   const layout = useResponsiveLayout();
   const isTouch = isTouchDevice();
@@ -97,8 +100,26 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
           {/* Center: Timer */}
           {timerElement}
 
-          {/* Right: Reset, New Game */}
+          {/* Right: Achievements, Reset, New Game */}
           <Group gap={6} wrap="nowrap">
+            {/* Achievements. Gold while the solve is unaided, grey once a hint
+                or check has been taken - the same signal the desktop bar
+                gives; this used to be buried in the overflow menu */}
+            {onShowAchievements && (
+              <ActionIcon
+                onClick={handleButtonPress(onShowAchievements)}
+                size={buttonSize}
+                radius="xl"
+                variant="gradient"
+                gradient={
+                  unaided ? { from: 'yellow', to: 'orange' } : { from: 'gray.5', to: 'gray.6' }
+                }
+                aria-label={unaided ? 'Achievements, unaided so far' : 'Achievements, aid used'}
+              >
+                <IconTrophy size={iconSize} />
+              </ActionIcon>
+            )}
+
             {/* Reset */}
             <ActionIcon
               onClick={handleButtonPress(onReset || (() => {}), 'medium')}

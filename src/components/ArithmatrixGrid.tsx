@@ -109,6 +109,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       onNewGame,
       onInstall,
       onShowAchievements,
+      unaided,
     },
     ref
   ) => {
@@ -531,6 +532,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         timerElement={timerElement}
         onReset={onReset}
         onNewGame={onNewGame}
+        onShowAchievements={onShowAchievements}
+        unaided={unaided}
       />
     );
 
@@ -781,7 +784,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onRevertToCheckpoint={onRevertToCheckpoint}
             onClearCheckpoint={onClearCheckpoint}
             onInstall={onInstall}
-            onShowAchievements={onShowAchievements}
           />
         )}
       </Stack>

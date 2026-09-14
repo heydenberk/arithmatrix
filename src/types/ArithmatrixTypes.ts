@@ -82,6 +82,8 @@ export type ArithmatrixGridProps = {
   onInstall?: () => void;
   /** Handler for showing achievements gallery */
   onShowAchievements?: () => void;
+  /** Whether this solve is still unaided; drives the trophy's colour */
+  unaided?: boolean;
 };
 
 /**
@@ -197,4 +199,8 @@ export type ArithmatrixControlsProps = {
   onReset?: () => void;
   /** Handler for new game action on mobile */
   onNewGame?: () => void;
+  /** Opens the achievements gallery (mobile top bar) */
+  onShowAchievements?: () => void;
+  /** Whether this solve is still unaided; the trophy dulls once it is not */
+  unaided?: boolean;
 };

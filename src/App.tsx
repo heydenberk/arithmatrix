@@ -1013,6 +1013,7 @@ function App() {
                   onNewGame={() => setShowPuzzleGallery(true)}
                   onInstall={handleInstallClick}
                   onShowAchievements={() => setShowAchievementGallery(true)}
+                  unaided={currentConduct.unaided}
                 />
               </Paper>
             </Center>
