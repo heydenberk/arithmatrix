@@ -11,10 +11,21 @@
  */
 
 import React from 'react';
-import { Box, Button, Group, Modal, Stack, Text, ThemeIcon, Title, rem } from '@mantine/core';
-import { IconLayoutGrid, IconTrophy } from '@tabler/icons-react';
+import {
+  Badge,
+  Box,
+  Button,
+  Group,
+  Modal,
+  Stack,
+  Text,
+  ThemeIcon,
+  Title,
+  rem,
+} from '@mantine/core';
+import { IconBrain, IconCheck, IconLayoutGrid, IconTrophy, IconX } from '@tabler/icons-react';
 import AchievementNotification from './AchievementNotification';
-import type { AchievementResult } from '../utils/achievements';
+import type { AchievementResult, GameConduct } from '../utils/achievements';
 
 interface WinModalProps {
   opened: boolean;
@@ -24,6 +35,8 @@ interface WinModalProps {
   onNewPuzzle: () => void;
   /** Seconds taken, as the timer read when the last cell landed. */
   elapsedSeconds: number;
+  /** How this solve went. Shown on every win, not only when it earns a badge. */
+  conduct: GameConduct | null;
   achievement: AchievementResult | null;
   size: number;
   difficulty: string;
@@ -55,11 +68,31 @@ const Particle: React.FC<{
   />
 );
 
+/** One conduct badge: solid when earned, faded with a cross when not. */
+const ConductChip: React.FC<{
+  earned: boolean;
+  icon: React.ReactNode;
+  yes: string;
+  no: string;
+}> = ({ earned, icon, yes, no }) => (
+  <Badge
+    size="md"
+    radius="xl"
+    variant={earned ? 'white' : 'outline'}
+    color={earned ? 'dark' : 'gray.1'}
+    style={earned ? undefined : { opacity: 0.75, borderColor: 'rgba(255,255,255,0.6)' }}
+    leftSection={earned ? icon : <IconX size="0.8rem" />}
+  >
+    {earned ? yes : no}
+  </Badge>
+);
+
 const WinModal: React.FC<WinModalProps> = ({
   opened,
   onClose,
   onNewPuzzle,
   elapsedSeconds,
+  conduct,
   achievement,
   size,
   difficulty,
@@ -99,6 +132,25 @@ const WinModal: React.FC<WinModalProps> = ({
         <Text size="lg" style={{ opacity: 0.9 }}>
           Solved in {formatTime(elapsedSeconds)}
         </Text>
+        {/* The solve's conduct, every time. The badge announcement below only
+            fires the first time a board earns one, so a player who already
+            had both saw nothing here about how this solve went */}
+        {conduct && (
+          <Group gap={6} justify="center">
+            <ConductChip
+              earned={conduct.unaided}
+              icon={<IconBrain size="0.8rem" />}
+              yes="Unaided"
+              no="Aided"
+            />
+            <ConductChip
+              earned={conduct.clean}
+              icon={<IconCheck size="0.8rem" />}
+              yes="Clean sheet"
+              no="Had mistakes"
+            />
+          </Group>
+        )}
         {achievement && (
           <AchievementNotification result={achievement} size={size} difficulty={difficulty} />
         )}

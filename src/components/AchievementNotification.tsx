@@ -25,7 +25,10 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
   const label = TIER_LABELS[result.tier];
   const next = nextTier(result.tier);
 
-  const BADGE_LABELS: Record<string, string> = { unaided: 'Unaided', clean: 'Clean sheet' };
+  const BADGE_LABELS: Record<string, string> = {
+    unaided: 'First unaided solve here',
+    clean: 'First clean sheet here',
+  };
 
   let headline: string | null = null;
   if (result.isNew) {
@@ -63,8 +66,9 @@ const AchievementNotification: React.FC<AchievementNotificationProps> = ({
               key={badge}
               size="md"
               radius="xl"
-              variant="white"
-              color="dark"
+              variant="filled"
+              color="yellow"
+              c="dark"
               leftSection={
                 badge === 'unaided' ? <IconBrain size="0.8rem" /> : <IconCheck size="0.8rem" />
               }

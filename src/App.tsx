@@ -255,6 +255,8 @@ function App() {
    */
   const [showWinModal, setShowWinModal] = useState<boolean>(false);
   const [winTime, setWinTime] = useState<number>(0);
+  /** How the winning solve was conducted, for the win modal's status chips. */
+  const [winConduct, setWinConduct] = useState<GameConduct | null>(null);
   const [resetKey, setResetKey] = useState<number>(0); // Key to force ArithmatrixGrid re-render for reset
   const [currentCompletionTime, setCurrentCompletionTime] = useState<number>(0); // Track current puzzle completion time (used for initial restore)
   const completionTimeRef = useRef<number>(0); // Ref to avoid re-rendering App every second
@@ -759,6 +761,7 @@ function App() {
     setIsTimerRunning(false); // Pause the timer
     setIsGameWon(true); // Set the win state
     setWinTime(completionTimeRef.current);
+    setWinConduct(conduct);
     setShowWinModal(true);
 
     // Save puzzle stats to localStorage
@@ -1194,6 +1197,7 @@ function App() {
           setShowPuzzleGallery(true);
         }}
         elapsedSeconds={winTime}
+        conduct={winConduct}
         achievement={lastAchievement}
         size={puzzleSize}
         difficulty={difficulty}
