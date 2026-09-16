@@ -43,27 +43,40 @@ export default defineConfig({
         orientation: 'any',
         scope: '/arithmatrix/',
         start_url: '/arithmatrix/',
+        /*
+         * ?v=<ICON_VERSION> - bump on EVERY icon change, here and on the link
+         * tags in index.html (keep the two the same).
+         *
+         * An installed app does not read these files again: the OS bakes the
+         * icon in at install time. Android's Chrome re-reads the manifest
+         * about once a day and rebuilds the WebAPK only when it sees a
+         * difference, and a new icon URL is the difference it reliably acts
+         * on - redrawing the art behind the same URL is not. iOS never
+         * revisits the icon at all, so a home-screen copy there only changes
+         * when it is removed and re-added; the version at least keeps Safari's
+         * own cache from serving the old art to the next person who adds it.
+         */
         icons: [
           {
-            src: '/arithmatrix/pwa-64x64.png',
+            src: '/arithmatrix/pwa-64x64.png?v=2',
             sizes: '64x64',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/arithmatrix/pwa-192x192.png',
+            src: '/arithmatrix/pwa-192x192.png?v=2',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/arithmatrix/pwa-512x512.png',
+            src: '/arithmatrix/pwa-512x512.png?v=2',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any',
           },
           {
-            src: '/arithmatrix/maskable-icon-512x512.png',
+            src: '/arithmatrix/maskable-icon-512x512.png?v=2',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',

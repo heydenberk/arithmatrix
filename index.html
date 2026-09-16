@@ -2,9 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/favicon.ico" sizes="any" />
-    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <!-- ?v=<ICON_VERSION> - bump on EVERY icon change, here and in the manifest
+         icons in vite.config.ts (keep the two the same). Redrawing the art
+         alone is not enough: an installed app's icon is baked in by the OS at
+         install time, and Chrome only rebuilds its WebAPK when it notices the
+         manifest differ - a changed URL is the signal it acts on, changed
+         bytes at the same URL is not. Same trick as CORPUS_VERSION. -->
+    <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+    <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png?v=2" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0"

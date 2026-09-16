@@ -152,6 +152,9 @@ Uses graph coloring algorithm with 7 colors to ensure adjacent cages have differ
 ### Difficulty System
 Technique-based: the solver rates a puzzle by the cheapest reasoning that solves it (`src/utils/difficulty.ts`, `SCORING_VERSION`). The 0-100 `difficulty_score` is on one cross-size scale; the named band (`actual_difficulty`) is assigned within a size by quantile. Any change to ratings: bump `SCORING_VERSION`, run `scripts/calibrate-scoring.ts`, `scripts/rescore-corpus.ts`, `scripts/pin-scoring-fixtures.ts`, and bump `CORPUS_VERSION` in `gameConstants.ts`.
 
+### App Icons
+Generated from one source by `python3 scripts/generate_icons.py` (full bleed — platforms apply their own rounding and masking). Icon URLs carry `?v=<n>` in **both** `index.html` and the manifest `icons` in `vite.config.ts`; **bump both on every icon change**. Redrawing the art is not enough to reach an installed app: the OS bakes the icon in at install time, Android's Chrome rebuilds its WebAPK only when it sees the manifest differ (a new URL is the signal it acts on), and iOS never revisits the icon at all — a home-screen copy there changes only when removed and re-added.
+
 ### Touch Gestures
 - Tap: select cell
 - Long-press (400ms): toggle pencil mode
