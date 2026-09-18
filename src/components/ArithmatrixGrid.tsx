@@ -559,6 +559,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         onNewGame={onNewGame}
         onShowAchievements={onShowAchievements}
         unaided={unaided}
+        difficulty={difficulty}
+        difficultyScore={puzzleDefinition.difficulty_operations}
       />
     );
 

@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import { Group, ActionIcon, Tooltip, rem, Box } from '@mantine/core';
+import { Group, ActionIcon, Tooltip, rem, Box, Stack, Text } from '@mantine/core';
 import {
   IconPencil,
   IconCheck,
@@ -22,6 +22,7 @@ import {
   IconTrophy,
 } from '@tabler/icons-react';
 import { ArithmatrixControlsProps } from '../types/ArithmatrixTypes';
+import { DIFFICULTY_COLOR } from '../constants/gameConstants';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useLongPress } from '../hooks/useLongPress';
 import { isTouchDevice, triggerHapticFeedback } from '../utils/touchUtils';
@@ -46,6 +47,8 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   onNewGame,
   onShowAchievements,
   unaided = true,
+  difficulty,
+  difficultyScore,
 }) => {
   const layout = useResponsiveLayout();
   const isTouch = isTouchDevice();
@@ -98,8 +101,32 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
             <IconCheck size={iconSize} />
           </ActionIcon>
 
-          {/* Center: Timer */}
-          {timerElement}
+          {/* Center: Timer, with what you are playing under it. Desktop says
+              this in the status badge, which mobile has no room for, so the
+              difficulty was the one thing about a puzzle you could not see
+              from the phone. A caption line rather than another control: the
+              board is sized from viewport width, so the height costs nothing
+              but the pixels themselves. */}
+          <Stack gap={0} align="center" style={{ minWidth: 0 }}>
+            {timerElement}
+            {difficulty && (
+              <Text
+                size="9px"
+                fw={700}
+                lh={1.1}
+                c={`${DIFFICULTY_COLOR[difficulty] ?? 'gray'}.7`}
+                style={{ textTransform: 'capitalize', whiteSpace: 'nowrap' }}
+              >
+                {difficulty}
+                {typeof difficultyScore === 'number' && (
+                  <Text span size="9px" fw={600} c="gray.6">
+                    {' '}
+                    · {Math.round(difficultyScore)}
+                  </Text>
+                )}
+              </Text>
+            )}
+          </Stack>
 
           {/* Right: Achievements, Reset, New Game */}
           <Group gap={6} wrap="nowrap">

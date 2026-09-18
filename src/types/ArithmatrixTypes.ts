@@ -209,4 +209,8 @@ export type ArithmatrixControlsProps = {
   onShowAchievements?: () => void;
   /** Whether this solve is still unaided; the trophy dulls once it is not */
   unaided?: boolean;
+  /** Named difficulty of the puzzle in play, shown under the mobile timer */
+  difficulty?: string;
+  /** Its 0-100 score, shown beside the name */
+  difficultyScore?: number;
 };

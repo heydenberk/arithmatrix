@@ -8,8 +8,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  DIFFICULTY_ORDER,
+  FULL_DIFFICULTY_RANGE,
   canonicalCagesSig,
-  groupByScoreBand,
+  describeDifficultyRange,
+  difficultyInRange,
+  groupByDifficulty,
   pickRandomEntry,
   scoreBandStart,
   type CatalogEntry,
@@ -82,42 +86,83 @@ describe('scoreBandStart', () => {
   });
 });
 
-describe('groupByScoreBand', () => {
-  it('orders bands from easiest to hardest', () => {
-    const bands = groupByScoreBand([
-      entry({ index: 1, score: 85 }),
-      entry({ index: 2, score: 15 }),
-      entry({ index: 3, score: 45 }),
+describe('groupByDifficulty', () => {
+  it('orders groups from easiest to hardest, whatever order they arrive in', () => {
+    const groups = groupByDifficulty([
+      entry({ index: 1, difficulty: 'expert' }),
+      entry({ index: 2, difficulty: 'easiest' }),
+      entry({ index: 3, difficulty: 'medium' }),
     ]);
-    expect(bands.map(b => b.start)).toEqual([10, 40, 80]);
+    expect(groups.map(g => g.difficulty)).toEqual(['easiest', 'medium', 'expert']);
   });
 
-  it('omits bands with no puzzles', () => {
-    const bands = groupByScoreBand([
-      entry({ index: 1, score: 15 }),
-      entry({ index: 2, score: 95 }),
+  it('omits difficulties with no puzzles', () => {
+    const groups = groupByDifficulty([
+      entry({ index: 1, difficulty: 'easy' }),
+      entry({ index: 2, difficulty: 'hard' }),
     ]);
-    expect(bands).toHaveLength(2);
+    expect(groups).toHaveLength(2);
   });
 
-  it('labels a band with its range and tier', () => {
-    const [band] = groupByScoreBand([entry({ score: 45 })]);
-    expect(band.label).toBe('40–50');
+  it('sorts entries within a group by score', () => {
+    const [group] = groupByDifficulty([
+      entry({ index: 1, difficulty: 'medium', score: 48 }),
+      entry({ index: 2, difficulty: 'medium', score: 41 }),
+      entry({ index: 3, difficulty: 'medium', score: 45 }),
+    ]);
+    expect(group.entries.map(e => e.index)).toEqual([2, 3, 1]);
   });
 
-  it('sorts entries within a band by score', () => {
-    const [band] = groupByScoreBand([
-      entry({ index: 1, score: 48 }),
-      entry({ index: 2, score: 41 }),
-      entry({ index: 3, score: 45 }),
+  it('groups by the named band, not by the number', () => {
+    // The score is one cross-size scale, so a 4x4 expert scores below a 7x7
+    // easiest. Grouping on the number would file them the wrong way round.
+    const groups = groupByDifficulty([
+      entry({ index: 1, size: 4, difficulty: 'expert', score: 18 }),
+      entry({ index: 2, size: 7, difficulty: 'easiest', score: 62 }),
     ]);
-    expect(band.entries.map(e => e.index)).toEqual([2, 3, 1]);
+    expect(groups.map(g => g.difficulty)).toEqual(['easiest', 'expert']);
+    expect(groups[0].entries[0].index).toBe(2);
   });
 
   it('keeps every entry it was given', () => {
-    const entries = [10, 25, 25, 60, 99].map((score, i) => entry({ index: i, score }));
-    const bands = groupByScoreBand(entries);
-    expect(bands.reduce((n, b) => n + b.entries.length, 0)).toBe(entries.length);
+    const entries = (['easiest', 'easy', 'easy', 'hard', 'expert'] as const).map((difficulty, i) =>
+      entry({ index: i, difficulty })
+    );
+    const groups = groupByDifficulty(entries);
+    expect(groups.reduce((n, g) => n + g.entries.length, 0)).toBe(entries.length);
+  });
+});
+
+describe('difficultyInRange', () => {
+  it('includes both ends of the range', () => {
+    expect(difficultyInRange('easy', [1, 3])).toBe(true);
+    expect(difficultyInRange('hard', [1, 3])).toBe(true);
+    expect(difficultyInRange('medium', [1, 3])).toBe(true);
+  });
+
+  it('excludes what falls outside it', () => {
+    expect(difficultyInRange('easiest', [1, 3])).toBe(false);
+    expect(difficultyInRange('expert', [1, 3])).toBe(false);
+  });
+
+  it('admits exactly one difficulty when both handles meet', () => {
+    const only = DIFFICULTY_ORDER.filter(d => difficultyInRange(d, [2, 2]));
+    expect(only).toEqual(['medium']);
+  });
+
+  it('admits everything at the full range, so the gallery opens unfiltered', () => {
+    expect(DIFFICULTY_ORDER.every(d => difficultyInRange(d, FULL_DIFFICULTY_RANGE))).toBe(true);
+  });
+});
+
+describe('describeDifficultyRange', () => {
+  it('names a single difficulty on its own', () => {
+    expect(describeDifficultyRange([3, 3])).toBe('hard');
+  });
+
+  it('names both ends of a wider range', () => {
+    expect(describeDifficultyRange([1, 3])).toBe('easy – hard');
+    expect(describeDifficultyRange(FULL_DIFFICULTY_RANGE)).toBe('easiest – expert');
   });
 });
 

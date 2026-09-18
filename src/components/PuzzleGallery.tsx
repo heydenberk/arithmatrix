@@ -5,11 +5,11 @@
  * way to start a game alongside the existing "pick size and difficulty, get a
  * random puzzle" flow.
  *
- * Filters for size and operations sit at the top; matching puzzles below are
- * grouped into 10-point bands of numeric difficulty (the `difficulty_score`
- * the named tiers are derived from). Each tile previews the puzzle's cage
- * layout, so you can pick by eye rather than by label. Puzzles you have
- * already finished are marked, and can be filtered out.
+ * Filters for size, operations and difficulty range sit at the top; matching
+ * puzzles below are grouped by named difficulty, a preview row or two at a
+ * time. Each tile previews the puzzle's cage layout, so you can pick by eye
+ * rather than by label. Puzzles you have already finished are marked, and can
+ * be filtered out.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -20,6 +20,7 @@ import {
   Group,
   Loader,
   Modal,
+  RangeSlider,
   SegmentedControl,
   SimpleGrid,
   Stack,
@@ -27,16 +28,32 @@ import {
   Text,
   UnstyledButton,
 } from '@mantine/core';
-import { IconCircleCheckFilled, IconDice5, IconPlayerPauseFilled } from '@tabler/icons-react';
+import {
+  IconChevronDown,
+  IconChevronUp,
+  IconCircleCheckFilled,
+  IconDice5,
+  IconPlayerPauseFilled,
+} from '@tabler/icons-react';
 import {
   CatalogEntry,
+  DIFFICULTY_ORDER,
+  DifficultyRange,
+  FULL_DIFFICULTY_RANGE,
   RawPuzzleRecord,
   completedSignatures,
-  groupByScoreBand,
+  describeDifficultyRange,
+  difficultyInRange,
+  groupByDifficulty,
   loadCatalog,
   pickRandomEntry,
 } from '../utils/puzzleCatalog';
-import { OPERATION_TIERS, OPERATION_TIER_LABELS, VALID_SIZES } from '../constants/gameConstants';
+import {
+  DIFFICULTY_COLOR,
+  OPERATION_TIERS,
+  OPERATION_TIER_LABELS,
+  VALID_SIZES,
+} from '../constants/gameConstants';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { SavedGameSummary, savedGameSummaries } from '../utils/gameStatePersistence';
 import { formatCompletionTime } from '../utils/puzzleStats';
@@ -57,13 +74,16 @@ interface PuzzleGalleryProps {
 /** Sentinel for the operations filter meaning "don't filter by operations". */
 const ANY_OPS = 'any';
 
-const TIER_COLOR: Record<string, string> = {
-  easiest: 'green',
-  easy: 'teal',
-  medium: 'yellow',
-  hard: 'orange',
-  expert: 'red',
-};
+/**
+ * Tiles shown per difficulty before the section has to be expanded.
+ *
+ * Every difficulty holds about two hundred puzzles, and nobody scrolls two
+ * hundred thumbnails to pick one - they take something off the top or hit
+ * Surprise me. Twelve is three rows on a phone and two on a desktop: enough
+ * to choose from by eye, short enough that all five difficulties fit on one
+ * screen's worth of scrolling.
+ */
+const PREVIEW_COUNT = 12;
 
 const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   opened,
@@ -77,6 +97,10 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [size, setSize] = useState<number>(initialSize);
   const [operationsTier, setOperationsTier] = useState<string>(initialOperationsTier);
+  /** Inclusive indexes into DIFFICULTY_ORDER; Surprise me draws from inside it. */
+  const [difficultyRange, setDifficultyRange] = useState<DifficultyRange>(FULL_DIFFICULTY_RANGE);
+  /** Difficulties the player has expanded past PREVIEW_COUNT. */
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [hideCompleted, setHideCompleted] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(() => new Set());
   const [inProgress, setInProgress] = useState<Map<string, SavedGameSummary>>(() => new Map());
@@ -137,11 +161,21 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
       entry =>
         entry.size === size &&
         (operationsTier === ANY_OPS || entry.operationsTier === operationsTier) &&
+        difficultyInRange(entry.difficulty, difficultyRange) &&
         !(hideCompleted && solved.has(entry.cagesSig))
     );
-  }, [catalog, size, operationsTier, hideCompleted, solved]);
+  }, [catalog, size, operationsTier, difficultyRange, hideCompleted, solved]);
 
-  const bands = useMemo(() => groupByScoreBand(matching), [matching]);
+  const groups = useMemo(() => groupByDifficulty(matching), [matching]);
+
+  /*
+   * A section expanded under one filter should not stay expanded under the
+   * next: changing size or range gives you a different set of puzzles, and
+   * reopening to five fully expanded sections buries the controls.
+   */
+  useEffect(() => {
+    setExpanded(new Set());
+  }, [size, operationsTier, difficultyRange]);
 
   const pausedEntries = useMemo(() => {
     if (!catalog || inProgress.size === 0) return [];
@@ -163,11 +197,12 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
     for (const entry of catalog) {
       if (entry.size !== size) continue;
       if (operationsTier !== ANY_OPS && entry.operationsTier !== operationsTier) continue;
+      if (!difficultyInRange(entry.difficulty, difficultyRange)) continue;
       total++;
       if (solved.has(entry.cagesSig)) done++;
     }
     return { filterTotal: total, solvedCount: done };
-  }, [catalog, size, operationsTier, solved]);
+  }, [catalog, size, operationsTier, difficultyRange, solved]);
 
   const renderTile = (entry: CatalogEntry) => {
     const isSolved = solved.has(entry.cagesSig);
@@ -220,7 +255,13 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
           {entry.score.toFixed(1)}
         </Text>
         {/* The band is per size while the number is not, so it goes on the tile */}
-        <Text size="10px" ta="center" fw={600} lh={1.1} c={`${TIER_COLOR[entry.difficulty]}.8`}>
+        <Text
+          size="10px"
+          ta="center"
+          fw={600}
+          lh={1.1}
+          c={`${DIFFICULTY_COLOR[entry.difficulty]}.8`}
+        >
           {entry.difficulty}
         </Text>
         {paused ? (
@@ -236,6 +277,47 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
           )
         )}
       </UnstyledButton>
+    );
+  };
+
+  /**
+   * A grid of tiles capped at PREVIEW_COUNT, with the button that lifts the
+   * cap. `key` identifies the section in the expanded set; sections short
+   * enough to show whole get no button.
+   */
+  const renderSection = (key: string, entries: CatalogEntry[], header: React.ReactNode) => {
+    const isExpanded = expanded.has(key);
+    const shown = isExpanded ? entries : entries.slice(0, PREVIEW_COUNT);
+    const hidden = entries.length - shown.length;
+
+    return (
+      <Stack key={key} gap="xs">
+        {header}
+        <SimpleGrid cols={{ base: 4, xs: 5, sm: 6, md: 7 }} spacing="xs">
+          {shown.map(renderTile)}
+        </SimpleGrid>
+        {(hidden > 0 || isExpanded) && (
+          <Button
+            size="compact-xs"
+            radius="xl"
+            variant="subtle"
+            color="gray"
+            style={{ alignSelf: 'center' }}
+            rightSection={
+              isExpanded ? <IconChevronUp size="0.8rem" /> : <IconChevronDown size="0.8rem" />
+            }
+            onClick={() =>
+              setExpanded(previous => {
+                const next = new Set(previous);
+                if (!next.delete(key)) next.add(key);
+                return next;
+              })
+            }
+          >
+            {isExpanded ? 'Show fewer' : `Show all ${entries.length}`}
+          </Button>
+        )}
+      </Stack>
     );
   };
 
@@ -314,6 +396,35 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
               </Stack>
             </Group>
 
+            {/* Difficulty range. The named band is per size, so every size has
+                all five and a range always has puzzles in it - unlike the
+                0-100 score, on which a 4x4 never reaches the top. Surprise me
+                draws from whatever the range admits. */}
+            <Stack gap={2}>
+              <Group gap="xs" justify="space-between">
+                <Text size="xs" fw={600} c="dimmed">
+                  Difficulty
+                </Text>
+                <Text size="xs" c="dimmed" style={{ textTransform: 'capitalize' }}>
+                  {describeDifficultyRange(difficultyRange)}
+                </Text>
+              </Group>
+              <RangeSlider
+                size="sm"
+                minRange={0}
+                min={0}
+                max={DIFFICULTY_ORDER.length - 1}
+                step={1}
+                value={difficultyRange}
+                onChange={setDifficultyRange}
+                label={value => DIFFICULTY_ORDER[value]}
+                marks={DIFFICULTY_ORDER.map((level, index) => ({ value: index, label: level }))}
+                styles={{ markLabel: { fontSize: 9 } }}
+                mb="lg"
+                aria-label="Difficulty range"
+              />
+            </Stack>
+
             <Group gap="sm" justify="space-between" wrap="wrap">
               <Group gap="md" wrap="nowrap">
                 {/* Sits with the filters because it obeys them */}
@@ -368,8 +479,10 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
 
         {/* Games in progress, shown regardless of the filters - these are what
             the player came back for, so they should not be filtered away. */}
-        {pausedEntries.length > 0 && (
-          <Stack key="in-progress" gap="xs">
+        {pausedEntries.length > 0 &&
+          renderSection(
+            'in-progress',
+            pausedEntries,
             <Group gap="xs" align="center">
               <IconPlayerPauseFilled size={14} color="var(--mantine-color-yellow-7)" />
               <Text size="sm" fw={700}>
@@ -379,29 +492,29 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
                 {pausedEntries.length}
               </Text>
             </Group>
-            <SimpleGrid cols={{ base: 4, xs: 5, sm: 6, md: 7 }} spacing="xs">
-              {pausedEntries.map(renderTile)}
-            </SimpleGrid>
-          </Stack>
-        )}
+          )}
 
-        {/* One section per 10-point band of numeric difficulty */}
-        {bands.map(band => (
-          <Stack key={band.start} gap="xs">
+        {/* One section per named difficulty, easiest first */}
+        {groups.map(group =>
+          renderSection(
+            group.difficulty,
+            group.entries,
             <Group gap="xs" align="center">
-              <Text size="sm" fw={700}>
-                {band.label}
-              </Text>
+              <Badge
+                size="sm"
+                radius="sm"
+                variant="light"
+                color={DIFFICULTY_COLOR[group.difficulty]}
+                style={{ textTransform: 'capitalize' }}
+              >
+                {group.difficulty}
+              </Badge>
               <Text size="xs" c="dimmed">
-                {band.entries.length}
+                {group.entries.length}
               </Text>
             </Group>
-
-            <SimpleGrid cols={{ base: 4, xs: 5, sm: 6, md: 7 }} spacing="xs">
-              {band.entries.map(renderTile)}
-            </SimpleGrid>
-          </Stack>
-        ))}
+          )
+        )}
       </Stack>
     </Modal>
   );

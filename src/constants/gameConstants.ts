@@ -30,6 +30,19 @@ export const OPERATION_TIER_LABELS: Record<string, string> = {
   all: '+ \u2212 \u00d7 \u00f7',
 };
 
+/**
+ * Mantine colour per named difficulty, so a band reads the same wherever it
+ * appears - the gallery's section headings and tiles, and the caption under
+ * the mobile timer.
+ */
+export const DIFFICULTY_COLOR: Record<string, string> = {
+  easiest: 'green',
+  easy: 'teal',
+  medium: 'yellow',
+  hard: 'orange',
+  expert: 'red',
+};
+
 // UI Constants
 export const ANIMATION_DURATION = {
   FLASH: 300,

@@ -18,8 +18,13 @@
 import { canonicalCagesSig } from './cageSignature';
 import { PUZZLE_DATA_FILE } from '../constants/gameConstants';
 import { getStoredStats } from './puzzleStats';
+import { DIFFICULTY_ORDER } from './difficulty';
 
-export type DifficultyLevel = 'easiest' | 'easy' | 'medium' | 'hard' | 'expert';
+// The scoring model owns the names and their order; re-exported so the
+// catalog's callers do not need both imports.
+export type { DifficultyLevel } from './difficulty';
+export { DIFFICULTY_ORDER } from './difficulty';
+import type { DifficultyLevel } from './difficulty';
 
 export type CatalogCage = {
   value: number;
@@ -138,38 +143,58 @@ export const scoreBandStart = (score: number): number => {
   return Math.floor(clamped / SCORE_BAND_SIZE) * SCORE_BAND_SIZE;
 };
 
-export type ScoreBand = {
-  /** Lower bound of the band, e.g. 40 for the 40-50 band. */
-  start: number;
-  label: string;
+/**
+ * An inclusive span of named difficulties, as indexes into DIFFICULTY_ORDER.
+ * `[0, 4]` is everything; `[2, 2]` is medium alone.
+ */
+export type DifficultyRange = [number, number];
+
+export const FULL_DIFFICULTY_RANGE: DifficultyRange = [0, DIFFICULTY_ORDER.length - 1];
+
+/**
+ * Whether a difficulty falls inside the range.
+ *
+ * On the named band rather than the 0-100 score, because the band is assigned
+ * within a size: every size has all five, so a range always has puzzles in it.
+ * A range over the score would be empty for a 4x4 above about 30, that being
+ * as hard as a 4x4 gets on a scale shared with 7x7s.
+ */
+export const difficultyInRange = (difficulty: DifficultyLevel, range: DifficultyRange): boolean => {
+  const rank = DIFFICULTY_ORDER.indexOf(difficulty);
+  return rank >= range[0] && rank <= range[1];
+};
+
+/** "medium" for a single-band range, "easy – hard" for a wider one. */
+export const describeDifficultyRange = ([low, high]: DifficultyRange): string =>
+  low === high ? DIFFICULTY_ORDER[low] : `${DIFFICULTY_ORDER[low]} – ${DIFFICULTY_ORDER[high]}`;
+
+export type DifficultyGroup = {
+  difficulty: DifficultyLevel;
   entries: CatalogEntry[];
 };
 
 /**
- * Groups entries into ascending numeric-difficulty bands, hardest last.
- * Bands with no matching puzzles are omitted.
+ * Groups entries by named difficulty, easiest first, hardest last, each group
+ * ordered by score. Difficulties with no matching puzzles are omitted.
+ *
+ * The gallery used to section by 10-point bands of the numeric score. That
+ * stopped working when the score became one cross-size scale: a 4x4 is a small
+ * puzzle by that measure whatever its band, so 781 of the thousand 4x4s landed
+ * in "10-20" and the gallery was one endless section. The named band is
+ * assigned within a size, so there are always five of them and they are always
+ * populated. The number still rides on each tile, and sorts within a group.
  */
-export const groupByScoreBand = (entries: CatalogEntry[]): ScoreBand[] => {
-  const byBand = new Map<number, CatalogEntry[]>();
+export const groupByDifficulty = (entries: CatalogEntry[]): DifficultyGroup[] => {
+  const byDifficulty = new Map<DifficultyLevel, CatalogEntry[]>();
   for (const entry of entries) {
-    const start = scoreBandStart(entry.score);
-    const bucket = byBand.get(start);
-    if (bucket) {
-      bucket.push(entry);
-    } else {
-      byBand.set(start, [entry]);
-    }
+    const bucket = byDifficulty.get(entry.difficulty);
+    if (bucket) bucket.push(entry);
+    else byDifficulty.set(entry.difficulty, [entry]);
   }
-  return [...byBand.entries()]
-    .sort((a, b) => a[0] - b[0])
-    .map(([start, bandEntries]) => ({
-      start,
-      label: `${start}–${start + SCORE_BAND_SIZE}`,
-      // No band-wide tier: the number is on one scale for every size while
-      // the named band is assigned within a size, so one numeric section can
-      // hold several bands. Each entry carries its own `difficulty`.
-      entries: bandEntries.sort((a, b) => a.score - b.score),
-    }));
+  return DIFFICULTY_ORDER.filter(difficulty => byDifficulty.has(difficulty)).map(difficulty => ({
+    difficulty,
+    entries: byDifficulty.get(difficulty)!.sort((a, b) => a.score - b.score),
+  }));
 };
 
 /**
