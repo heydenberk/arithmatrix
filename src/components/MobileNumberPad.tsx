@@ -46,6 +46,7 @@ interface MobileNumberPadProps {
   canUndo: boolean;
   canRedo: boolean;
   hasCheckpoint?: boolean;
+  canRevertToCheckpoint?: boolean;
   onCreateCheckpoint?: () => void;
   /** Put the board back to the checkpoint. Desktop had this; mobile did not. */
   onRevertToCheckpoint?: () => void;
@@ -68,6 +69,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   canUndo,
   canRedo,
   hasCheckpoint,
+  canRevertToCheckpoint = false,
   onCreateCheckpoint,
   onRevertToCheckpoint,
   onClearCheckpoint,
@@ -227,20 +229,20 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
             {onRevertToCheckpoint && (
               <ActionIcon
                 onClick={() => handleButtonPress(onRevertToCheckpoint)}
-                disabled={!hasCheckpoint}
+                disabled={!canRevertToCheckpoint}
                 size={buttonSize}
                 radius="xl"
-                variant={hasCheckpoint ? 'light' : 'outline'}
+                variant={canRevertToCheckpoint ? 'light' : 'outline'}
                 color="red"
                 aria-label="Revert to checkpoint"
                 style={{
-                  opacity: !hasCheckpoint ? 0.5 : 1,
-                  borderColor: !hasCheckpoint ? '#d1d5db' : undefined,
+                  opacity: !canRevertToCheckpoint ? 0.5 : 1,
+                  borderColor: !canRevertToCheckpoint ? '#d1d5db' : undefined,
                 }}
               >
                 <IconRestore
                   size={iconSize}
-                  style={{ color: !hasCheckpoint ? '#9ca3af' : undefined }}
+                  style={{ color: !canRevertToCheckpoint ? '#9ca3af' : undefined }}
                 />
               </ActionIcon>
             )}

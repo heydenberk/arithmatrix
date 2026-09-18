@@ -101,6 +101,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       onStateChange,
       onCheckpointRequested,
       hasCheckpoint,
+      checkpointGridValues,
+      checkpointPencilMarks,
       onCreateCheckpoint,
       onRevertToCheckpoint,
       onClearCheckpoint,
@@ -132,6 +134,28 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       initialConduct,
       onStateChange,
     });
+
+    const canRevertToCheckpoint = useMemo(() => {
+      if (!hasCheckpoint || !checkpointGridValues || !checkpointPencilMarks) return false;
+
+      return gameState.gridValues.some((row, r) =>
+        row.some((value, c) => {
+          const marks = gameState.pencilMarks[r][c];
+          const checkpointMarks = checkpointPencilMarks[r][c];
+          return (
+            value !== checkpointGridValues[r][c] ||
+            marks.size !== checkpointMarks.size ||
+            [...marks].some(mark => !checkpointMarks.has(mark))
+          );
+        })
+      );
+    }, [
+      hasCheckpoint,
+      checkpointGridValues,
+      checkpointPencilMarks,
+      gameState.gridValues,
+      gameState.pencilMarks,
+    ]);
 
     // Expose methods to parent component via ref
     useImperativeHandle(
@@ -527,6 +551,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         onFillAllCandidates={gameState.handleFillAllCandidates}
         onHint={guardAid('take a hint', requestHint)}
         hasCheckpoint={hasCheckpoint}
+        canRevertToCheckpoint={canRevertToCheckpoint}
         onCreateCheckpoint={onCreateCheckpoint}
         onRevertToCheckpoint={onRevertToCheckpoint}
         timerElement={timerElement}
@@ -780,6 +805,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}
+            canRevertToCheckpoint={canRevertToCheckpoint}
             onCreateCheckpoint={onCreateCheckpoint}
             onRevertToCheckpoint={onRevertToCheckpoint}
             onClearCheckpoint={onClearCheckpoint}

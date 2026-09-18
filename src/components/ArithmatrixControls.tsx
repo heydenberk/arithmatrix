@@ -38,6 +38,7 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   onFillAllCandidates,
   onHint,
   hasCheckpoint,
+  canRevertToCheckpoint = false,
   onCreateCheckpoint,
   onRevertToCheckpoint,
   timerElement,
@@ -314,17 +315,18 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
         <Tooltip label="Revert to checkpoint" position="bottom">
           <ActionIcon
             onClick={onRevertToCheckpoint}
-            disabled={!hasCheckpoint}
+            disabled={!canRevertToCheckpoint}
+            aria-label="Revert to checkpoint"
             size={rem(40)}
             radius="xl"
             variant="gradient"
             gradient={{ from: 'red', to: 'orange' }}
             style={{
               transition: 'all 300ms ease',
-              boxShadow: hasCheckpoint
+              boxShadow: canRevertToCheckpoint
                 ? '0 15px 30px -8px rgba(239, 68, 68, 0.3)'
                 : '0 15px 30px -8px rgba(0, 0, 0, 0.25)',
-              opacity: !hasCheckpoint ? 0.5 : 1,
+              opacity: !canRevertToCheckpoint ? 0.5 : 1,
             }}
           >
             <IconRestore size="1.2rem" />

@@ -865,22 +865,6 @@ export const computeHint = (
 
   const startGrid = toNumericGrid(gridValues);
 
-  const complete = startGrid.every(row => row.every(value => value !== 0));
-  if (complete) {
-    return {
-      kind: 'solved',
-      levels: [
-        {
-          title: 'Nothing left',
-          body: 'Every cell is filled.',
-          supportCells: [],
-          targetCells: [],
-          regionCells: [],
-        },
-      ],
-    };
-  }
-
   /*
    * Before anything else: is the board sound?
    *
@@ -930,6 +914,23 @@ export const computeHint = (
           body:
             'No solution remains from this position, so one of the values already on the board ' +
             'must be wrong. Try undoing your most recent entries.',
+          supportCells: [],
+          targetCells: [],
+          regionCells: [],
+        },
+      ],
+    };
+  }
+
+  // A full board is only solved after its entries pass the checks above.
+  const complete = startGrid.every(row => row.every(value => value !== 0));
+  if (complete) {
+    return {
+      kind: 'solved',
+      levels: [
+        {
+          title: 'Nothing left',
+          body: 'Every cell is filled.',
           supportCells: [],
           targetCells: [],
           regionCells: [],

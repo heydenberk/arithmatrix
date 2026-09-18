@@ -328,8 +328,8 @@ describe('computeHint mid-game', () => {
   const record = RECORDS.find(r => r.metadata.size === 4)!;
   const puzzle: PuzzleDefinition = { size: record.puzzle.size, cages: record.puzzle.cages };
 
-  it('reports a contradiction when a placed value cannot be right', () => {
-    const grid = emptyGrid(puzzle.size);
+  it.each([false, true])('reports conflicting values even when the board is full: %s', full => {
+    const grid = full ? asStrings(record.puzzle.solution) : emptyGrid(puzzle.size);
     // Two of the same value in one row is unsatisfiable
     grid[0][0] = '1';
     grid[0][1] = '1';
@@ -355,10 +355,18 @@ describe('computeHint mid-game', () => {
     expect(hint.kind).toBe('contradiction');
   });
 
-  it('reports nothing left to do on a full board', () => {
-    const hint = computeHint(puzzle, asStrings(record.puzzle.solution))!;
-    expect(hint.kind).toBe('solved');
-  });
+  it.each([false, true])(
+    'reports nothing left to do on a correct full board, with solution: %s',
+    withSolution => {
+      const hint = computeHint(
+        puzzle,
+        asStrings(record.puzzle.solution),
+        undefined,
+        withSolution ? record.puzzle.solution : undefined
+      )!;
+      expect(hint.kind).toBe('solved');
+    }
+  );
 
   it('offers a deduction from a partially filled board', () => {
     const grid = emptyGrid(puzzle.size);
@@ -567,21 +575,23 @@ describe('the board has to be sound before a hint is worth anything', () => {
     Array.from({ length: size }, () => Array.from({ length: size }, () => new Set<string>()));
   const wrongValueFor = (row: number, col: number) => String((solution[row][col] % size) + 1);
 
-  it('names every wrong value rather than saying to undo and hope', () => {
-    const grid = emptyGrid(size);
+  it.each([false, true])('names every wrong value even when the board is full: %s', full => {
+    const grid = full ? asStrings(solution) : emptyGrid(size);
     grid[1][1] = wrongValueFor(1, 1);
     grid[3][2] = wrongValueFor(3, 2);
 
     const hint = computeHint(puzzle, grid, noMarks(), solution)!;
     expect(hint.kind).toBe('contradiction');
-    expect(hint.levels[0].targetCells).toEqual(
-      expect.arrayContaining([
-        { row: 1, col: 1 },
-        { row: 3, col: 2 },
-      ])
-    );
+    expect(hint.levels[0].targetCells).toEqual([
+      { row: 1, col: 1 },
+      { row: 3, col: 2 },
+    ]);
     expect(hint.levels[0].body).toMatch(/B2/);
     expect(hint.levels[0].body).toMatch(/C4/);
+    expect(hint.action?.place).toEqual([
+      { row: 1, col: 1, value: '' },
+      { row: 3, col: 2, value: '' },
+    ]);
   });
 
   it('reports every cell whose notes rule out its answer, not just the first', () => {

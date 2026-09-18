@@ -398,6 +398,9 @@ function App() {
       setInitialPencilMarks(undefined);
       setInitialConduct(undefined);
       setCurrentConduct({ unaided: true, clean: true });
+      setCheckpointGridValues(null);
+      setCheckpointPencilMarks(null);
+      setHasCheckpoint(false);
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`); // Updated log
 
       try {
@@ -647,6 +650,9 @@ function App() {
     setInitialPencilMarks(deserializePencilMarks(saved.pencilMarks));
     setInitialConduct(saved.conduct);
     setCurrentConduct(saved.conduct ?? { unaided: true, clean: true });
+    setCheckpointGridValues(null);
+    setCheckpointPencilMarks(null);
+    setHasCheckpoint(false);
 
     // Resume the clock where it stopped
     setGameStartTime(new Date(saved.startedAt));
@@ -998,6 +1004,8 @@ function App() {
                   onStateChange={handleGameStateChange}
                   onCheckpointRequested={saveCheckpoint}
                   hasCheckpoint={hasCheckpoint}
+                  checkpointGridValues={checkpointGridValues}
+                  checkpointPencilMarks={checkpointPencilMarks}
                   onCreateCheckpoint={handleCreateCheckpoint}
                   onRevertToCheckpoint={handleRevertToCheckpoint}
                   onClearCheckpoint={handleClearCheckpoint}

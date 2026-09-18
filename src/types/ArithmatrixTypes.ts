@@ -66,6 +66,10 @@ export type ArithmatrixGridProps = {
   onCheckpointRequested?: (gridValues: string[][], pencilMarks: Set<string>[][]) => void;
   /** Whether a checkpoint exists */
   hasCheckpoint?: boolean;
+  /** Grid values saved at the latest checkpoint */
+  checkpointGridValues?: string[][] | null;
+  /** Pencil marks saved at the latest checkpoint */
+  checkpointPencilMarks?: Set<string>[][] | null;
   /** Handler for creating/updating checkpoint */
   onCreateCheckpoint?: () => void;
   /** Handler for reverting to checkpoint */
@@ -189,6 +193,8 @@ export type ArithmatrixControlsProps = {
   onFillAllCandidates?: () => void;
   /** Whether a checkpoint exists */
   hasCheckpoint?: boolean;
+  /** Whether the current board differs from the saved checkpoint */
+  canRevertToCheckpoint?: boolean;
   /** Handler for creating/clearing checkpoint */
   onCreateCheckpoint?: () => void;
   /** Handler for reverting to checkpoint */
