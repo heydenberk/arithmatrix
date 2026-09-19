@@ -26,6 +26,7 @@ import {
 } from '@tabler/icons-react';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { useLongPress } from '../hooks/useLongPress';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { APP_VERSION } from '../version';
 import { reloadApp } from '../utils/reloadApp';
 import './MobileNumberPad.css';
@@ -54,6 +55,13 @@ interface MobileNumberPadProps {
   onInstall?: () => void;
   onShowAchievements?: () => void;
 }
+
+/** Horizontal padding on the pad itself; see .mobile-number-pad-fixed. */
+const PAD_PADDING = 12;
+/** Gap between controls, inside the paired groups and between them alike. */
+const CONTROL_GAP = 4;
+/** undo, redo, pencil, hint, zap, checkpoint, revert, erase, more. */
+const CONTROL_COUNT = 9;
 
 const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   gridSize,
@@ -97,13 +105,27 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
     onLongPress: () => onFillAllCandidates?.(),
   });
 
+  const layout = useResponsiveLayout();
+
   // Generate number buttons based on grid size
   const numberButtons = Array.from({ length: gridSize }, (_, i) => i + 1);
 
-  // Nine controls across: 34px keeps the row inside a 360px viewport with its
-  // 12px padding (9 x 34 + gaps = 338 of 336 available would not, at 36)
-  const buttonSize = 34;
-  const iconSize = '1.05rem';
+  /*
+   * Nine controls in one row, sized to whatever the phone gives us.
+   *
+   * They used to be a flat 34px, which fit until the checkpoint pair joined
+   * them and pushed the row 32px past its own box - the overflow fell off the
+   * right edge, taking the overflow menu with it. The row is 12px of padding
+   * either side, nine buttons, three gaps inside the paired groups and five
+   * between them, so the arithmetic below is what actually fits rather than
+   * what looked about right on one handset.
+   */
+  const available = layout.width - PAD_PADDING * 2;
+  const buttonSize = Math.min(
+    36,
+    Math.max(28, Math.floor((available - CONTROL_GAP * 8) / CONTROL_COUNT))
+  );
+  const iconSize = `${Math.max(0.85, Math.min(1.05, buttonSize / 34)).toFixed(2)}rem`;
 
   return (
     <Box className="mobile-number-pad-fixed">
@@ -125,9 +147,9 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
       </Group>
 
       {/* Control buttons row - spaced layout */}
-      <Group justify="space-between" wrap="nowrap" mt={8} w="100%">
+      <Group justify="space-between" gap={CONTROL_GAP} wrap="nowrap" mt={8} w="100%">
         {/* Left: Undo/Redo */}
-        <Group gap={4} wrap="nowrap">
+        <Group gap={CONTROL_GAP} wrap="nowrap">
           <ActionIcon
             onClick={() => handleButtonPress(onUndo)}
             disabled={!canUndo}
@@ -214,7 +236,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
         {/* Checkpoint: set/update, and revert. Same pair as the desktop bar;
             these lived in the menu, where the revert was missing altogether */}
         {onCreateCheckpoint && (
-          <Group gap={4} wrap="nowrap">
+          <Group gap={CONTROL_GAP} wrap="nowrap">
             <ActionIcon
               onClick={() => handleButtonPress(onCreateCheckpoint)}
               size={buttonSize}
@@ -250,7 +272,7 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
         )}
 
         {/* Right: Erase + More Menu */}
-        <Group gap={4} wrap="nowrap">
+        <Group gap={CONTROL_GAP} wrap="nowrap">
           <ActionIcon
             onClick={handleClear}
             size={buttonSize}

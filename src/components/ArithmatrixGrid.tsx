@@ -44,8 +44,10 @@ const GRID_PADDING = 0;
 // clears the 44px touch-target floor on a 320px screen.
 const OUTER_MARGIN = { MOBILE: 4, DESKTOP: 32 };
 
-// Largest cell we draw, so the desktop grid doesn't sprawl
-const MAX_CELL_SIZE = 80;
+// Largest cell we draw, so the desktop grid doesn't sprawl. A phone wants the
+// opposite: the board is the whole screen's job, and an 80px ceiling left a
+// 4x4 using 323 of 390 available pixels with nothing to spend them on.
+const MAX_CELL_SIZE = { MOBILE: 92, DESKTOP: 80 };
 
 // Strip along the top and left edges holding the A-G / 1-7 coordinates a hint
 // refers to. Reserved at all times even though the labels only appear with a
@@ -493,11 +495,14 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       const minCell = layout.isTouchDevice ? 44 : 32;
       const fixedWidth = (size - 1) * LATTICE_GAP + GRID_PADDING * 2;
 
+      // The gutter is paid for twice - once for the labels, once opposite them
+      // to keep the board centred - so it may only take half the slack.
       const spare = availableWidth - fixedWidth - minCell * size;
-      const gutter = Math.max(0, Math.min(preferredGutter, spare));
+      const gutter = Math.max(0, Math.min(preferredGutter, Math.floor(spare / 2)));
 
-      const sizeByWidth = Math.floor((availableWidth - gutter - fixedWidth) / size);
-      return { cellSize: Math.max(Math.min(sizeByWidth, MAX_CELL_SIZE), minCell), gutter };
+      const sizeByWidth = Math.floor((availableWidth - gutter * 2 - fixedWidth) / size);
+      const maxCell = viewportWidth <= 768 ? MAX_CELL_SIZE.MOBILE : MAX_CELL_SIZE.DESKTOP;
+      return { cellSize: Math.max(Math.min(sizeByWidth, maxCell), minCell), gutter };
     };
 
     const { cellSize, gutter: axisGutter } = computeBoardMetrics();
@@ -677,6 +682,13 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           position: 'relative',
           paddingTop: axisGutter,
           paddingLeft: axisGutter,
+          /*
+           * Matched on the right, where nothing is drawn, purely so the board
+           * lands in the middle. This box is `fit-content` and its ancestor
+           * centres it, so a gutter on one side only pushed the board half a
+           * gutter to the right of centre - 7px on a phone, and visible.
+           */
+          paddingRight: axisGutter,
           width: 'fit-content',
         }}
       >
