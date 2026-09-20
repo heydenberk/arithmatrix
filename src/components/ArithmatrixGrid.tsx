@@ -40,23 +40,31 @@ import { getAchievements } from '../utils/achievements';
 const LATTICE_GAP = 1;
 const GRID_PADDING = 0;
 
-// Page margin outside the grid. Phones give up nearly all of it so a 7x7 still
-// clears the 44px touch-target floor on a 320px screen.
-const OUTER_MARGIN = { MOBILE: 4, DESKTOP: 32 };
+// Page margin outside the grid. A phone gives up all of it: the board is the
+// whole screen's job there, and it runs edge to edge.
+const OUTER_MARGIN = { MOBILE: 0, DESKTOP: 32 };
 
-// Largest cell we draw, so the desktop grid doesn't sprawl. A phone wants the
-// opposite: the board is the whole screen's job, and an 80px ceiling left a
-// 4x4 using 323 of 390 available pixels with nothing to spend them on.
-const MAX_CELL_SIZE = { MOBILE: 92, DESKTOP: 80 };
+// Largest cell we draw, so the desktop grid doesn't sprawl inside its card.
+// A phone has no cap - whatever the width divides into is the cell.
+const MAX_CELL_SIZE = { MOBILE: Infinity, DESKTOP: 80 };
 
-// Strip along the top and left edges holding the A-G / 1-7 coordinates a hint
-// refers to. Reserved at all times even though the labels only appear with a
-// hint, so opening one does not resize the board.
-const AXIS_GUTTER = { MOBILE: 14, DESKTOP: 20 };
+/**
+ * How much taller a cell is than it is wide.
+ *
+ * Square cells left the board reading as a block of colour; a little height
+ * gives each cell room for its cage target above the value without crowding,
+ * and matches the portrait screen it is drawn on. Tune here - everything
+ * downstream (pencil marks, fonts, the settle animation) sizes off the cell.
+ */
+const CELL_ASPECT = 1.12;
 
-// Narrower than this and a digit is not legible, so the labels are dropped
-// rather than squeezed - the hint still highlights the cells it means.
-const MIN_AXIS_GUTTER = 10;
+/**
+ * Vertical space the board cannot have on a phone: the control bar above it
+ * and the number pad fixed to the bottom, plus a little breathing room.
+ * Height only clamps the cells when a tall board would otherwise run under
+ * the pad; width is what normally decides.
+ */
+const MOBILE_CHROME_HEIGHT = 250;
 
 // Vertical space reserved at the top of every cell for the cage target badge.
 // Pencil marks start below this, and it is uniform across cells so the pencil
@@ -485,34 +493,44 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
      * already spends every pixel keeping cells at 44px, so the gutter takes
      * only what is spare and collapses to nothing when there is none.
      */
-    const computeBoardMetrics = (): { cellSize: number; gutter: number } => {
+    const computeBoardMetrics = (): { cellSize: number; cellHeight: number } => {
       const viewportWidth = layout.width || window.innerWidth;
-      const outerMargin = viewportWidth <= 768 ? OUTER_MARGIN.MOBILE : OUTER_MARGIN.DESKTOP;
-      const preferredGutter = viewportWidth <= 768 ? AXIS_GUTTER.MOBILE : AXIS_GUTTER.DESKTOP;
+      const isMobile = viewportWidth <= 768;
+      const outerMargin = isMobile ? OUTER_MARGIN.MOBILE : OUTER_MARGIN.DESKTOP;
       const availableWidth = Math.max(0, viewportWidth - outerMargin);
 
       // Minimum touch target size
       const minCell = layout.isTouchDevice ? 44 : 32;
       const fixedWidth = (size - 1) * LATTICE_GAP + GRID_PADDING * 2;
 
-      // The gutter is paid for twice - once for the labels, once opposite them
-      // to keep the board centred - so it may only take half the slack.
-      const spare = availableWidth - fixedWidth - minCell * size;
-      const gutter = Math.max(0, Math.min(preferredGutter, Math.floor(spare / 2)));
+      /*
+       * A phone keeps the fraction, so the columns add up to the screen
+       * exactly rather than leaving a few pixels of gradient down one side.
+       * Desktop rounds down, because there the board floats in a card and a
+       * whole-pixel grid draws a cleaner lattice.
+       */
+      const exact = (availableWidth - fixedWidth) / size;
+      const byWidth = isMobile ? Math.floor(exact * 100) / 100 : Math.floor(exact);
+      const maxCell = isMobile ? MAX_CELL_SIZE.MOBILE : MAX_CELL_SIZE.DESKTOP;
+      const cellSize = Math.max(Math.min(byWidth, maxCell), minCell);
 
-      const sizeByWidth = Math.floor((availableWidth - gutter * 2 - fixedWidth) / size);
-      const maxCell = viewportWidth <= 768 ? MAX_CELL_SIZE.MOBILE : MAX_CELL_SIZE.DESKTOP;
-      return { cellSize: Math.max(Math.min(sizeByWidth, maxCell), minCell), gutter };
+      /*
+       * Taller than wide, unless that would push the board under the number
+       * pad - a 7x7 at full width is already most of a short phone's screen,
+       * and height is the one dimension nothing else can give back.
+       */
+      let cellHeight = cellSize * CELL_ASPECT;
+      if (isMobile) {
+        const availableHeight = (layout.height || window.innerHeight) - MOBILE_CHROME_HEIGHT;
+        const heightBudget = (availableHeight - fixedWidth) / size;
+        if (heightBudget > minCell) cellHeight = Math.min(cellHeight, heightBudget);
+      }
+      return { cellSize, cellHeight: Math.floor(Math.max(cellHeight, cellSize) * 100) / 100 };
     };
 
-    const { cellSize, gutter: axisGutter } = computeBoardMetrics();
+    const { cellSize, cellHeight } = computeBoardMetrics();
     const viewportWidth = layout.width || window.innerWidth;
     const isMobileViewport = viewportWidth <= 768;
-    // Below this the strip is too thin to read a digit in, so skip it entirely
-    const showAxisLabels = axisGutter >= MIN_AXIS_GUTTER;
-
-    // Cells are square, and separated by the same hairline, at every breakpoint
-    const cellHeight = cellSize;
 
     // Scale fonts based on cell size - larger on mobile for readability
     const cellFontMultiplier = isMobileViewport ? 0.028 : 0.025;
@@ -673,35 +691,19 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     );
 
     /*
-     * The board plus its coordinate gutter. The gutter is always there; only
-     * the labels in it come and go, so the grid never shifts under a hint.
+     * The board, with the coordinate labels lying over its top and left edges.
+     * Nothing is reserved for them, so opening a hint still never resizes
+     * anything and the board keeps the full width of the screen.
      */
     const gridElement = (
-      <Box
-        style={{
-          position: 'relative',
-          paddingTop: axisGutter,
-          paddingLeft: axisGutter,
-          /*
-           * Matched on the right, where nothing is drawn, purely so the board
-           * lands in the middle. This box is `fit-content` and its ancestor
-           * centres it, so a gutter on one side only pushed the board half a
-           * gutter to the right of centre - 7px on a phone, and visible.
-           */
-          paddingRight: axisGutter,
-          width: 'fit-content',
-        }}
-      >
-        {showAxisLabels && (
-          <GridAxisLabels
-            size={size}
-            cellSize={cellSize}
-            cellHeight={cellHeight}
-            gap={LATTICE_GAP}
-            gutter={axisGutter}
-            visible={hint !== null}
-          />
-        )}
+      <Box style={{ position: 'relative', width: 'fit-content' }}>
+        <GridAxisLabels
+          size={size}
+          cellSize={cellSize}
+          cellHeight={cellHeight}
+          gap={LATTICE_GAP}
+          visible={hint !== null}
+        />
         {boardElement}
       </Box>
     );

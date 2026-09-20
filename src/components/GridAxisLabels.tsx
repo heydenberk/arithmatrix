@@ -8,8 +8,13 @@
  * belonged to. These make the mapping obvious, and disappear again afterwards:
  * they are scaffolding for the hint, not part of the puzzle.
  *
- * The gutter they sit in is reserved whether or not they are showing, so
- * opening a hint never resizes the board underneath it.
+ * They lie on top of the board's edge rather than in a reserved strip beside
+ * it. The strip cost the board 28px of width on a phone at all times, for
+ * something on screen only during a hint, and it was the one thing keeping the
+ * board off the edges of the screen. Overlaying costs nothing and still never
+ * resizes anything. Each label carries its own chip so it reads against any
+ * cage colour, and sits at the centre of its track, clear of the cage targets
+ * in the cells' top-left corners.
  */
 
 import React from 'react';
@@ -21,8 +26,6 @@ interface GridAxisLabelsProps {
   cellHeight: number;
   /** The hairline between cells, so labels line up with the tracks. */
   gap: number;
-  /** Width of the reserved strip on each axis. */
-  gutter: number;
   visible: boolean;
 }
 
@@ -31,23 +34,27 @@ const GridAxisLabels: React.FC<GridAxisLabelsProps> = ({
   cellSize,
   cellHeight,
   gap,
-  gutter,
   visible,
 }) => {
-  const shared: React.CSSProperties = {
+  const track: React.CSSProperties = {
     position: 'absolute',
     display: 'grid',
     alignItems: 'center',
     justifyItems: 'center',
-    // Reads against both the bare gradient on mobile and the glass panel on desktop
-    color: 'rgba(255, 255, 255, 0.92)',
-    textShadow: '0 1px 2px rgba(0, 0, 0, 0.28)',
-    fontSize: Math.max(9, Math.min(13, Math.round(gutter * 0.72))),
-    fontWeight: 700,
-    lineHeight: 1,
+    zIndex: 20,
     opacity: visible ? 1 : 0,
     transition: 'opacity 160ms ease',
     pointerEvents: 'none',
+  };
+
+  const chip: React.CSSProperties = {
+    background: 'rgba(15, 23, 42, 0.74)',
+    color: '#fff',
+    borderRadius: 4,
+    padding: '0 4px',
+    fontSize: Math.max(9, Math.min(12, Math.round(Math.min(cellSize, cellHeight) * 0.22))),
+    fontWeight: 700,
+    lineHeight: 1.45,
   };
 
   return (
@@ -55,31 +62,33 @@ const GridAxisLabels: React.FC<GridAxisLabelsProps> = ({
       <Box
         aria-hidden
         style={{
-          ...shared,
-          top: 0,
-          left: gutter,
-          height: gutter,
+          ...track,
+          top: 2,
+          left: 0,
           gridTemplateColumns: `repeat(${size}, ${cellSize}px)`,
           columnGap: gap,
         }}
       >
         {Array.from({ length: size }, (_, i) => (
-          <span key={i}>{String.fromCharCode('A'.charCodeAt(0) + i)}</span>
+          <span key={i} style={chip}>
+            {String.fromCharCode('A'.charCodeAt(0) + i)}
+          </span>
         ))}
       </Box>
       <Box
         aria-hidden
         style={{
-          ...shared,
-          top: gutter,
-          left: 0,
-          width: gutter,
+          ...track,
+          top: 0,
+          left: 2,
           gridTemplateRows: `repeat(${size}, ${cellHeight}px)`,
           rowGap: gap,
         }}
       >
         {Array.from({ length: size }, (_, i) => (
-          <span key={i}>{i + 1}</span>
+          <span key={i} style={chip}>
+            {i + 1}
+          </span>
         ))}
       </Box>
     </>
