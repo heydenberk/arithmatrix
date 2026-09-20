@@ -31,8 +31,10 @@
   /* Shows through the 1px gaps as the lattice lines */
   background: #cbd5e1;
   border: none;
-  border-radius: 10px;
-  /* Rounds off the corner cells, which sit flush with the edge */
+  /* Square. The board is the puzzle, not a card - the container it sits in
+     does the rounding, and a rounded board just clipped its own corner cells. */
+  border-radius: 0;
+  /* Still clipped, so a cell's hint glow stops at the board's edge */
   overflow: hidden;
   position: relative;
   align-items: center;

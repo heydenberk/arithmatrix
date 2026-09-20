@@ -6,10 +6,10 @@
  * random puzzle" flow.
  *
  * Filters for size, operations and difficulty range sit at the top; matching
- * puzzles below are grouped by named difficulty, a preview row or two at a
- * time. Each tile previews the puzzle's cage layout, so you can pick by eye
- * rather than by label. Puzzles you have already finished are marked, and can
- * be filtered out.
+ * puzzles below are grouped by named difficulty, one row at a time behind a
+ * "Show all" button. Each tile previews the puzzle's cage layout, so you can
+ * pick by eye rather than by label. Puzzles you have already finished are
+ * marked, and can be filtered out.
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -54,6 +54,7 @@ import {
   OPERATION_TIER_LABELS,
   VALID_SIZES,
 } from '../constants/gameConstants';
+import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { SavedGameSummary, savedGameSummaries } from '../utils/gameStatePersistence';
 import { formatCompletionTime } from '../utils/puzzleStats';
@@ -74,16 +75,29 @@ interface PuzzleGalleryProps {
 /** Sentinel for the operations filter meaning "don't filter by operations". */
 const ANY_OPS = 'any';
 
+/** Tiles per row, by viewport. Drives both the grid and the preview length. */
+const GALLERY_COLUMNS = { base: 4, xs: 5, sm: 6, md: 7 };
+
 /**
- * Tiles shown per difficulty before the section has to be expanded.
+ * Tiles shown per difficulty before the section has to be expanded: exactly
+ * one row.
  *
  * Every difficulty holds about two hundred puzzles, and nobody scrolls two
  * hundred thumbnails to pick one - they take something off the top or hit
- * Surprise me. Twelve is three rows on a phone and two on a desktop: enough
- * to choose from by eye, short enough that all five difficulties fit on one
- * screen's worth of scrolling.
+ * Surprise me. A row is a taste of what the band looks like, and it keeps all
+ * five difficulties on one screen.
+ *
+ * Read off the same breakpoints SimpleGrid uses (Mantine's xs/sm/md, in px),
+ * so the preview is a full row and never a ragged one.
  */
-const PREVIEW_COUNT = 12;
+const previewCount = (width: number): number =>
+  width >= 992
+    ? GALLERY_COLUMNS.md
+    : width >= 768
+      ? GALLERY_COLUMNS.sm
+      : width >= 576
+        ? GALLERY_COLUMNS.xs
+        : GALLERY_COLUMNS.base;
 
 const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   opened,
@@ -99,7 +113,7 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   const [operationsTier, setOperationsTier] = useState<string>(initialOperationsTier);
   /** Inclusive indexes into DIFFICULTY_ORDER; Surprise me draws from inside it. */
   const [difficultyRange, setDifficultyRange] = useState<DifficultyRange>(FULL_DIFFICULTY_RANGE);
-  /** Difficulties the player has expanded past PREVIEW_COUNT. */
+  /** Difficulties the player has expanded past the one-row preview. */
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [hideCompleted, setHideCompleted] = useState(false);
   const [solved, setSolved] = useState<Set<string>>(() => new Set());
@@ -107,7 +121,9 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   // See the open effect below: the filters are seeded once, not per open
   const filtersSeeded = useRef(false);
 
-  const isMobile = typeof window !== 'undefined' && window.innerWidth <= 768;
+  const layout = useResponsiveLayout();
+  const isMobile = layout.width <= 768;
+  const perRow = previewCount(layout.width);
 
   // Load the (memoized) catalog the first time the gallery is opened.
   useEffect(() => {
@@ -281,19 +297,19 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
   };
 
   /**
-   * A grid of tiles capped at PREVIEW_COUNT, with the button that lifts the
+   * A grid of tiles capped at one row, with the button that lifts the
    * cap. `key` identifies the section in the expanded set; sections short
    * enough to show whole get no button.
    */
   const renderSection = (key: string, entries: CatalogEntry[], header: React.ReactNode) => {
     const isExpanded = expanded.has(key);
-    const shown = isExpanded ? entries : entries.slice(0, PREVIEW_COUNT);
+    const shown = isExpanded ? entries : entries.slice(0, perRow);
     const hidden = entries.length - shown.length;
 
     return (
       <Stack key={key} gap="xs">
         {header}
-        <SimpleGrid cols={{ base: 4, xs: 5, sm: 6, md: 7 }} spacing="xs">
+        <SimpleGrid cols={GALLERY_COLUMNS} spacing="xs">
           {shown.map(renderTile)}
         </SimpleGrid>
         {(hidden > 0 || isExpanded) && (
