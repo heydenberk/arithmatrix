@@ -49,12 +49,16 @@ const OUTER_MARGIN = { MOBILE: 0, DESKTOP: 32 };
 const MAX_CELL_SIZE = { MOBILE: Infinity, DESKTOP: 80 };
 
 /**
- * How much taller a cell is than it is wide.
+ * How much taller a cell is than it is wide, on a phone.
  *
  * Square cells left the board reading as a block of colour; a little height
  * gives each cell room for its cage target above the value without crowding,
  * and matches the portrait screen it is drawn on. Tune here - everything
  * downstream (pencil marks, fonts, the settle animation) sizes off the cell.
+ *
+ * Phones only. A desktop board is as wide as its cap allows and has no bottom
+ * chrome to sit above, so the extra height went straight into the page and
+ * made a window that used to show the whole board scroll.
  */
 const CELL_ASPECT = 1.12;
 
@@ -514,17 +518,18 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       const maxCell = isMobile ? MAX_CELL_SIZE.MOBILE : MAX_CELL_SIZE.DESKTOP;
       const cellSize = Math.max(Math.min(byWidth, maxCell), minCell);
 
+      // Square on desktop; a phone takes the extra height (see CELL_ASPECT)
+      if (!isMobile) return { cellSize, cellHeight: cellSize };
+
       /*
        * Taller than wide, unless that would push the board under the number
        * pad - a 7x7 at full width is already most of a short phone's screen,
        * and height is the one dimension nothing else can give back.
        */
+      const availableHeight = (layout.height || window.innerHeight) - MOBILE_CHROME_HEIGHT;
+      const heightBudget = (availableHeight - fixedWidth) / size;
       let cellHeight = cellSize * CELL_ASPECT;
-      if (isMobile) {
-        const availableHeight = (layout.height || window.innerHeight) - MOBILE_CHROME_HEIGHT;
-        const heightBudget = (availableHeight - fixedWidth) / size;
-        if (heightBudget > minCell) cellHeight = Math.min(cellHeight, heightBudget);
-      }
+      if (heightBudget > minCell) cellHeight = Math.min(cellHeight, heightBudget);
       return { cellSize, cellHeight: Math.floor(Math.max(cellHeight, cellSize) * 100) / 100 };
     };
 
