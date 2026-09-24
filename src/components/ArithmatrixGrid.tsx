@@ -29,7 +29,6 @@ import MobileNumberPad from './MobileNumberPad';
 import HintPanel from './HintPanel';
 import GridAxisLabels from './GridAxisLabels';
 import { Hint, computeHint } from '../utils/hints';
-import { getAchievements } from '../utils/achievements';
 
 /*
  * Flat geometry, identical at every breakpoint: cells butt up against each
@@ -201,22 +200,23 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const lastCellRef = useRef<string>('0-0');
 
     /*
-     * Asking before the first aid on a still-unaided puzzle.
+     * Asking before the first aid on a still-unaided solve.
      *
-     * Only the first: once the badge is gone there is nothing left to protect
-     * and a second prompt is just noise. Nor does it ask when the board
-     * already holds Unaided - badges are sticky, so that solve cannot lose
-     * anything either.
+     * Only the first: after that the solve is already aided and a second
+     * prompt is just noise.
+     *
+     * It used to stay quiet when the board already held the Unaided badge, on
+     * the grounds that a sticky badge cannot be lost so the solve had nothing
+     * left to protect. That stopped being true. An aided solve now dulls the
+     * trophy, is left out of the solve-time chart, and comes back as "Aided"
+     * on the win screen - three things the player can still spoil by reaching
+     * for the hint button without meaning to. The badge was never the only
+     * stake, so earning it once no longer buys silence.
      */
     const [pendingAid, setPendingAid] = useState<{ what: string; run: () => void } | null>(null);
 
-    const alreadyEarned = useMemo(
-      () => (difficulty ? !!getAchievements()[`${size}-${difficulty}`]?.unaided : false),
-      [size, difficulty]
-    );
-
     const guardAid = (what: string, run: () => void) => () => {
-      if (gameState.isUnaided() && !alreadyEarned) setPendingAid({ what, run });
+      if (gameState.isUnaided()) setPendingAid({ what, run });
       else run();
     };
 
@@ -757,7 +757,8 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         <Stack gap="md">
           <Text size="sm">
             You have solved this far without help. Choosing to {pendingAid?.what} gives that up for
-            this puzzle — the Unaided badge is only awarded for a solve you finish on your own.
+            this puzzle: the trophy dulls, the solve is left out of your solve-time chart, and it
+            finishes as Aided rather than earning the Unaided badge.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="subtle" color="gray" radius="xl" onClick={() => setPendingAid(null)}>
