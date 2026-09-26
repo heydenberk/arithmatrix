@@ -54,6 +54,7 @@ import {
   OPERATION_TIER_LABELS,
   VALID_SIZES,
 } from '../constants/gameConstants';
+import { ANY_OPS, saveGalleryFilters, seedGalleryFilters } from '../utils/galleryFilters';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { triggerHapticFeedback } from '../utils/touchUtils';
 import { SavedGameSummary, savedGameSummaries } from '../utils/gameStatePersistence';
@@ -71,9 +72,6 @@ interface PuzzleGalleryProps {
   /** Matches App's existing pin-a-specific-puzzle handler. */
   onSelectPuzzle: (record: RawPuzzleRecord, index: number) => void;
 }
-
-/** Sentinel for the operations filter meaning "don't filter by operations". */
-const ANY_OPS = 'any';
 
 /** Tiles per row, by viewport. Drives both the grid and the preview length. */
 const GALLERY_COLUMNS = { base: 4, xs: 5, sm: 6, md: 7 };
@@ -155,16 +153,29 @@ const PuzzleGallery: React.FC<PuzzleGalleryProps> = ({
      *
      * They used to be reset from the current puzzle on every open, so picking
      * something under "Any operations" that happened to be a + - puzzle
-     * narrowed the filter to + - the next time round - the gallery quietly
-     * followed you instead of staying where you left it. Seeded once from
-     * whatever is loaded, then left alone for the session.
+     * narrowed the filter to + - the next time round. Now they are seeded once
+     * from what the player last browsed with (see galleryFilters), and the
+     * board is only consulted for whatever has never been stored.
      */
     if (!filtersSeeded.current) {
       filtersSeeded.current = true;
-      setSize(initialSize);
-      setOperationsTier(initialOperationsTier);
+      const seeded = seedGalleryFilters(initialSize, initialOperationsTier);
+      setSize(seeded.size);
+      setOperationsTier(seeded.operationsTier);
+      setDifficultyRange(seeded.difficultyRange);
+      setHideCompleted(seeded.hideCompleted);
     }
   }, [opened, initialSize, initialOperationsTier]);
+
+  /*
+   * Keep the store level with the controls. Only once they have been seeded -
+   * writing the defaults before that would overwrite the player's filters with
+   * whatever the board happened to be showing.
+   */
+  useEffect(() => {
+    if (!filtersSeeded.current) return;
+    saveGalleryFilters({ size, operationsTier, difficultyRange, hideCompleted });
+  }, [size, operationsTier, difficultyRange, hideCompleted]);
 
   /*
    * Everything the filters currently admit, flat. The bands below are just this
