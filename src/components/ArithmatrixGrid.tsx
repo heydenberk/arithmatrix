@@ -225,8 +225,14 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
      * the arithmetic without giving anything away.
      */
     const selection = useMemo(
-      () => selectionSum(puzzleDefinition, gameState.gridValues, gameState.selectedCells),
-      [puzzleDefinition, gameState.gridValues, gameState.selectedCells]
+      () =>
+        selectionSum(
+          puzzleDefinition,
+          gameState.gridValues,
+          gameState.selectedCells,
+          gameState.pencilMarks
+        ),
+      [puzzleDefinition, gameState.gridValues, gameState.selectedCells, gameState.pencilMarks]
     );
 
     const guardAid = (what: string, run: () => void) => () => {

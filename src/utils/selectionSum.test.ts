@@ -3,19 +3,26 @@
  *
  * The number is arithmetic a player would otherwise do on paper, so the thing
  * worth protecting is that it never claims to know more than the board does:
- * no cell counted twice, and nothing priced that the board has not settled.
+ * no cell counted twice, and nothing priced that is still genuinely open.
  */
 
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { selectionSum } from './selectionSum';
 import type { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
 /*
- * A 4x4 board:
- *   cells 0,1   -> 7+        cells 2,3   -> 6x
- *   cells 4,5   -> 5+        cell  6     -> 3 (stipulated)
- *   cell  7     -> 2-  with 11          (a 2-cell - cage over 7 and 11)
- *   the rest    -> one 20+ cage
+ * A 4x4 board. Every cage here has arrangements that actually exist - a cage
+ * nothing can satisfy is priceless in the unhelpful sense, and an earlier
+ * version of this fixture had one by accident.
+ *
+ *   0,1      7+   same row, so {3,4} - always 7
+ *   2,3      6x   same row, so {2,3} - 1x6 needs a 6, so always 5
+ *   4,5      5+   always 5
+ *   6        3    stated outright
+ *   7,11     2-   same column: {1,3} or {2,4} - 4 or 6, genuinely open
+ *   8,9,10   9+   three distinct of 1..4 - always 9
+ *   12..15   10+  a whole row - always 10
  */
 const puzzle: PuzzleDefinition = {
   size: 4,
@@ -25,7 +32,8 @@ const puzzle: PuzzleDefinition = {
     { cells: [4, 5], operation: '+', value: 5 },
     { cells: [6], operation: '', value: 3 },
     { cells: [7, 11], operation: '-', value: 2 },
-    { cells: [8, 9, 10, 12, 13, 14, 15], operation: '+', value: 20 },
+    { cells: [8, 9, 10], operation: '+', value: 9 },
+    { cells: [12, 13, 14, 15], operation: '+', value: 10 },
   ],
 };
 
@@ -38,6 +46,16 @@ const gridWith = (values: Record<number, number>) => {
   }
   return grid;
 };
+const emptyMarks = () =>
+  Array.from({ length: 4 }, () => Array.from({ length: 4 }, () => new Set<string>()));
+const marksWith = (notes: Record<number, number[]>) => {
+  const marks = emptyMarks();
+  for (const [index, values] of Object.entries(notes)) {
+    const i = Number(index);
+    marks[Math.floor(i / 4)][i % 4] = new Set(values.map(String));
+  }
+  return marks;
+};
 const keys = (...indexes: number[]) => indexes.map(i => `${Math.floor(i / 4)}-${i % 4}`);
 
 describe('selectionSum', () => {
@@ -46,8 +64,8 @@ describe('selectionSum', () => {
   });
 
   it('adds up filled cells', () => {
-    const grid = gridWith({ 2: 2, 3: 3 });
-    expect(selectionSum(puzzle, grid, keys(2, 3))).toEqual({ total: 5, counted: 2, unknown: 0 });
+    const grid = gridWith({ 7: 2, 11: 4 });
+    expect(selectionSum(puzzle, grid, keys(7, 11))).toEqual({ total: 6, counted: 2, unknown: 0 });
   });
 
   it('prices a + cage at its target once the whole cage is selected', () => {
@@ -67,14 +85,12 @@ describe('selectionSum', () => {
   });
 
   it('counts the filled half of a partly selected + cage, and no more', () => {
-    // 7+ over cells 0 and 1, with 3 already placed in cell 0
     const grid = gridWith({ 0: 3 });
     expect(selectionSum(puzzle, grid, keys(0))).toEqual({ total: 3, counted: 1, unknown: 0 });
     expect(selectionSum(puzzle, grid, keys(1))).toEqual({ total: 0, counted: 0, unknown: 1 });
   });
 
   it('never counts a cell twice when a filled + cage is fully selected', () => {
-    // Both cells of the 7+ are filled; the cage target still stands for both
     const grid = gridWith({ 0: 3, 1: 4 });
     expect(selectionSum(puzzle, grid, keys(0, 1))).toEqual({
       total: 7,
@@ -91,14 +107,27 @@ describe('selectionSum', () => {
     });
   });
 
-  it('cannot price a cage whose operation says nothing about a sum', () => {
-    // 6x over two empty cells could be 2+3 or 1+6
+  it('prices a cage its own arithmetic pins down, with nothing filled in', () => {
+    // 6x over two cells of a row can only be 2 and 3, either way round
     expect(selectionSum(puzzle, emptyGrid(), keys(2, 3))).toEqual({
-      total: 0,
-      counted: 0,
-      unknown: 2,
+      total: 5,
+      counted: 2,
+      unknown: 0,
     });
-    // and nor can a - cage
+  });
+
+  it('prices a cage the notes have narrowed to one multiset', () => {
+    // 2- with both cells noted {1,3}: 1 and 3 either way round is 4
+    const marks = marksWith({ 7: [1, 3], 11: [1, 3] });
+    expect(selectionSum(puzzle, emptyGrid(), keys(7, 11), marks)).toEqual({
+      total: 4,
+      counted: 2,
+      unknown: 0,
+    });
+  });
+
+  it('cannot price a cage whose arrangements disagree on the total', () => {
+    // 2- unnarrowed could be {1,3} (4) or {2,4} (6)
     expect(selectionSum(puzzle, emptyGrid(), keys(7, 11))).toEqual({
       total: 0,
       counted: 0,
@@ -106,26 +135,128 @@ describe('selectionSum', () => {
     });
   });
 
-  it('mixes cages, filled cells and unknowns in one selection', () => {
-    // 7+ whole (7) + stipulated 3 + a filled 2 from the x cage + one empty
-    const grid = gridWith({ 2: 2 });
-    expect(selectionSum(puzzle, grid, keys(0, 1, 6, 2, 3))).toEqual({
-      total: 12,
+  it('cannot price a cage the notes leave straddling two totals', () => {
+    // {1,2} against {3,4} still allows 1+3 and 2+4
+    const marks = marksWith({ 7: [1, 2], 11: [3, 4] });
+    expect(selectionSum(puzzle, emptyGrid(), keys(7, 11), marks)).toEqual({
+      total: 0,
+      counted: 0,
+      unknown: 2,
+    });
+  });
+
+  it("takes a lone note as the cell's value, even outside a whole cage", () => {
+    const marks = marksWith({ 8: [4] });
+    expect(selectionSum(puzzle, emptyGrid(), keys(8), marks)).toEqual({
+      total: 4,
+      counted: 1,
+      unknown: 0,
+    });
+  });
+
+  it('ignores notes that rule out every value rather than trusting them', () => {
+    const marks = emptyMarks();
+    expect(selectionSum(puzzle, emptyGrid(), keys(7, 11), marks).unknown).toBe(2);
+  });
+
+  it('prices a whole row cage as a block, whatever is filled inside it', () => {
+    const grid = gridWith({ 12: 1, 13: 2 });
+    expect(selectionSum(puzzle, grid, keys(12, 13, 14, 15))).toEqual({
+      total: 10,
       counted: 4,
+      unknown: 0,
+    });
+  });
+
+  it('mixes cages, known cells and unknowns in one selection', () => {
+    // 7+ whole (7) + the stipulated 3 + half a 2-, which stays open
+    expect(selectionSum(puzzle, emptyGrid(), keys(0, 1, 6, 7))).toEqual({
+      total: 10,
+      counted: 3,
       unknown: 1,
     });
   });
 
-  it('prices a large + cage as a block, whatever is filled inside it', () => {
-    const grid = gridWith({ 8: 1, 9: 2 });
-    const all = keys(8, 9, 10, 12, 13, 14, 15);
-    expect(selectionSum(puzzle, grid, all)).toEqual({ total: 20, counted: 7, unknown: 0 });
+  it('does not care what order the selection arrives in', () => {
+    const grid = gridWith({ 7: 2 });
+    const forward = selectionSum(puzzle, grid, keys(0, 1, 6, 7));
+    const backward = selectionSum(puzzle, grid, keys(7, 6, 1, 0));
+    expect(backward).toEqual(forward);
+  });
+});
+
+/**
+ * The fixture above is a hand-built 4x4. These run the same rules over real
+ * cages from the shipped corpus, where the combinations are the ones the
+ * solver actually enumerates.
+ */
+describe('selectionSum on shipped puzzles', () => {
+  // A 7x7 carrying the full range of operations, so there is a - cage to narrow
+  const record = JSON.parse(
+    readFileSync('public/all_puzzles.jsonl', 'utf8')
+      .split('\n')
+      .find(line => {
+        if (!line) return false;
+        const parsed = JSON.parse(line);
+        return (
+          parsed.puzzle.size === 7 &&
+          parsed.puzzle.cages.some(
+            (c: { operation: string; cells: number[] }) =>
+              c.operation === '-' && c.cells.length === 2
+          )
+        );
+      })!
+  );
+  const real: PuzzleDefinition = { size: 7, cages: record.puzzle.cages };
+  const blank = () => Array.from({ length: 7 }, () => Array(7).fill(''));
+  const noMarks = () =>
+    Array.from({ length: 7 }, () => Array.from({ length: 7 }, () => new Set<string>()));
+  const cellKeys = (cells: number[]) => cells.map(c => `${Math.floor(c / 7)}-${c % 7}`);
+
+  it('prices every + cage at its target when the whole cage is selected', () => {
+    const plusCages = real.cages.filter(c => c.operation === '+' && c.cells.length > 1);
+    expect(plusCages.length).toBeGreaterThan(0);
+    for (const cage of plusCages) {
+      expect(selectionSum(real, blank(), cellKeys(cage.cells))).toEqual({
+        total: cage.value,
+        counted: cage.cells.length,
+        unknown: 0,
+      });
+    }
   });
 
-  it('does not care what order the selection arrives in', () => {
-    const grid = gridWith({ 2: 2 });
-    const forward = selectionSum(puzzle, grid, keys(0, 1, 6, 2));
-    const backward = selectionSum(puzzle, grid, keys(2, 6, 1, 0));
-    expect(backward).toEqual(forward);
+  it('leaves a bare two-cell subtraction open, and prices it once the notes pin it', () => {
+    const minus = real.cages.find(c => c.operation === '-')!;
+    expect(minus).toBeDefined();
+    // Unnarrowed, a - cage spans several totals on a 7x7
+    expect(selectionSum(real, blank(), cellKeys(minus.cells)).unknown).toBe(2);
+
+    // Note both cells with one pair that satisfies it: the sum is then fixed
+    const low = 1;
+    const high = low + minus.value;
+    const marks = noMarks();
+    for (const cell of minus.cells) {
+      marks[Math.floor(cell / 7)][cell % 7] = new Set([String(low), String(high)]);
+    }
+    expect(selectionSum(real, blank(), cellKeys(minus.cells), marks)).toEqual({
+      total: low + high,
+      counted: 2,
+      unknown: 0,
+    });
+  });
+
+  it('agrees with the solution when a whole cage is filled in', () => {
+    const solution: number[][] = record.puzzle.solution;
+    const grid = solution.map(row => row.map(String));
+    for (const cage of real.cages) {
+      const expected = cage.cells.reduce(
+        (sum, cell) => sum + solution[Math.floor(cell / 7)][cell % 7],
+        0
+      );
+      expect(
+        selectionSum(real, grid, cellKeys(cage.cells)).total,
+        `cage ${cage.operation}${cage.value}`
+      ).toBe(expected);
+    }
   });
 });

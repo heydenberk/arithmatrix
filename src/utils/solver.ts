@@ -1833,7 +1833,7 @@ function cageSatisfied(op: string, target: number, values: number[]): boolean {
  * 3-in-a-row cage of 28× cannot be (2, 2, 7); an L-shaped 28× cage may use 2
  * twice only if those two 2s sit in different rows AND different columns.
  */
-function precomputeCageCombinations(
+export function precomputeCageCombinations(
   cage: PuzzleDefinition['cages'][number],
   size: number
 ): number[][] {
