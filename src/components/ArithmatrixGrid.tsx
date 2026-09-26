@@ -720,29 +720,26 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
      * Nothing is reserved for them, so opening a hint still never resizes
      * anything and the board keeps the full width of the screen.
      */
-    const gridElement = (
-      <Box style={{ position: 'relative', width: 'fit-content' }}>
-        <GridAxisLabels
-          size={size}
-          cellSize={cellSize}
-          cellHeight={cellHeight}
-          gap={LATTICE_GAP}
-          visible={hint !== null}
-        />
-        {boardElement}
-      </Box>
-    );
-
     const selectionPill =
       gameState.selectedCells.size >= 2 ? (
         <Box
+          /*
+           * Floated above the board rather than stacked before it, so showing
+           * it never nudges the puzzle down. The board is the thing the player
+           * is looking at while they select; it should stay put.
+           */
           style={{
-            background: 'rgba(255, 255, 255, 0.88)',
+            position: 'absolute',
+            bottom: 'calc(100% + 6px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 15,
+            background: 'rgba(255, 255, 255, 0.92)',
             backdropFilter: 'blur(8px)',
             WebkitBackdropFilter: 'blur(8px)',
             borderRadius: 999,
             padding: '2px 12px',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.18)',
           }}
           role="status"
           aria-live="polite"
@@ -765,6 +762,20 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
           </Text>
         </Box>
       ) : null;
+
+    const gridElement = (
+      <Box style={{ position: 'relative', width: 'fit-content' }}>
+        {selectionPill}
+        <GridAxisLabels
+          size={size}
+          cellSize={cellSize}
+          cellHeight={cellHeight}
+          gap={LATTICE_GAP}
+          visible={hint !== null}
+        />
+        {boardElement}
+      </Box>
+    );
 
     const hintPanel = hint ? (
       <Box style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0 6px' }}>
@@ -842,7 +853,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         {/* Above the grid: the later levels highlight cells, so the panel must
             never sit on top of the board. */}
         {hintPanel}
-        {selectionPill}
 
         {/* Grid with vertical centering on mobile */}
         {isMobile ? (

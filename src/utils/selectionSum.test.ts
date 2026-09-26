@@ -177,6 +177,57 @@ describe('selectionSum', () => {
     });
   });
 
+  it('prices a whole row at 1+2+3+4, whatever is written in it', () => {
+    // Row 0 spans the 7+ and 6x cages; neither matters, a row is always 10
+    expect(selectionSum(puzzle, emptyGrid(), keys(0, 1, 2, 3))).toEqual({
+      total: 10,
+      counted: 4,
+      unknown: 0,
+    });
+  });
+
+  it('prices a whole column the same way', () => {
+    // Column 3 is cells 3, 7, 11, 15 - three different cages between them
+    expect(selectionSum(puzzle, emptyGrid(), keys(3, 7, 11, 15))).toEqual({
+      total: 10,
+      counted: 4,
+      unknown: 0,
+    });
+  });
+
+  it('prices a line set that crosses cages, from the notes alone', () => {
+    // Cells 8 and 9 are in the 9+ cage, 11 is in the 2- cage. All three sit in
+    // row 2, and between them note only {1,2,4}, so that is what they hold.
+    const marks = marksWith({ 8: [1, 2], 9: [2, 4], 11: [1, 4] });
+    expect(selectionSum(puzzle, emptyGrid(), keys(8, 9, 11), marks)).toEqual({
+      total: 7,
+      counted: 3,
+      unknown: 0,
+    });
+  });
+
+  it('will not price a line set whose notes leave a value spare', () => {
+    // Four values noted between three cells: which one is left out is open
+    const marks = marksWith({ 8: [1, 2], 9: [2, 4], 11: [1, 3] });
+    expect(selectionSum(puzzle, emptyGrid(), keys(8, 9, 11), marks)).toEqual({
+      total: 0,
+      counted: 0,
+      unknown: 3,
+    });
+  });
+
+  it('will not treat cells off the line as a set', () => {
+    // Same notes, but cell 5 is in row 1 - nothing stops it repeating a value
+    const marks = marksWith({ 8: [1, 2], 9: [2, 4], 5: [1, 4] });
+    expect(selectionSum(puzzle, emptyGrid(), keys(8, 9, 5), marks).unknown).toBe(3);
+  });
+
+  it('prefers the whole line to a cage inside it', () => {
+    // Row 0 holds the whole 7+ cage. Pricing the cage first would leave the
+    // other two cells adrift; the row settles all four outright.
+    expect(selectionSum(puzzle, emptyGrid(), keys(0, 1, 2, 3)).unknown).toBe(0);
+  });
+
   it('does not care what order the selection arrives in', () => {
     const grid = gridWith({ 7: 2 });
     const forward = selectionSum(puzzle, grid, keys(0, 1, 6, 7));
@@ -243,6 +294,23 @@ describe('selectionSum on shipped puzzles', () => {
       counted: 2,
       unknown: 0,
     });
+  });
+
+  it('prices any whole row or column at 28, on an untouched board', () => {
+    for (let line = 0; line < 7; line++) {
+      const row = Array.from({ length: 7 }, (_, c) => line * 7 + c);
+      const col = Array.from({ length: 7 }, (_, r) => r * 7 + line);
+      expect(selectionSum(real, blank(), cellKeys(row))).toEqual({
+        total: 28,
+        counted: 7,
+        unknown: 0,
+      });
+      expect(selectionSum(real, blank(), cellKeys(col))).toEqual({
+        total: 28,
+        counted: 7,
+        unknown: 0,
+      });
+    }
   });
 
   it('agrees with the solution when a whole cage is filled in', () => {

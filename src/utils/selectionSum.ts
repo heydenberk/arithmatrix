@@ -8,16 +8,20 @@
  * addition without giving anything away: everything counted here the player
  * could already read off the board and their own notes.
  *
- * A selected cell is worth something when the board leaves no choice about it:
+ * Cells are priced in the order the reasoning is strongest, each rule taking
+ * the cells it settles out of the reckoning before the next one looks:
  *
- *   - a filled cell is worth its value;
- *   - an empty cell whose notes name a single candidate is worth that;
- *   - a whole selected cage is worth its total whenever every arrangement it
- *     still allows adds up the same. That covers a `+` cage outright, since
- *     the target is the sum; a cage its arithmetic pins down on its own, like
- *     6x over two cells of a 4x4, which can only be 2 and 3; and a cage the
- *     player has narrowed to one multiset, like a 2- whose cells are both
- *     noted {3,5} - either way round that is 8.
+ *   1. a whole row or column is worth 1+2+...+n whatever is written in it;
+ *   2. a whole cage is worth its total whenever every arrangement still open
+ *      to it adds up the same - a + cage outright, since the target is the
+ *      sum; a cage its arithmetic pins down on its own, like 6x over two
+ *      cells of a 4x4, which can only be 2 and 3; or a cage the notes have
+ *      narrowed to one multiset, like a 2- whose cells are both noted {3,5};
+ *   3. k cells sharing a row or column, between them noting exactly k
+ *      distinct values, are worth those values' total - they have to hold all
+ *      of them, one each, whatever cages they fall in;
+ *   4. anything left is worth its value if filled, or its note if noted down
+ *      to one.
  *
  * Half a cage is priced cell by cell, not as a share of the target: half of a
  * 13+ says nothing, and counting the filled half twice - once as cells, once
@@ -96,15 +100,14 @@ const candidatesAt = (
 const settledCageTotal = (
   cage: Cage,
   size: number,
-  gridValues: string[][],
-  pencilMarks?: Set<string>[][]
+  allowed: Map<number, Set<number>>
 ): number | null => {
-  const allowed = cage.cells.map(cell => candidatesAt(cell, size, gridValues, pencilMarks));
-  if (allowed.some(set => set === null)) return null;
+  const perPosition = cage.cells.map(cell => allowed.get(cell));
+  if (perPosition.some(set => set === undefined)) return null;
 
   let total: number | null = null;
   for (const combo of combinationsFor(cage, size)) {
-    if (combo.some((value, pos) => !allowed[pos]!.has(value))) continue;
+    if (combo.some((value, pos) => !perPosition[pos]!.has(value))) continue;
     const sum = combo.reduce((a, b) => a + b, 0);
     if (total === null) total = sum;
     else if (total !== sum) return null;
@@ -119,44 +122,80 @@ export const selectionSum = (
   pencilMarks?: Set<string>[][]
 ): SelectionSum => {
   const { size, cages } = puzzle;
-  const selected = new Set<number>();
-  for (const key of selectedKeys) selected.add(indexOfKey(key, size));
+  const remaining = new Set<number>();
+  for (const key of selectedKeys) remaining.add(indexOfKey(key, size));
 
-  const cageOf = new Map<number, Cage>();
-  for (const cage of cages) for (const cell of cage.cells) cageOf.set(cell, cage);
-
-  // Selected cells grouped by the cage they belong to, so a cage is judged whole
-  const byCage = new Map<Cage | undefined, number[]>();
-  for (const index of selected) {
-    const cage = cageOf.get(index);
-    const group = byCage.get(cage);
-    if (group) group.push(index);
-    else byCage.set(cage, [index]);
+  /* Worked out once: every rule below asks what a cell could still hold. */
+  const allowed = new Map<number, Set<number>>();
+  for (const index of remaining) {
+    const candidates = candidatesAt(index, size, gridValues, pencilMarks);
+    if (candidates) allowed.set(index, candidates);
   }
 
   let total = 0;
   let counted = 0;
-  let unknown = 0;
 
-  for (const [cage, indexes] of byCage) {
-    if (cage && indexes.length === cage.cells.length) {
-      const cageTotal = settledCageTotal(cage, size, gridValues, pencilMarks);
-      if (cageTotal !== null) {
-        total += cageTotal;
-        counted += cage.cells.length;
-        continue;
-      }
+  const take = (cells: Iterable<number>, worth: number) => {
+    let taken = 0;
+    for (const cell of cells) {
+      remaining.delete(cell);
+      taken += 1;
     }
+    total += worth;
+    counted += taken;
+  };
 
-    // Priced one cell at a time: only what is filled in, or noted down to one
-    for (const index of indexes) {
-      const candidates = candidatesAt(index, size, gridValues, pencilMarks);
-      if (candidates && candidates.size === 1) {
-        total += [...candidates][0];
-        counted += 1;
-      } else {
-        unknown += 1;
-      }
+  /** Cells of one line among those still unpriced. */
+  const lineCells = (orientation: 'row' | 'col', line: number): number[] =>
+    [...remaining].filter(cell =>
+      orientation === 'row' ? Math.floor(cell / size) === line : cell % size === line
+    );
+
+  // 1. A whole row or column, whatever is written in it
+  const lineTotal = (size * (size + 1)) / 2;
+  for (const orientation of ['row', 'col'] as const) {
+    for (let line = 0; line < size; line++) {
+      const cells = lineCells(orientation, line);
+      if (cells.length === size) take(cells, lineTotal);
+    }
+  }
+
+  // 2. A whole cage whose arrangements agree on the total
+  for (const cage of cages) {
+    if (!cage.cells.every(cell => remaining.has(cell))) continue;
+    const cageTotal = settledCageTotal(cage, size, allowed);
+    if (cageTotal !== null) take(cage.cells, cageTotal);
+  }
+
+  /*
+   * 3. k cells of one line noting exactly k values between them. They share a
+   * line, so no two can hold the same value, which leaves them holding all k
+   * of those values one apiece - whatever cages they happen to fall in.
+   */
+  for (const orientation of ['row', 'col'] as const) {
+    for (let line = 0; line < size; line++) {
+      const cells = lineCells(orientation, line);
+      if (cells.length < 2) continue;
+      if (cells.some(cell => !allowed.has(cell))) continue;
+      const union = new Set<number>();
+      for (const cell of cells) for (const value of allowed.get(cell)!) union.add(value);
+      if (union.size !== cells.length) continue;
+      take(
+        cells,
+        [...union].reduce((a, b) => a + b, 0)
+      );
+    }
+  }
+
+  // 4. Whatever is left, one cell at a time
+  let unknown = 0;
+  for (const index of remaining) {
+    const candidates = allowed.get(index);
+    if (candidates && candidates.size === 1) {
+      total += [...candidates][0];
+      counted += 1;
+    } else {
+      unknown += 1;
     }
   }
 
