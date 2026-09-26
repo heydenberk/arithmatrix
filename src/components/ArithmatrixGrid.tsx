@@ -29,6 +29,7 @@ import MobileNumberPad from './MobileNumberPad';
 import HintPanel from './HintPanel';
 import GridAxisLabels from './GridAxisLabels';
 import { Hint, computeHint } from '../utils/hints';
+import { selectionSum } from '../utils/selectionSum';
 
 /*
  * Flat geometry, identical at every breakpoint: cells butt up against each
@@ -214,6 +215,19 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
      * stake, so earning it once no longer buys silence.
      */
     const [pendingAid, setPendingAid] = useState<{ what: string; run: () => void } | null>(null);
+
+    /*
+     * The total of a multi-cell selection.
+     *
+     * Only for a selection worth adding up: one cell is just its own value,
+     * and the pill would then follow every tap around the board. Everything it
+     * counts is already printed on the board (see selectionSum), so it saves
+     * the arithmetic without giving anything away.
+     */
+    const selection = useMemo(
+      () => selectionSum(puzzleDefinition, gameState.gridValues, gameState.selectedCells),
+      [puzzleDefinition, gameState.gridValues, gameState.selectedCells]
+    );
 
     const guardAid = (what: string, run: () => void) => () => {
       if (gameState.isUnaided()) setPendingAid({ what, run });
@@ -713,6 +727,39 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       </Box>
     );
 
+    const selectionPill =
+      gameState.selectedCells.size >= 2 ? (
+        <Box
+          style={{
+            background: 'rgba(255, 255, 255, 0.88)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            borderRadius: 999,
+            padding: '2px 12px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+          }}
+          role="status"
+          aria-live="polite"
+        >
+          <Text size="xs" fw={700} c="gray.8" style={{ whiteSpace: 'nowrap' }}>
+            {selection.counted === 0 ? (
+              <Text span size="xs" fw={600} c="gray.6">
+                {gameState.selectedCells.size} cells selected, no totals known yet
+              </Text>
+            ) : (
+              <>
+                Sum {selection.total}
+                <Text span size="xs" fw={600} c="gray.6">
+                  {' '}
+                  from {selection.counted} {selection.counted === 1 ? 'cell' : 'cells'}
+                  {selection.unknown > 0 ? ` · ${selection.unknown} still unknown` : ''}
+                </Text>
+              </>
+            )}
+          </Text>
+        </Box>
+      ) : null;
+
     const hintPanel = hint ? (
       <Box style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0 6px' }}>
         <HintPanel
@@ -789,6 +836,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         {/* Above the grid: the later levels highlight cells, so the panel must
             never sit on top of the board. */}
         {hintPanel}
+        {selectionPill}
 
         {/* Grid with vertical centering on mobile */}
         {isMobile ? (
