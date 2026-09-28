@@ -7,13 +7,14 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  cellName,
   checkWinCondition,
+  collapseSelectionTarget,
   findConflictingCells,
   generateCageColorMap,
   getBorderClasses,
   getCageInfo,
   validateCageConstraint,
-  cellName,
 } from './arithmatrixUtils';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 
@@ -203,5 +204,38 @@ describe('cellName', () => {
   it('counts rows from one, so the label matches the grid', () => {
     expect(cellName(0, 2)).toBe('C1');
     expect(cellName(6, 0)).toBe('A7');
+  });
+});
+
+describe('collapseSelectionTarget', () => {
+  const at = (row: number, col: number) => ({ row, col });
+
+  it('keeps nothing when nothing is selected', () => {
+    expect(collapseSelectionTarget(new Set(), at(0, 0))).toBeNull();
+  });
+
+  it('keeps the cell last touched', () => {
+    const selected = new Set(['0-0', '0-1', '0-2']);
+    expect(collapseSelectionTarget(selected, at(0, 1))).toBe('0-1');
+  });
+
+  it('falls back to the most recently added when the last touched has gone', () => {
+    // Shift-clicking a cell twice removes it, so the ref can point outside
+    const selected = new Set(['0-0', '0-1', '0-2']);
+    expect(collapseSelectionTarget(selected, at(3, 3))).toBe('0-2');
+  });
+
+  it('falls back when nothing was ever focused', () => {
+    expect(collapseSelectionTarget(new Set(['2-2', '1-1']), null)).toBe('1-1');
+  });
+
+  it('leaves a single selected cell alone', () => {
+    expect(collapseSelectionTarget(new Set(['4-5']), at(4, 5))).toBe('4-5');
+    expect(collapseSelectionTarget(new Set(['4-5']), null)).toBe('4-5');
+  });
+
+  it('reads insertion order, not grid order', () => {
+    const selected = new Set(['6-6', '0-0', '3-3']);
+    expect(collapseSelectionTarget(selected, null)).toBe('3-3');
   });
 });

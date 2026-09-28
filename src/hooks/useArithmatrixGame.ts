@@ -29,7 +29,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixTypes';
-import { checkWinCondition, findConflictingCells } from '../utils/arithmatrixUtils';
+import {
+  checkWinCondition,
+  collapseSelectionTarget,
+  findConflictingCells,
+} from '../utils/arithmatrixUtils';
 import { boardIsSound, type HintAction } from '../utils/hints';
 import type { GameConduct } from '../utils/achievements';
 
@@ -1128,12 +1132,42 @@ export const useArithmatrixGame = ({
     }
   };
 
+  /**
+   * Switching between notes and entry by hand - the pencil button, or a
+   * long press on a cell.
+   *
+   * Leaving pencil mode drops a multi-cell selection down to the one cell you
+   * touched last. Notes go on several cells at once, which is what the
+   * selection is for; a value goes in one. Carrying the whole selection into
+   * entry mode meant the next digit landed in every cell of it at once, which
+   * is never what anyone meant by it.
+   *
+   * Choosing a mode outright also ends the temporary pencil mode a shift+click
+   * turns on. Otherwise the next ordinary click would restore whatever was in
+   * force before the shift+click and undo the choice a moment after it was
+   * made.
+   */
+  const togglePencilMode = () => {
+    const leavingPencilMode = isPencilMode;
+    if (leavingPencilMode && selectedCells.size > 1) {
+      const keep = collapseSelectionTarget(selectedCells, lastFocusedCell.current)!;
+      const [row, col] = keep.split('-').map(Number);
+      setSelectedCells(new Set([keep]));
+      lastFocusedCell.current = { row, col };
+      const targetInputRef = inputRefs.current?.[row]?.[col];
+      if (targetInputRef) setTimeout(() => targetInputRef.focus(), 0);
+    }
+    if (isInTemporaryPencilMode) setIsInTemporaryPencilMode(false);
+    setIsPencilMode(!isPencilMode);
+  };
+
   return {
     // State
     gridValues,
     pencilMarks,
     isPencilMode,
     setIsPencilMode,
+    togglePencilMode,
     isInTemporaryPencilMode,
     enterTemporaryPencilMode,
     errorCells,

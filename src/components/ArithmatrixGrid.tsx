@@ -300,7 +300,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     };
 
     const handleMobileTogglePencilMode = () => {
-      gameState.setIsPencilMode(!gameState.isPencilMode);
+      gameState.togglePencilMode();
     };
 
     // Shift+click on a cage's answer pill adds every cell in that cage to the current
@@ -325,6 +325,17 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       gameState.setSelectedCells(prev =>
         startFresh ? new Set(cageCellKeys) : new Set([...prev, ...cageCellKeys])
       );
+      /*
+       * The badge's own cell is the one the finger landed on, so it counts as
+       * the cell last selected - which is the one a selection collapses to on
+       * the way back to entry mode. Without this the ref still pointed at
+       * whatever was picked before the cage, and leaving pencil mode kept a
+       * cell the player had moved on from.
+       */
+      gameState.lastFocusedCell.current = {
+        row: Math.floor(cellIndex / size),
+        col: cellIndex % size,
+      };
       // Match regular shift+click behavior: enter temporary pencil mode so
       // the next number key produces a pencil mark across the whole selection
       // rather than placing a value in just the focused cell.
@@ -588,7 +599,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
     const controlsElement = (
       <ArithmatrixControls
         isPencilMode={gameState.isPencilMode}
-        onTogglePencilMode={() => gameState.setIsPencilMode(!gameState.isPencilMode)}
+        onTogglePencilMode={gameState.togglePencilMode}
         canUndo={gameState.history.length > 0}
         onUndo={gameState.handleUndo}
         canRedo={gameState.redoStack.length > 0}

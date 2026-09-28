@@ -405,3 +405,21 @@ export const findConflictingCells = (
 
   return conflicts;
 };
+
+/**
+ * The one cell a multi-cell selection collapses to when leaving pencil mode.
+ *
+ * The cell last touched, which is the one the player is looking at and the one
+ * already holding focus. It can fall out of the selection - shift-clicking a
+ * cell a second time removes it - so the most recently added cell stands in,
+ * the selection being insertion-ordered. Null only when nothing is selected.
+ */
+export const collapseSelectionTarget = (
+  selected: Set<string>,
+  lastFocused: { row: number; col: number } | null
+): string | null => {
+  if (selected.size === 0) return null;
+  const lastKey = lastFocused ? `${lastFocused.row}-${lastFocused.col}` : null;
+  if (lastKey && selected.has(lastKey)) return lastKey;
+  return [...selected][selected.size - 1];
+};
