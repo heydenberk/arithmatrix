@@ -423,3 +423,28 @@ export const collapseSelectionTarget = (
   if (lastKey && selected.has(lastKey)) return lastKey;
   return [...selected][selected.size - 1];
 };
+
+/**
+ * Whether two boards hold the same thing - same values, same notes.
+ *
+ * Used to tell whether the board has moved away from a checkpoint, and to
+ * find that checkpoint again among the recorded history so reverting to it
+ * can wind back through the moves rather than jump.
+ */
+export const sameBoard = (
+  gridA: string[][],
+  marksA: Set<string>[][],
+  gridB: string[][],
+  marksB: Set<string>[][]
+): boolean =>
+  gridA.every((row, r) =>
+    row.every((value, c) => {
+      if (value !== gridB[r]?.[c]) return false;
+      const a = marksA[r]?.[c];
+      const b = marksB[r]?.[c];
+      if (a === b) return true;
+      if (!a || !b || a.size !== b.size) return false;
+      for (const mark of a) if (!b.has(mark)) return false;
+      return true;
+    })
+  );

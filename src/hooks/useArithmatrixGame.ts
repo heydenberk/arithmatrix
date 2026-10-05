@@ -33,6 +33,7 @@ import {
   checkWinCondition,
   collapseSelectionTarget,
   findConflictingCells,
+  sameBoard,
 } from '../utils/arithmatrixUtils';
 import { boardIsSound, type HintAction } from '../utils/hints';
 import type { GameConduct } from '../utils/achievements';
@@ -323,19 +324,36 @@ export const useArithmatrixGame = ({
    * Returns false when there is nothing sound to go back to - a mistake made
    * before the first recorded move, or none at all.
    */
+  /**
+   * Puts the board back to the position recorded at `index`, as though the
+   * moves since had been undone one at a time: each of them goes onto the
+   * redo stack, newest last, so they can be stepped forward again.
+   */
+  const windBackTo = (index: number) => {
+    const [pastGrid, pastMarks] = history[index];
+    /*
+     * Newest first, because redo takes from the end: that is the order a run
+     * of undos would have left, and it is what makes redo walk forward a move
+     * at a time. Oldest first put the position we came from on top, so the
+     * first redo jumped the whole way back and the rest ran backwards.
+     */
+    const undone: HistoryEntry[] = [
+      [gridValues, pencilMarks],
+      ...history.slice(index + 1).reverse(),
+    ];
+    setRedoStack(prevRedo => [...prevRedo, ...undone]);
+    setHistory(history.slice(0, index));
+    setGridValues(pastGrid.map(row => [...row]));
+    setPencilMarks(pastMarks.map(row => row.map(cellSet => new Set(cellSet))));
+    clearErrors();
+  };
+
   const rewindToLastSound = (): boolean => {
     if (!solution) return false;
     for (let i = history.length - 1; i >= 0; i--) {
       const [pastGrid, pastMarks] = history[i];
       if (!boardIsSound(pastGrid, pastMarks, solution)) continue;
-
-      // Everything from that point forward becomes redoable, newest last
-      const undone = [...history.slice(i + 1), [gridValues, pencilMarks] as HistoryEntry];
-      setRedoStack(prevRedo => [...prevRedo, ...undone]);
-      setHistory(history.slice(0, i));
-      setGridValues(pastGrid.map(row => [...row]));
-      setPencilMarks(pastMarks.map(row => row.map(cellSet => new Set(cellSet))));
-      clearErrors();
+      windBackTo(i);
       return true;
     }
     return false;
@@ -1000,20 +1018,35 @@ export const useArithmatrixGame = ({
     }
   };
 
-  // Revert to a checkpoint state while preserving redo capability
+  /**
+   * Puts the board back to the checkpoint.
+   *
+   * Done by winding the history back to the position the checkpoint was taken
+   * at, so it costs exactly what undoing those moves one at a time would:
+   * every move since the checkpoint lands on the redo stack and can be
+   * stepped forward again, all the way to where the player was. It used to
+   * put only the current position on the redo stack, which bought one jump
+   * forward and lost every move in between - and left the undo stack still
+   * pointing at moves made after the checkpoint.
+   *
+   * A checkpoint older than the recorded history - saved, then undone past -
+   * is not in there to wind back to, so that falls back to the jump.
+   */
   const revertToState = (
     checkpointGridValues: string[][],
     checkpointPencilMarks: Set<string>[][]
   ) => {
-    // Push current state to redoStack so user can redo back to where they were
-    setRedoStack(prevRedo => [...prevRedo, [gridValues, pencilMarks]]);
+    for (let i = history.length - 1; i >= 0; i--) {
+      const [pastGrid, pastMarks] = history[i];
+      if (!sameBoard(pastGrid, pastMarks, checkpointGridValues, checkpointPencilMarks)) continue;
+      windBackTo(i);
+      return;
+    }
 
-    // Restore checkpoint state
+    setRedoStack(prevRedo => [...prevRedo, [gridValues, pencilMarks]]);
     setGridValues(checkpointGridValues.map(row => [...row]));
     setPencilMarks(checkpointPencilMarks.map(row => row.map(cell => new Set(cell))));
-
     clearErrors();
-    console.log('Reverted to checkpoint (redo available to return)');
   };
 
   // Secret shortcut: Solve all but one square

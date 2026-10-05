@@ -88,10 +88,11 @@ import { useArithmatrixGame } from '../hooks/useArithmatrixGame';
 import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import {
   generateCageColorMap,
-  getCageColorClass,
-  getCageTextColorClass,
   getBorderClasses,
+  getCageColorClass,
   getCageInfo,
+  getCageTextColorClass,
+  sameBoard,
 } from '../utils/arithmatrixUtils';
 
 // Define the methods that will be exposed via ref
@@ -151,17 +152,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
 
     const canRevertToCheckpoint = useMemo(() => {
       if (!hasCheckpoint || !checkpointGridValues || !checkpointPencilMarks) return false;
-
-      return gameState.gridValues.some((row, r) =>
-        row.some((value, c) => {
-          const marks = gameState.pencilMarks[r][c];
-          const checkpointMarks = checkpointPencilMarks[r][c];
-          return (
-            value !== checkpointGridValues[r][c] ||
-            marks.size !== checkpointMarks.size ||
-            [...marks].some(mark => !checkpointMarks.has(mark))
-          );
-        })
+      // Somewhere to go only while the board differs from the checkpoint
+      return !sameBoard(
+        gameState.gridValues,
+        gameState.pencilMarks,
+        checkpointGridValues,
+        checkpointPencilMarks
       );
     }, [
       hasCheckpoint,

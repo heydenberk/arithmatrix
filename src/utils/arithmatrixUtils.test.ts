@@ -14,6 +14,7 @@ import {
   generateCageColorMap,
   getBorderClasses,
   getCageInfo,
+  sameBoard,
   validateCageConstraint,
 } from './arithmatrixUtils';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
@@ -237,5 +238,69 @@ describe('collapseSelectionTarget', () => {
   it('reads insertion order, not grid order', () => {
     const selected = new Set(['6-6', '0-0', '3-3']);
     expect(collapseSelectionTarget(selected, null)).toBe('3-3');
+  });
+});
+
+describe('sameBoard', () => {
+  const grid = (rows: string[]) => rows.map(row => row.split(''));
+  const noMarks = (n: number) =>
+    Array.from({ length: n }, () => Array.from({ length: n }, () => new Set<string>()));
+  const marksAt = (n: number, at: Record<string, string[]>) => {
+    const marks = noMarks(n);
+    for (const [key, values] of Object.entries(at)) {
+      const [r, c] = key.split('-').map(Number);
+      marks[r][c] = new Set(values);
+    }
+    return marks;
+  };
+
+  it('matches a board against itself', () => {
+    const g = grid(['12', '21']);
+    const m = marksAt(2, { '0-0': ['3', '4'] });
+    expect(sameBoard(g, m, g, m)).toBe(true);
+  });
+
+  it('matches equal boards held in different objects', () => {
+    expect(
+      sameBoard(
+        grid(['12', '21']),
+        marksAt(2, { '1-0': ['3'] }),
+        grid(['12', '21']),
+        marksAt(2, { '1-0': ['3'] })
+      )
+    ).toBe(true);
+  });
+
+  it('notices a different value', () => {
+    expect(sameBoard(grid(['12', '21']), noMarks(2), grid(['12', '22']), noMarks(2))).toBe(false);
+  });
+
+  it('notices notes added, removed or changed', () => {
+    const bare = noMarks(2);
+    expect(
+      sameBoard(grid(['12', '21']), marksAt(2, { '0-0': ['3'] }), grid(['12', '21']), bare)
+    ).toBe(false);
+    expect(
+      sameBoard(grid(['12', '21']), bare, grid(['12', '21']), marksAt(2, { '0-0': ['3'] }))
+    ).toBe(false);
+    expect(
+      sameBoard(
+        grid(['12', '21']),
+        marksAt(2, { '0-0': ['3'] }),
+        grid(['12', '21']),
+        marksAt(2, { '0-0': ['4'] })
+      )
+    ).toBe(false);
+  });
+
+  it('does not care what order notes were written in', () => {
+    expect(
+      sameBoard(
+        grid(['12', '21']),
+        marksAt(2, { '0-1': ['4', '1', '3'] }),
+        grid(['12', '21']),
+        marksAt(2, { '0-1': ['1', '3', '4'] })
+      )
+    ).toBe(true);
   });
 });
