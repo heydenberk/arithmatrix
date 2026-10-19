@@ -184,9 +184,12 @@ export type ArithmatrixControlsProps = {
   /** Handler for redo action */
   onRedo: () => void;
   /** Handler for checking a single cell */
-  onCheckCell: () => void;
   /** Handler for checking the entire puzzle */
   onCheckPuzzle: () => void;
+  /** The old blunt check of every filled cell, reached by holding the button. */
+  onCheckAll?: () => void;
+  /** Answers still checkable without losing Unaided, or null once it is lost. */
+  checkRemaining?: number | null;
   /** Handler for autofilling singles (single-cell cages and single-note cells) */
   onAutofillSingles?: () => void;
   /** Handler for pencilling every candidate into unmarked cells (zap long-press) */

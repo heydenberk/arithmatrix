@@ -14,6 +14,17 @@ export type GameConduct = {
   unaided: boolean;
   /** No wrong value was ever placed, at any point. */
   clean: boolean;
+  /**
+   * Answers the game has already confirmed for this player, each written as
+   * `row-col=value`.
+   *
+   * Keyed by the value as well as the cell, so that changing a cell and
+   * checking it again reads a fresh answer, while checking a cell you have not
+   * touched since - which tells you nothing you were not already told - reads
+   * nothing. A short allowance of these is spendable without losing `unaided`;
+   * see `checkAllowance`.
+   */
+  answersRead?: string[];
 };
 
 export const NEUTRAL_CONDUCT: GameConduct = { unaided: true, clean: true };

@@ -1,7 +1,7 @@
 /**
  * Additional game types for improved type safety
  */
-import { DIFFICULTY_LEVELS, VALID_SIZES } from "../constants/gameConstants";
+import { DIFFICULTY_LEVELS, VALID_SIZES } from '../constants/gameConstants';
 
 // Extract literal types from constants
 export type DifficultyLevel = (typeof DIFFICULTY_LEVELS)[number];
@@ -61,11 +61,11 @@ export interface GameEvents {
 
 // Error types for better error handling
 export type PuzzleLoadError =
-  | "FETCH_FAILED"
-  | "PARSE_ERROR"
-  | "NO_PUZZLES_FOUND"
-  | "INVALID_DIFFICULTY"
-  | "INVALID_SIZE";
+  | 'FETCH_FAILED'
+  | 'PARSE_ERROR'
+  | 'NO_PUZZLES_FOUND'
+  | 'INVALID_DIFFICULTY'
+  | 'INVALID_SIZE';
 
 export interface AppError {
   type: PuzzleLoadError;

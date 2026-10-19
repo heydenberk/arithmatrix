@@ -7,6 +7,7 @@
 
 import { describe, expect, it } from 'vitest';
 import {
+  answersACheckWouldRead,
   cellName,
   checkWinCondition,
   collapseSelectionTarget,
@@ -302,5 +303,46 @@ describe('sameBoard', () => {
         marksAt(2, { '0-1': ['1', '3', '4'] })
       )
     ).toBe(true);
+  });
+});
+
+describe('answersACheckWouldRead', () => {
+  const grid = [
+    ['1', '2'],
+    ['', '4'],
+  ];
+  const none = new Set<string>();
+
+  it('reads every filled cell when the check is not narrowed', () => {
+    expect(answersACheckWouldRead(grid, null, none)).toEqual(['0-0=1', '0-1=2', '1-1=4']);
+  });
+
+  it('reads nothing for an empty cell', () => {
+    expect(answersACheckWouldRead(grid, new Set(['1-0']), none)).toEqual([]);
+  });
+
+  it('reads only the cells the check is narrowed to', () => {
+    expect(answersACheckWouldRead(grid, new Set(['0-1', '1-0']), none)).toEqual(['0-1=2']);
+  });
+
+  it('is free to re-read an answer the player already has', () => {
+    const read = new Set(['0-0=1', '0-1=2']);
+    expect(answersACheckWouldRead(grid, null, read)).toEqual(['1-1=4']);
+  });
+
+  it('charges again once the cell has changed', () => {
+    const read = new Set(['0-0=1']);
+    const edited = [
+      ['3', '2'],
+      ['', '4'],
+    ];
+    expect(answersACheckWouldRead(edited, new Set(['0-0']), read)).toEqual(['0-0=3']);
+  });
+
+  it('is free again if the player puts the old value back', () => {
+    // The answer for that cell and value was already given away; asking for it
+    // a second time tells them nothing new, however they got back there.
+    const read = new Set(['0-0=1', '0-0=3']);
+    expect(answersACheckWouldRead(grid, new Set(['0-0']), read)).toEqual([]);
   });
 });

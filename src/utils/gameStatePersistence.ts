@@ -10,6 +10,7 @@
  * regenerated with different line numbers.
  */
 
+import type { GameConduct } from './achievements';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 import { canonicalCagesSig } from './puzzleCatalog';
 
@@ -34,7 +35,7 @@ export type SavedGame = {
    * clean throughout. Saved so a pause and resume does not quietly restore an
    * unaided record to somebody who has been leaning on the hint button.
    */
-  conduct?: { unaided: boolean; clean: boolean };
+  conduct?: GameConduct;
   /** ISO strings; JSON has no date type */
   startedAt: string;
   savedAt: string;
@@ -144,7 +145,7 @@ export const saveGame = (
   elapsedTime: number,
   startedAt?: Date,
   puzzleIndex?: number | null,
-  conduct?: { unaided: boolean; clean: boolean }
+  conduct?: GameConduct
 ): void => {
   const cagesSig = canonicalCagesSig(puzzleDefinition.cages);
   const games = readAll();

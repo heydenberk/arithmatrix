@@ -27,6 +27,39 @@ import { useResponsiveLayout } from '../hooks/useResponsiveLayout';
 import { useLongPress } from '../hooks/useLongPress';
 import { isTouchDevice, triggerHapticFeedback } from '../utils/touchUtils';
 
+/**
+ * The checking allowance still left, on the button that spends it.
+ *
+ * Checking no longer costs the unaided solve outright, so the number has to be
+ * readable before the press rather than discovered after it. Hidden once the
+ * solve is aided, when there is nothing left to budget for.
+ */
+const AllowanceBadge: React.FC<{ remaining: number | null }> = ({ remaining }) =>
+  remaining === null ? null : (
+    <Box
+      aria-label={`${remaining} checks left before this solve counts as aided`}
+      style={{
+        position: 'absolute',
+        top: rem(-5),
+        right: rem(-5),
+        minWidth: rem(16),
+        height: rem(16),
+        padding: '0 3px',
+        borderRadius: rem(8),
+        backgroundColor: remaining > 0 ? '#10b981' : '#9ca3af',
+        color: 'white',
+        fontSize: rem(10),
+        fontWeight: 700,
+        lineHeight: rem(16),
+        textAlign: 'center',
+        border: '2px solid white',
+        pointerEvents: 'none',
+      }}
+    >
+      {remaining}
+    </Box>
+  );
+
 const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   isPencilMode,
   onTogglePencilMode,
@@ -47,6 +80,8 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   onNewGame,
   onShowAchievements,
   unaided = true,
+  checkRemaining = null,
+  onCheckAll,
   difficulty,
   difficultyScore,
 }) => {
@@ -71,6 +106,16 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
   };
 
   // Mobile layout: Check on left, timer in center, reset/new game on right
+  /*
+   * A tap checks what is selected, which is how the allowance is meant to be
+   * spent; a hold is the old check of the whole board, which on a full grid
+   * reads every answer at once. The expensive one is the deliberate one.
+   */
+  const checkLongPress = useLongPress({
+    onClick: () => onCheckPuzzle(),
+    onLongPress: () => (onCheckAll ?? onCheckPuzzle)(),
+  });
+
   const zapLongPress = useLongPress({
     onClick: () => onAutofillSingles?.(),
     onLongPress: () => onFillAllCandidates?.(),
@@ -91,15 +136,19 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
       >
         <Group justify="space-between" gap={8} wrap="nowrap" w="100%">
           {/* Left: Check */}
-          <ActionIcon
-            onClick={handleButtonPress(onCheckPuzzle, 'heavy')}
-            size={buttonSize}
-            radius="xl"
-            variant="light"
-            color="green"
-          >
-            <IconCheck size={iconSize} />
-          </ActionIcon>
+          <Box style={{ position: 'relative' }}>
+            <ActionIcon
+              {...checkLongPress}
+              aria-label="Check the selected cells; hold to check the whole board"
+              size={buttonSize}
+              radius="xl"
+              variant="light"
+              color="green"
+            >
+              <IconCheck size={iconSize} />
+            </ActionIcon>
+            <AllowanceBadge remaining={checkRemaining} />
+          </Box>
 
           {/* Center: Timer, with what you are playing under it. Desktop says
               this in the status badge, which mobile has no room for, so the
@@ -214,21 +263,32 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
         </Box>
       </Tooltip>
 
-      {/* Check Puzzle */}
-      <Tooltip label="Check the entire puzzle for correctness" position="bottom">
-        <ActionIcon
-          onClick={onCheckPuzzle}
-          size={rem(40)}
-          radius="xl"
-          variant="gradient"
-          gradient={{ from: 'teal', to: 'green' }}
-          style={{
-            transition: 'all 300ms ease',
-            boxShadow: '0 15px 30px -8px rgba(16, 185, 129, 0.3)',
-          }}
-        >
-          <IconCheck size="1.2rem" />
-        </ActionIcon>
+      {/* Check. Selected cells narrow it to those, which is how the allowance
+          is meant to be spent - one answer for the cell you are stuck on. */}
+      <Tooltip
+        label={
+          checkRemaining === null
+            ? 'Check the selected cells; hold to check the whole board'
+            : `Check the selected cells; hold to check the whole board (${checkRemaining} answers left before this counts as aided)`
+        }
+        position="bottom"
+      >
+        <Box style={{ position: 'relative' }}>
+          <ActionIcon
+            {...checkLongPress}
+            size={rem(40)}
+            radius="xl"
+            variant="gradient"
+            gradient={{ from: 'teal', to: 'green' }}
+            style={{
+              transition: 'all 300ms ease',
+              boxShadow: '0 15px 30px -8px rgba(16, 185, 129, 0.3)',
+            }}
+          >
+            <IconCheck size="1.2rem" />
+          </ActionIcon>
+          <AllowanceBadge remaining={checkRemaining} />
+        </Box>
       </Tooltip>
 
       {/* Hint */}

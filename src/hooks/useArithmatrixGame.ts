@@ -27,14 +27,16 @@
  * making the code more testable and maintainable.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { PuzzleDefinition, HistoryEntry, CellCoord } from '../types/ArithmatrixTypes';
 import {
+  answersACheckWouldRead,
   checkWinCondition,
   collapseSelectionTarget,
   findConflictingCells,
   sameBoard,
 } from '../utils/arithmatrixUtils';
+import { checkAllowance } from '../constants/gameConstants';
 import { boardIsSound, type HintAction } from '../utils/hints';
 import type { GameConduct } from '../utils/achievements';
 
@@ -97,6 +99,12 @@ export const useArithmatrixGame = ({
   /** Cells the current autofill wave just landed, for the settle animation. */
   const [settlingCells, setSettlingCells] = useState<Set<string>>(new Set());
   const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  /**
+   * Answers the game has confirmed so far, as `answerToken` strings. State
+   * rather than part of the conduct ref because the check button renders the
+   * allowance that is left.
+   */
+  const [answersRead, setAnswersRead] = useState<string[]>(initialConduct?.answersRead ?? []);
 
   // Refs for tracking
   const inputRefs = useRef<(HTMLInputElement | null)[][]>([]);
@@ -108,6 +116,14 @@ export const useArithmatrixGame = ({
    */
   const conduct = useRef<GameConduct>(initialConduct ?? { unaided: true, clean: true });
   const lastFocusedCell = useRef<CellCoord | null>(null);
+  /** The conduct to report outward: the badges in the ref, plus what checking has cost. */
+  const conductNow = useCallback(
+    (answers: string[] = answersRead): GameConduct => ({
+      ...conduct.current,
+      answersRead: answers,
+    }),
+    [answersRead]
+  );
 
   // Initialize or reset game state when puzzle changes
   useEffect(() => {
@@ -137,6 +153,7 @@ export const useArithmatrixGame = ({
       setHasEnteredValueSinceSelection(false);
       setErrorCells(new Set());
       setSelectedCells(new Set());
+      setAnswersRead(initialConduct?.answersRead ?? []);
       setFlashingCells(new Set());
       setSettlingCells(new Set());
       conduct.current = initialConduct ?? { unaided: true, clean: true };
@@ -168,11 +185,11 @@ export const useArithmatrixGame = ({
 
     if (won && !hasAnnouncedWinRef.current) {
       hasAnnouncedWinRef.current = true;
-      onWin({ ...conduct.current });
+      onWin(conductNow());
     } else if (!won) {
       hasAnnouncedWinRef.current = false;
     }
-  }, [gridValues, puzzleDefinition, onWin]);
+  }, [gridValues, puzzleDefinition, onWin, conductNow]);
 
   /*
    * Latches the moment a wrong value appears, by any route.
@@ -195,6 +212,22 @@ export const useArithmatrixGame = ({
     }
   }, [gridValues, solution]);
 
+  /*
+   * Adopts the saved conduct once it arrives.
+   *
+   * A resumed game is loaded asynchronously, so the hook can mount and run its
+   * puzzle-change effect before the app has the saved conduct to hand - which
+   * left a resumed board claiming a full checking allowance it had already
+   * spent. Keyed on the object rather than the puzzle because that is what
+   * actually turns up late.
+   */
+  useEffect(() => {
+    if (!initialConduct) return;
+    conduct.current = { ...initialConduct };
+    const saved = initialConduct.answersRead ?? [];
+    setAnswersRead(prev => (prev.length === saved.length ? prev : saved));
+  }, [initialConduct]);
+
   /**
    * Called when the app answers a question the board does not.
    *
@@ -213,7 +246,7 @@ export const useArithmatrixGame = ({
      * until the next move, and a pause taken straight after a hint would save
      * the puzzle as though no hint had been used.
      */
-    onStateChange?.(gridValues, pencilMarks, { ...conduct.current });
+    onStateChange?.(gridValues, pencilMarks, conductNow());
   };
 
   /** Whether this puzzle still has an unaided solve to lose. */
@@ -222,9 +255,9 @@ export const useArithmatrixGame = ({
   // Effect to notify parent component of state changes
   useEffect(() => {
     if (onStateChange && gridValues.length > 0 && pencilMarks.length > 0) {
-      onStateChange(gridValues, pencilMarks, { ...conduct.current });
+      onStateChange(gridValues, pencilMarks, conductNow());
     }
-  }, [gridValues, pencilMarks, onStateChange]);
+  }, [gridValues, pencilMarks, onStateChange, conductNow]);
 
   // Pending waves belong to a board that is going away
   useEffect(() => {
@@ -977,47 +1010,6 @@ export const useArithmatrixGame = ({
     clearErrors();
   };
 
-  // Check individual cell against solution
-  const handleCheckCell = () => {
-    markAided();
-    clearErrors();
-    const focusedElement = document.activeElement as HTMLInputElement;
-
-    if (
-      focusedElement &&
-      focusedElement.tagName === 'INPUT' &&
-      focusedElement.classList.contains('cell-input')
-    ) {
-      const rowIndex = parseInt(focusedElement.dataset.row || '-1', 10);
-      const colIndex = parseInt(focusedElement.dataset.col || '-1', 10);
-
-      if (rowIndex !== -1 && colIndex !== -1) {
-        const currentValue = gridValues[rowIndex][colIndex];
-        if (currentValue === '') {
-          console.log('Cell is empty, nothing to check.');
-          return;
-        }
-
-        const numValue = parseInt(currentValue, 10);
-        const errors = new Set<number>();
-        const cellIndex = rowIndex * size + colIndex;
-
-        // Check against solution
-        const correctValue = solution[rowIndex][colIndex];
-        if (numValue !== correctValue) {
-          errors.add(cellIndex);
-        }
-
-        if (errors.size > 0) {
-          console.log(`Error found in cell [${rowIndex}, ${colIndex}]`);
-          setErrorCells(errors);
-        } else {
-          console.log(`Cell [${rowIndex}, ${colIndex}] seems correct.`);
-        }
-      }
-    }
-  };
-
   /**
    * Puts the board back to the checkpoint.
    *
@@ -1114,42 +1106,53 @@ export const useArithmatrixGame = ({
   };
 
   // Check entire puzzle against solution
-  const handleCheckPuzzle = () => {
-    markAided();
+  /**
+   * What pressing check right now would do, for the caller that has to warn
+   * about it and the button that has to advertise what is left.
+   */
+  const checkPlan = (wholeBoard = false) => {
+    const targets = !wholeBoard && selectedCells.size > 0 ? selectedCells : null;
+    const newly = answersACheckWouldRead(gridValues, targets, new Set(answersRead));
+    const allowance = checkAllowance(size);
+    return {
+      /** Answers this check would read that the player does not already have. */
+      cost: newly.length,
+      newly,
+      remaining: Math.max(0, allowance - answersRead.length),
+      /** Whether running it is what finally costs the unaided solve. */
+      spendsUnaided: conduct.current.unaided && answersRead.length + newly.length > allowance,
+      narrowed: targets !== null,
+    };
+  };
+
+  /**
+   * Marks the wrong values among the cells under examination.
+   *
+   * With cells selected it examines just those, so a player who wants one
+   * answer can pay for one answer; `wholeBoard` is the old blunt check, which
+   * on a full grid reads every answer at once and so costs the unaided solve.
+   * Either way it is charged for the answers it reads, and only going past the
+   * allowance costs the unaided solve.
+   */
+  const handleCheck = (wholeBoard = false) => {
     clearErrors();
-    console.log('Checking entire puzzle...');
+    const { newly, spendsUnaided } = checkPlan(wholeBoard);
+    const targets = !wholeBoard && selectedCells.size > 0 ? selectedCells : null;
+
     const errors = new Set<number>();
-
-    const filledCells = new Map<number, number>();
-
     for (let r = 0; r < size; r++) {
       for (let c = 0; c < size; c++) {
-        if (gridValues[r][c] !== '') {
-          const num = parseInt(gridValues[r][c], 10);
-          if (!isNaN(num) && num >= 1 && num <= size) {
-            filledCells.set(r * size + c, num);
-          } else {
-            errors.add(r * size + c);
-          }
-        }
+        if (targets && !targets.has(`${r}-${c}`)) continue;
+        if (gridValues[r][c] === '') continue;
+        if (parseInt(gridValues[r][c], 10) !== solution[r][c]) errors.add(r * size + c);
       }
     }
+    setErrorCells(errors);
 
-    // Check against solution
-    filledCells.forEach((value, cellIndex) => {
-      const r = Math.floor(cellIndex / size);
-      const c = cellIndex % size;
-      if (value !== solution[r][c]) {
-        errors.add(cellIndex);
-      }
-    });
-
-    if (errors.size > 0) {
-      console.log(`Found ${errors.size} errors in puzzle.`);
-      setErrorCells(errors);
-    } else {
-      console.log('No errors found in the puzzle!');
-    }
+    if (newly.length === 0) return;
+    if (spendsUnaided) markAided();
+    // The notify effect above carries the new conduct out; see its deps.
+    setAnswersRead([...answersRead, ...newly]);
   };
 
   /**
@@ -1226,8 +1229,8 @@ export const useArithmatrixGame = ({
     handleDirectNumberInput,
     handleArrowNavigation,
     handleCellClick,
-    handleCheckCell,
-    handleCheckPuzzle,
+    handleCheck,
+    checkPlan,
     handleAutofillSingles,
     handleFillAllCandidates,
     applyHintAction,

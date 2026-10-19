@@ -448,3 +448,40 @@ export const sameBoard = (
       return true;
     })
   );
+
+/**
+ * Identifies "this cell, holding this value, has had its answer confirmed".
+ *
+ * The value is part of the identity so that the record invalidates itself: any
+ * edit, undo or revert that changes the cell leaves the old token behind and
+ * the cell becomes unread again, with no need to hunt down every path that
+ * writes to the grid.
+ */
+export const answerToken = (row: number, col: number, value: string): string =>
+  `${row}-${col}=${value}`;
+
+/**
+ * The answers a check would read, as tokens to add to the already-read set.
+ *
+ * `targets` are the cells the check is narrowed to, or null for the whole
+ * board. Empty cells have no answer to read, and a cell whose current value is
+ * already in `alreadyRead` is re-reading an answer the player has, so neither
+ * is charged.
+ */
+export const answersACheckWouldRead = (
+  gridValues: string[][],
+  targets: ReadonlySet<string> | null,
+  alreadyRead: ReadonlySet<string>
+): string[] => {
+  const tokens: string[] = [];
+  gridValues.forEach((row, r) =>
+    row.forEach((value, c) => {
+      if (value === '') return;
+      if (targets && !targets.has(`${r}-${c}`)) return;
+      const token = answerToken(r, c, value);
+      if (alreadyRead.has(token)) return;
+      tokens.push(token);
+    })
+  );
+  return tokens;
+};

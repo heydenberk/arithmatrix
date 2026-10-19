@@ -559,7 +559,11 @@ function App() {
      * Conduct only actually changes twice in a puzzle's life.
      */
     setCurrentConduct(prev =>
-      prev.unaided === conduct.unaided && prev.clean === conduct.clean ? prev : conduct
+      prev.unaided === conduct.unaided &&
+      prev.clean === conduct.clean &&
+      (prev.answersRead?.length ?? 0) === (conduct.answersRead?.length ?? 0)
+        ? prev
+        : conduct
     );
     if (!puzzleDefinition || !solutionGrid) return;
 

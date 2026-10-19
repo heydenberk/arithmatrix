@@ -7,12 +7,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  SolverResult,
-  SolverStep,
-  TECHNIQUE_LABELS,
-  TechniqueId,
-} from '../utils/solver';
+import { SolverResult, SolverStep, TECHNIQUE_LABELS, TechniqueId } from '../utils/solver';
 
 export type SolverSpeed = 'step' | 'slow' | 'normal' | 'fast' | 'instant';
 
@@ -108,11 +103,14 @@ export function useSolverPlayback(
 
   const play = useCallback(
     (newSpeed?: Exclude<SolverSpeed, 'step' | 'instant'>) => {
-      const useSpeed: SolverSpeed = newSpeed ?? (speed === 'step' || speed === 'instant' ? 'normal' : speed);
+      const useSpeed: SolverSpeed =
+        newSpeed ?? (speed === 'step' || speed === 'instant' ? 'normal' : speed);
       if (newSpeed) setSpeed(newSpeed);
       stopInterval();
       setIsPlaying(true);
-      const interval = SPEED_INTERVAL_MS[useSpeed as Exclude<SolverSpeed, 'step' | 'instant'>] ?? SPEED_INTERVAL_MS.normal;
+      const interval =
+        SPEED_INTERVAL_MS[useSpeed as Exclude<SolverSpeed, 'step' | 'instant'>] ??
+        SPEED_INTERVAL_MS.normal;
       intervalRef.current = window.setInterval(() => {
         setStepIndex(i => {
           if (i >= totalSteps - 1) {

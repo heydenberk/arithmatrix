@@ -236,6 +236,32 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       else run();
     };
 
+    /*
+     * Checking is the one aid with an allowance, so it is guarded by what it
+     * would cost rather than by being a check at all. Inside the allowance it
+     * just runs; the warning is for the press that goes past it.
+     */
+    const checkPlan = gameState.checkPlan();
+    const runCheck =
+      (wholeBoard = false) =>
+      () => {
+        const plan = wholeBoard ? gameState.checkPlan(true) : checkPlan;
+        if (!plan.spendsUnaided) {
+          gameState.handleCheck(wholeBoard);
+          return;
+        }
+        const left =
+          plan.remaining === 0
+            ? 'none are left'
+            : `only ${plan.remaining} ${plan.remaining === 1 ? 'is' : 'are'} left`;
+        setPendingAid({
+          what: `Reading ${plan.cost} more ${
+            plan.cost === 1 ? 'answer' : 'answers'
+          } when ${left} in your checking allowance`,
+          run: () => gameState.handleCheck(wholeBoard),
+        });
+      };
+
     const requestHint = () => {
       if (hint) {
         // Already showing one - asking again means "tell me more"
@@ -600,11 +626,12 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
         onUndo={gameState.handleUndo}
         canRedo={gameState.redoStack.length > 0}
         onRedo={gameState.handleRedo}
-        onCheckCell={guardAid('check a cell', gameState.handleCheckCell)}
-        onCheckPuzzle={guardAid('check the puzzle', gameState.handleCheckPuzzle)}
+        onCheckPuzzle={runCheck()}
+        onCheckAll={runCheck(true)}
+        checkRemaining={gameState.isUnaided() ? checkPlan.remaining : null}
         onAutofillSingles={gameState.handleAutofillSingles}
         onFillAllCandidates={gameState.handleFillAllCandidates}
-        onHint={guardAid('take a hint', requestHint)}
+        onHint={guardAid('Taking a hint', requestHint)}
         hasCheckpoint={hasCheckpoint}
         canRevertToCheckpoint={canRevertToCheckpoint}
         onCreateCheckpoint={onCreateCheckpoint}
@@ -827,9 +854,9 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
       >
         <Stack gap="md">
           <Text size="sm">
-            You have solved this far without help. Choosing to {pendingAid?.what} gives that up for
-            this puzzle: the trophy dulls, the solve is left out of your solve-time chart, and it
-            finishes as Aided rather than earning the Unaided badge.
+            You have solved this far without help. {pendingAid?.what} gives that up for this puzzle:
+            the trophy dulls, the solve is left out of your solve-time chart, and it finishes as
+            Aided rather than earning the Unaided badge.
           </Text>
           <Group justify="flex-end" gap="sm">
             <Button variant="subtle" color="gray" radius="xl" onClick={() => setPendingAid(null)}>
@@ -894,7 +921,7 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onRedo={gameState.handleRedo}
             onAutofillSingles={gameState.handleAutofillSingles}
             onFillAllCandidates={gameState.handleFillAllCandidates}
-            onHint={guardAid('take a hint', requestHint)}
+            onHint={guardAid('Taking a hint', requestHint)}
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}

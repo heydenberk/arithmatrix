@@ -72,3 +72,19 @@ export const CSS_CLASSES = {
   GRADIENT_BACKGROUND: 'gradient-background',
   ANIMATE_PULSE: 'animate-pulse',
 } as const;
+
+/**
+ * How many answers the game may confirm for a player before the solve stops
+ * counting as unaided.
+ *
+ * Checking is priced in answers read rather than in button presses, because a
+ * press is worth whatever happens to be on the board when you make it: on an
+ * empty grid it tells you nothing, on a nearly full one it hands over forty
+ * answers at once. Counting presses would also leave a free oracle - press,
+ * see nothing go red, and a guess has been confirmed for no cost - so a right
+ * answer is charged the same as a wrong one.
+ *
+ * One row's worth is enough to get past the cell you are stuck on and nowhere
+ * near enough to be dictated the puzzle.
+ */
+export const checkAllowance = (size: number): number => size;
