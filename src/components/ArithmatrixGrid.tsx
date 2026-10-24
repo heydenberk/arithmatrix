@@ -921,7 +921,6 @@ const ArithmatrixGrid = forwardRef<ArithmatrixGridHandle, ArithmatrixGridProps>(
             onRedo={gameState.handleRedo}
             onAutofillSingles={gameState.handleAutofillSingles}
             onFillAllCandidates={gameState.handleFillAllCandidates}
-            onHint={guardAid('Taking a hint', requestHint)}
             canUndo={gameState.history.length > 0}
             canRedo={gameState.redoStack.length > 0}
             hasCheckpoint={hasCheckpoint}

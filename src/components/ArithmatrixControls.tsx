@@ -135,20 +135,38 @@ const ArithmatrixControls: React.FC<ArithmatrixControlsProps> = ({
         }}
       >
         <Group justify="space-between" gap={8} wrap="nowrap" w="100%">
-          {/* Left: Check */}
-          <Box style={{ position: 'relative' }}>
-            <ActionIcon
-              {...checkLongPress}
-              aria-label="Check the selected cells; hold to check the whole board"
-              size={buttonSize}
-              radius="xl"
-              variant="light"
-              color="green"
-            >
-              <IconCheck size={iconSize} />
-            </ActionIcon>
-            <AllowanceBadge remaining={checkRemaining} />
-          </Box>
+          {/* Left: the two aids, Check and Hint. Both are the app answering a
+              question the board does not, both are guarded by the same
+              warning, and both belong where they can be weighed against the
+              allowance badge rather than among the editing controls. */}
+          <Group gap={6} wrap="nowrap">
+            <Box style={{ position: 'relative' }}>
+              <ActionIcon
+                {...checkLongPress}
+                aria-label="Check the selected cells; hold to check the whole board"
+                size={buttonSize}
+                radius="xl"
+                variant="light"
+                color="green"
+              >
+                <IconCheck size={iconSize} />
+              </ActionIcon>
+              <AllowanceBadge remaining={checkRemaining} />
+            </Box>
+
+            {onHint && (
+              <ActionIcon
+                onClick={handleButtonPress(onHint)}
+                size={buttonSize}
+                radius="xl"
+                variant="light"
+                color="orange"
+                aria-label="Hint"
+              >
+                <IconBulbFilled size={iconSize} />
+              </ActionIcon>
+            )}
+          </Group>
 
           {/* Center: Timer, with what you are playing under it. Desktop says
               this in the status badge, which mobile has no room for, so the

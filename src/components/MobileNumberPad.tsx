@@ -14,7 +14,6 @@ import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconBoltFilled,
-  IconBulbFilled,
   IconDotsVertical,
   IconTrash,
   IconDownload,
@@ -42,8 +41,6 @@ interface MobileNumberPadProps {
   onAutofillSingles?: () => void;
   /** Long-press the zap: pencil in every candidate for unmarked cells. */
   onFillAllCandidates?: () => void;
-  /** Asks for the next hint. */
-  onHint?: () => void;
   canUndo: boolean;
   canRedo: boolean;
   hasCheckpoint?: boolean;
@@ -60,8 +57,8 @@ interface MobileNumberPadProps {
 const PAD_PADDING = 12;
 /** Gap between controls, inside the paired groups and between them alike. */
 const CONTROL_GAP = 4;
-/** undo, redo, pencil, hint, zap, checkpoint, revert, erase, more. */
-const CONTROL_COUNT = 9;
+/** undo, redo, pencil, zap, checkpoint, revert, erase, more. */
+const CONTROL_COUNT = 8;
 
 const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   gridSize,
@@ -73,7 +70,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
   onRedo,
   onAutofillSingles,
   onFillAllCandidates,
-  onHint,
   canUndo,
   canRedo,
   hasCheckpoint,
@@ -204,20 +200,6 @@ const MobileNumberPad: React.FC<MobileNumberPadProps> = ({
             />
           )}
         </Box>
-
-        {/* Hint */}
-        {onHint && (
-          <ActionIcon
-            onClick={() => handleButtonPress(onHint)}
-            size={buttonSize}
-            radius="xl"
-            variant="light"
-            color="orange"
-            aria-label="Hint"
-          >
-            <IconBulbFilled size={iconSize} />
-          </ActionIcon>
-        )}
 
         {/* Center-right: Zap. Tap autofills singles, hold pencils in candidates. */}
         {onAutofillSingles && (
