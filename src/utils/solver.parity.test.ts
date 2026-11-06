@@ -56,18 +56,32 @@ describe('score mode against trace mode', () => {
     }
   });
 
-  it('produces no steps, so the trace cannot be what is paid for', () => {
-    // scorePuzzle exposes no steps; this checks the mode really is wired
-    // through by comparing wall time on the biggest fixture
-    const big = FIXTURES.filter(f => f.size === 7).slice(0, 3);
-    for (const f of big) {
+  it('builds no steps in score mode, which is what makes it cheaper', () => {
+    /*
+     * scorePuzzle returns no steps whatever happens, so its own result cannot
+     * say whether the trace was skipped or built and thrown away. Going in
+     * through solveWithTrace with the same mode does: it hands back the raw
+     * solver result, where an empty trace beside a full set of counts is the
+     * snapshots not being taken.
+     *
+     * This used to be timed instead, with one run of each mode and 5ms of
+     * slack. Score mode really does run at about 0.6-0.7 of the traced time,
+     * but at a few milliseconds a puzzle that gap sits inside the noise: the
+     * test failed on CI with 40ms against 21ms on work that had not changed,
+     * and a margin wide enough to stop that would also have passed a full
+     * regression to tracing.
+     */
+    for (const f of FIXTURES.filter(f => f.size === 7).slice(0, 3)) {
       const puzzle = definitionOf(recordAt(f.index));
-      const t0 = performance.now();
-      solveWithTrace(puzzle);
-      const t1 = performance.now();
-      scorePuzzle(puzzle);
-      const t2 = performance.now();
-      expect(t2 - t1).toBeLessThanOrEqual(t1 - t0 + 5);
+      const traced = solveWithTrace(puzzle);
+      const scored = solveWithTrace(puzzle, { mode: 'score' });
+
+      expect(traced.steps.length, `traced steps for record ${f.index}`).toBeGreaterThan(0);
+      expect(scored.steps, `score-mode steps for record ${f.index}`).toEqual([]);
+      // The deductions still happened; only the record of them was skipped.
+      expect(scored.techniqueCounts, `counts for record ${f.index}`).toEqual(
+        traced.techniqueCounts
+      );
     }
   });
 });
