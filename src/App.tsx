@@ -68,7 +68,9 @@ import {
   mostRecentSavedGame,
   hasAnyProgress,
   deserializePencilMarks,
+  serializePencilMarks,
   SavedGame,
+  SavedCheckpoint,
 } from './utils/gameStatePersistence';
 
 // Define the structure of a cage and the puzzle definition
@@ -281,6 +283,20 @@ function App() {
   const [checkpointGridValues, setCheckpointGridValues] = useState<string[][] | null>(null);
   const [checkpointPencilMarks, setCheckpointPencilMarks] = useState<Set<string>[][] | null>(null);
   const [hasCheckpoint, setHasCheckpoint] = useState<boolean>(false);
+  /*
+   * The same checkpoint in serialized form, for the saver to write out.
+   * A ref because a checkpoint can be set without the board changing, so the
+   * save that carries it is not the one the grid triggers on the next move.
+   */
+  const checkpointRef = useRef<SavedCheckpoint | null>(null);
+
+  /** Puts a checkpoint on the board, or clears it. Does not persist. */
+  const applyCheckpoint = useCallback((checkpoint: SavedCheckpoint | undefined) => {
+    checkpointRef.current = checkpoint ?? null;
+    setCheckpointGridValues(checkpoint ? checkpoint.gridValues.map(row => [...row]) : null);
+    setCheckpointPencilMarks(checkpoint ? deserializePencilMarks(checkpoint.pencilMarks) : null);
+    setHasCheckpoint(checkpoint !== undefined);
+  }, []);
 
   // Ref for ArithmatrixGrid component
   const arithmatrixGridRef = useRef<ArithmatrixGridHandle>(null);
@@ -398,9 +414,7 @@ function App() {
       setInitialPencilMarks(undefined);
       setInitialConduct(undefined);
       setCurrentConduct({ unaided: true, clean: true });
-      setCheckpointGridValues(null);
-      setCheckpointPencilMarks(null);
-      setHasCheckpoint(false);
+      applyCheckpoint(undefined);
       console.log(`Fetching puzzle: Size ${puzzleSize}, Difficulty ${difficulty}...`); // Updated log
 
       try {
@@ -464,7 +478,7 @@ function App() {
     } else {
       console.log('⏭️ Skipping game state reset - loading from saved state');
     }
-  }, [puzzleSize, difficulty, operationsTier]);
+  }, [puzzleSize, difficulty, operationsTier, applyCheckpoint]);
 
   // Effect to handle browser back/forward navigation only
   useEffect(() => {
@@ -597,7 +611,8 @@ function App() {
         completionTimeRef.current,
         gameStartTime,
         currentPuzzleIndex,
-        conduct
+        conduct,
+        checkpointRef.current ?? undefined
       );
     } else {
       // Board cleared back to empty - it is no longer a game in progress
@@ -622,9 +637,7 @@ function App() {
     setShowWinModal(false);
     setLastAchievement(null);
     // Clear checkpoint when resetting
-    setCheckpointGridValues(null);
-    setCheckpointPencilMarks(null);
-    setHasCheckpoint(false);
+    applyCheckpoint(undefined);
     // Clear this puzzle's saved progress; other games in progress are untouched
     if (puzzleDefinition) deleteGameForPuzzle(puzzleDefinition);
     console.log('Puzzle reset');
@@ -635,97 +648,101 @@ function App() {
    * and its accumulated time. Used both on startup and when resuming a paused
    * puzzle from the gallery.
    */
-  const restoreSavedGame = useCallback((saved: SavedGame) => {
-    setPuzzleDefinition(saved.puzzleDefinition);
-    setSolutionGrid(saved.solutionGrid);
-    setCurrentPuzzleIndex(saved.puzzleIndex);
+  const restoreSavedGame = useCallback(
+    (saved: SavedGame) => {
+      setPuzzleDefinition(saved.puzzleDefinition);
+      setSolutionGrid(saved.solutionGrid);
+      setCurrentPuzzleIndex(saved.puzzleIndex);
 
-    setPuzzleSize(saved.puzzleSettings.size);
-    setDifficulty(saved.puzzleSettings.difficulty);
-    setOperationsTier(saved.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
-    updateURL(
-      saved.puzzleSettings.size,
-      saved.puzzleSettings.difficulty,
-      saved.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER,
-      saved.puzzleIndex
-    );
+      setPuzzleSize(saved.puzzleSettings.size);
+      setDifficulty(saved.puzzleSettings.difficulty);
+      setOperationsTier(saved.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER);
+      updateURL(
+        saved.puzzleSettings.size,
+        saved.puzzleSettings.difficulty,
+        saved.puzzleSettings.operationsTier || DEFAULT_OPERATION_TIER,
+        saved.puzzleIndex
+      );
 
-    setInitialGridValues(saved.gridValues);
-    setInitialPencilMarks(deserializePencilMarks(saved.pencilMarks));
-    setInitialConduct(saved.conduct);
-    setCurrentConduct(saved.conduct ?? { unaided: true, clean: true });
-    setCheckpointGridValues(null);
-    setCheckpointPencilMarks(null);
-    setHasCheckpoint(false);
+      setInitialGridValues(saved.gridValues);
+      setInitialPencilMarks(deserializePencilMarks(saved.pencilMarks));
+      setInitialConduct(saved.conduct);
+      setCurrentConduct(saved.conduct ?? { unaided: true, clean: true });
+      applyCheckpoint(saved.checkpoint);
 
-    // Resume the clock where it stopped
-    setGameStartTime(new Date(saved.startedAt));
-    setCurrentCompletionTime(saved.elapsedTime);
-    completionTimeRef.current = saved.elapsedTime;
-    setIsTimerRunning(true);
-    setIsGameWon(false);
-    setShowWinModal(false);
-  }, []);
+      // Resume the clock where it stopped
+      setGameStartTime(new Date(saved.startedAt));
+      setCurrentCompletionTime(saved.elapsedTime);
+      completionTimeRef.current = saved.elapsedTime;
+      setIsTimerRunning(true);
+      setIsGameWon(false);
+      setShowWinModal(false);
+    },
+    [applyCheckpoint]
+  );
 
   /**
    * Loads one specific puzzle, identified by its line index in the puzzle
    * database, rather than a random one from the current size/difficulty
    * bucket. Shared by the puzzle gallery and the dev panel.
    */
-  const loadPuzzleRecord = useCallback((record: RawPuzzleRecord, index: number) => {
-    // Selecting a puzzle you already started resumes it rather than wiping it.
-    const inProgress = loadGameForPuzzle({
-      size: record.puzzle.size,
-      cages: record.puzzle.cages,
-      difficulty_operations: record.puzzle.difficulty_operations,
-    });
+  const loadPuzzleRecord = useCallback(
+    (record: RawPuzzleRecord, index: number) => {
+      // Selecting a puzzle you already started resumes it rather than wiping it.
+      const inProgress = loadGameForPuzzle({
+        size: record.puzzle.size,
+        cages: record.puzzle.cages,
+        difficulty_operations: record.puzzle.difficulty_operations,
+      });
 
-    setCurrentPuzzleIndex(index);
-    // Tell the loadPuzzle effect to skip the random-from-bucket
-    // fetch — we're pinning a specific puzzle here.
-    suppressNextPuzzleLoadRef.current = true;
-    // Clear saved-state interception so future state changes proceed normally.
-    hasLoadedSavedStateRef.current = false;
-    latestGridValuesRef.current = null;
-    latestPencilMarksRef.current = null;
+      setCurrentPuzzleIndex(index);
+      // Tell the loadPuzzle effect to skip the random-from-bucket
+      // fetch — we're pinning a specific puzzle here.
+      suppressNextPuzzleLoadRef.current = true;
+      // Clear saved-state interception so future state changes proceed normally.
+      hasLoadedSavedStateRef.current = false;
+      latestGridValuesRef.current = null;
+      latestPencilMarksRef.current = null;
 
-    const newSize = record.puzzle.size;
-    const newDifficulty = record.metadata.actual_difficulty;
-    const newOps = record.metadata.operations_tier ?? DEFAULT_OPERATION_TIER;
+      const newSize = record.puzzle.size;
+      const newDifficulty = record.metadata.actual_difficulty;
+      const newOps = record.metadata.operations_tier ?? DEFAULT_OPERATION_TIER;
 
-    // Status bar / URL — keep them in sync with the loaded puzzle. The index
-    // goes into the URL too, so the exact puzzle survives a reload or a share.
-    setPuzzleSize(newSize);
-    setDifficulty(newDifficulty);
-    setOperationsTier(newOps);
-    updateURL(newSize, newDifficulty, newOps, index);
+      // Status bar / URL — keep them in sync with the loaded puzzle. The index
+      // goes into the URL too, so the exact puzzle survives a reload or a share.
+      setPuzzleSize(newSize);
+      setDifficulty(newDifficulty);
+      setOperationsTier(newOps);
+      updateURL(newSize, newDifficulty, newOps, index);
 
-    // Puzzle data
-    setPuzzleDefinition({
-      size: record.puzzle.size,
-      cages: record.puzzle.cages,
-      difficulty_operations: record.puzzle.difficulty_operations,
-    });
-    setSolutionGrid(record.puzzle.solution);
-    setInitialGridValues(inProgress?.gridValues);
-    setInitialPencilMarks(inProgress ? deserializePencilMarks(inProgress.pencilMarks) : undefined);
-    setInitialConduct(inProgress?.conduct);
-    setCurrentConduct(inProgress?.conduct ?? { unaided: true, clean: true });
+      // Puzzle data
+      setPuzzleDefinition({
+        size: record.puzzle.size,
+        cages: record.puzzle.cages,
+        difficulty_operations: record.puzzle.difficulty_operations,
+      });
+      setSolutionGrid(record.puzzle.solution);
+      setInitialGridValues(inProgress?.gridValues);
+      setInitialPencilMarks(
+        inProgress ? deserializePencilMarks(inProgress.pencilMarks) : undefined
+      );
+      setInitialConduct(inProgress?.conduct);
+      setCurrentConduct(inProgress?.conduct ?? { unaided: true, clean: true });
 
-    // Game state: pick up where a paused puzzle left off, else start clean
-    setIsGameWon(false);
-    setShowWinModal(false);
-    setCurrentCompletionTime(inProgress?.elapsedTime ?? 0);
-    completionTimeRef.current = inProgress?.elapsedTime ?? 0;
-    setCheckpointGridValues(null);
-    setCheckpointPencilMarks(null);
-    setHasCheckpoint(false);
-    setLastAchievement(null);
-    setGameStartTime(inProgress ? new Date(inProgress.startedAt) : new Date());
-    setIsTimerRunning(true);
-    // Force the grid to remount so it picks up the new puzzle cleanly.
-    setResetKey(prev => prev + 1);
-  }, []);
+      // Game state: pick up where a paused puzzle left off, else start clean
+      setIsGameWon(false);
+      setShowWinModal(false);
+      setCurrentCompletionTime(inProgress?.elapsedTime ?? 0);
+      completionTimeRef.current = inProgress?.elapsedTime ?? 0;
+      applyCheckpoint(inProgress?.checkpoint);
+      setLastAchievement(null);
+      setGameStartTime(inProgress ? new Date(inProgress.startedAt) : new Date());
+      setIsTimerRunning(true);
+      // Force the grid to remount so it picks up the new puzzle cleanly.
+      setResetKey(prev => prev + 1);
+    },
+    [applyCheckpoint]
+  );
 
   // Handler for creating/updating checkpoint (always sets, even if one exists)
   const handleCreateCheckpoint = () => {
@@ -737,9 +754,8 @@ function App() {
 
   // Handler for clearing the checkpoint
   const handleClearCheckpoint = () => {
-    setCheckpointGridValues(null);
-    setCheckpointPencilMarks(null);
-    setHasCheckpoint(false);
+    applyCheckpoint(undefined);
+    persistCheckpoint();
     console.log('Checkpoint cleared');
   };
 
@@ -757,11 +773,39 @@ function App() {
     }
   };
 
+  /*
+   * Writes the game out with whatever checkpoint is currently set.
+   *
+   * Setting or clearing a checkpoint changes nothing on the board, so it does
+   * not go through the grid's state-change handler and would otherwise sit in
+   * memory until the next move happened to save it - or be lost if none did.
+   */
+  const persistCheckpoint = () => {
+    if (!puzzleDefinition || !solutionGrid) return;
+    const gridValues = latestGridValuesRef.current;
+    const pencilMarks = latestPencilMarksRef.current;
+    if (!gridValues || !pencilMarks) return;
+    saveGame(
+      puzzleDefinition,
+      solutionGrid,
+      gridValues,
+      pencilMarks,
+      { size: puzzleSize, difficulty, operationsTier },
+      completionTimeRef.current,
+      gameStartTime,
+      currentPuzzleIndex,
+      currentConduct,
+      checkpointRef.current ?? undefined
+    );
+  };
+
   // Function to save checkpoint data (to be called by ArithmatrixGrid)
   const saveCheckpoint = (gridValues: string[][], pencilMarks: Set<string>[][]) => {
-    setCheckpointGridValues(gridValues.map(row => [...row])); // Deep copy
-    setCheckpointPencilMarks(pencilMarks.map(row => row.map(cell => new Set(cell)))); // Deep copy
-    setHasCheckpoint(true);
+    applyCheckpoint({
+      gridValues: gridValues.map(row => [...row]),
+      pencilMarks: serializePencilMarks(pencilMarks),
+    });
+    persistCheckpoint();
     console.log('Checkpoint saved');
   };
 

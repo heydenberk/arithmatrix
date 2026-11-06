@@ -405,3 +405,58 @@ describe('progress predicates', () => {
     ).toBe(false);
   });
 });
+
+describe('the checkpoint', () => {
+  const saveWithCheckpoint = (checkpoint?: { gridValues: string[][]; pencilMarks: string[][] }) =>
+    saveGame(
+      PUZZLE_A,
+      [
+        [1, 2],
+        [2, 1],
+      ],
+      [
+        ['1', ''],
+        ['', ''],
+      ],
+      emptyMarks(2),
+      { size: 2, difficulty: 'easy', operationsTier: 'all' },
+      30,
+      new Date('2026-01-01T00:00:00Z'),
+      1,
+      undefined,
+      checkpoint
+    );
+
+  it('comes back with the game, which is the whole point of setting one', () => {
+    saveWithCheckpoint({
+      gridValues: [
+        ['1', ''],
+        ['', '2'],
+      ],
+      pencilMarks: [
+        ['2,3', ''],
+        ['', ''],
+      ],
+    });
+    const loaded = loadGameForPuzzle(PUZZLE_A);
+    expect(loaded?.checkpoint?.gridValues).toEqual([
+      ['1', ''],
+      ['', '2'],
+    ]);
+    expect(deserializePencilMarks(loaded!.checkpoint!.pencilMarks)[0][0]).toEqual(
+      new Set(['2', '3'])
+    );
+  });
+
+  it('is absent when none is set, rather than an empty board', () => {
+    saveWithCheckpoint();
+    expect(loadGameForPuzzle(PUZZLE_A)?.checkpoint).toBeUndefined();
+  });
+
+  it('is dropped by a save that no longer carries one', () => {
+    saveWithCheckpoint({ gridValues: [['1', '']], pencilMarks: [['', '']] });
+    expect(loadGameForPuzzle(PUZZLE_A)?.checkpoint).toBeDefined();
+    saveWithCheckpoint();
+    expect(loadGameForPuzzle(PUZZLE_A)?.checkpoint).toBeUndefined();
+  });
+});

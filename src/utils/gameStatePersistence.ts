@@ -14,6 +14,16 @@ import type { GameConduct } from './achievements';
 import { PuzzleDefinition } from '../types/ArithmatrixTypes';
 import { canonicalCagesSig } from './puzzleCatalog';
 
+/**
+ * A board the player marked to come back to, stored the same way the live
+ * board is so it survives a reload. It is only a position, not history: what
+ * reverting does with it is the grid's business.
+ */
+export type SavedCheckpoint = {
+  gridValues: string[][];
+  pencilMarks: string[][];
+};
+
 /** One puzzle in progress. Pencil marks are serialized for JSON. */
 export type SavedGame = {
   /** Canonical cage signature - the key */
@@ -36,6 +46,12 @@ export type SavedGame = {
    * unaided record to somebody who has been leaning on the hint button.
    */
   conduct?: GameConduct;
+  /**
+   * The checkpoint, if one is set. It used to live only in memory, so closing
+   * the app lost the one thing a player had deliberately asked it to keep -
+   * the board itself came back, but the position they had flagged did not.
+   */
+  checkpoint?: SavedCheckpoint;
   /** ISO strings; JSON has no date type */
   startedAt: string;
   savedAt: string;
@@ -145,7 +161,8 @@ export const saveGame = (
   elapsedTime: number,
   startedAt?: Date,
   puzzleIndex?: number | null,
-  conduct?: GameConduct
+  conduct?: GameConduct,
+  checkpoint?: SavedCheckpoint
 ): void => {
   const cagesSig = canonicalCagesSig(puzzleDefinition.cages);
   const games = readAll();
@@ -155,13 +172,14 @@ export const saveGame = (
     puzzleDefinition,
     solutionGrid,
     gridValues,
-    pencilMarks: pencilMarks.map(row => row.map(cellSet => Array.from(cellSet).join(','))),
+    pencilMarks: serializePencilMarks(pencilMarks),
     puzzleSettings,
     elapsedTime,
     // Keep the original start time across saves
     startedAt: (startedAt ?? new Date()).toISOString(),
     savedAt: new Date().toISOString(),
     conduct,
+    checkpoint,
   };
   writeAll(games);
 };
@@ -217,6 +235,10 @@ export const savedGameSummaries = (): Map<string, SavedGameSummary> => {
   }
   return summaries;
 };
+
+/** Flattens pencil marks to one comma-joined string per cell, for JSON. */
+export const serializePencilMarks = (pencilMarks: Set<string>[][]): string[][] =>
+  pencilMarks.map(row => row.map(cellSet => Array.from(cellSet).join(',')));
 
 /** Converts serialized pencil marks back to Set[][] format. */
 export const deserializePencilMarks = (serializedPencilMarks: string[][]): Set<string>[][] =>
